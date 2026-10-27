@@ -239,12 +239,42 @@ fn run() -> Result<()> {
             json!({"label": label, "action": ["matsuri", label], "score": mean, "se": se, "n": n})
         })
         .collect();
+    // 即时收益（报文实测）：与隔壁 AI 的“净收益”同口径。
+    // 「这一下点哪个」以实测为准；MCTS 只负责未来推演，避免模型失真盖过真实数据。
+    const NAMES5: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
+    const W5: [f64; 5] = [1.25, 0.90, 1.00, 0.85, 1.10];
+    let mut live: Vec<(String, f64)> = Vec::new();
+    if let Some(cmds) = v.get("commands").and_then(|x| x.as_array()) {
+        for c in cmds {
+            if !c.get("enable").and_then(|x| x.as_bool()).unwrap_or(true) {
+                continue;
+            }
+            let Some(name) = c.get("train").and_then(|x| x.as_str()) else { continue };
+            let gains = c.get("stat_gains").and_then(|g| g.as_object());
+            let mut val = 0.0;
+            for (i, nm) in NAMES5.iter().enumerate() {
+                let g = gains
+                    .and_then(|m| m.get(*nm))
+                    .and_then(|x| x.as_f64())
+                    .unwrap_or(0.0);
+                val += g * W5[i];
+            }
+            let pt = c.get("skill_point").and_then(|x| x.as_f64()).unwrap_or(0.0);
+            let vital = c.get("vital_delta").and_then(|x| x.as_f64()).unwrap_or(0.0);
+            let fail = c.get("failure_rate").and_then(|x| x.as_f64()).unwrap_or(0.0);
+            val += pt * 2.46 + vital * 0.35 - fail * 0.8;
+            live.push((format!("训练 {name}"), val));
+        }
+        live.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    }
+
     let result = json!({
         "turn": turn,
         "ok": true,
         "engine": "umaai-matsuri-official",
         "deck_fallback": deck_fallback,
         "ranked": ranked,
+        "live": live.iter().map(|(l, sc)| json!({"label": l, "score": sc})).collect::<Vec<_>>(),
         "rollouts": out.action_results.iter().map(|a| a.count()).sum::<u32>()
     });
     std::fs::write(&result_path, serde_json::to_string(&result)?)?;
