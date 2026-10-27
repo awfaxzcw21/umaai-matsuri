@@ -93,10 +93,6 @@ impl Game for MatsuriGame {
             }
         }
         actions.extend((0..5u8).map(Action::Train));
-        // 友人出行：官方口径「全剧本 5 次」，用完即止
-        if self.turn >= 21 && self.turn <= 60 && self.outing_count < 5 {
-            actions.push(Action::Outing);
-        }
         actions.push(Action::Rest);
         Ok(actions)
     }
