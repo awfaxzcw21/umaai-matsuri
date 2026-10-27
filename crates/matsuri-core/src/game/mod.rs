@@ -70,6 +70,8 @@ pub struct MatsuriGame {
     pub advice_level: [i32; 5],
     /// 発表会累计的永久收益加成（0.2 = +20%）
     pub gain_pct: f64,
+    /// 已用友人出行次数（官方：全剧本约 5 次）
+    pub outing_count: i32,
 }
 
 impl Deref for MatsuriGame {
@@ -110,6 +112,7 @@ impl MatsuriGame {
             advice_id: [0; 5],
             advice_level: [1; 5],
             gain_pct: 0.0,
+            outing_count: 0,
             persons: Vec::new(),
             stage: Stage::Begin,
             strategy: None,
@@ -142,6 +145,7 @@ impl MatsuriGame {
         uma.vital = (uma.vital + 51).min(uma.max_vital);
         let idx = rng.random_range(0..5usize);
         self.act_level[idx] = (self.act_level[idx] + 1).min(10);
+        self.outing_count += 1;
         Ok(())
     }
 
