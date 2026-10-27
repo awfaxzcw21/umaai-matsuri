@@ -71,7 +71,8 @@ fn run() -> Result<()> {
             if let Some(id) = c.get("card_id").and_then(|x| x.as_i64()) {
                 let id = id as u32;
                 let mut rank = c
-                    .get("limit")
+                    .get("limit_break")
+                    .or_else(|| c.get("limit"))
                     .and_then(|x| x.as_i64())
                     .unwrap_or(4)
                     .clamp(0, 4) as u32;
@@ -120,6 +121,7 @@ fn run() -> Result<()> {
             }
         }
         if real.len() >= 5 {
+            game.base.card_type_count = [0; 7];
             for c in &real {
                 game.base.card_type_count[(c.card_type.clamp(0, 6)) as usize] += 1;
             }
@@ -130,11 +132,39 @@ fn run() -> Result<()> {
         } else {
             deck_fallback = true;
         }
+    // 用报文里的人和站位/羁绊校准模型，否则 MCTS 看不见友情/提示（会得出与实测相反的结论）
+    {
+        const TRAINS: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
+        let bonds = v.get("bonds").and_then(|b| b.as_object());
+        if let Some(cmds) = v.get("commands").and_then(|x| x.as_array()) {
+            for c in cmds {
+                let Some(name) = c.get("train").and_then(|x| x.as_str()) else { continue };
+                let Some(idx) = TRAINS.iter().position(|t| *t == name) else { continue };
+                if let Some(ids) = c.get("partner_ids").and_then(|x| x.as_array()) {
+                    for id in ids {
+                        let Some(idv) = id.as_i64() else { continue };
+                        for p in game.persons.iter_mut() {
+                            if p.chara_id as i64 == idv {
+                                p.train_type = idx as i32;
+                                if let Some(bs) = bonds {
+                                    if let Some(f) = bs.get(&idv.to_string()).and_then(|x| x.as_i64()) {
+                                        p.friendship = f as i32;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     }
 
     // ---- 用面板状态覆盖局面 ----
     let turn = v.get("turn").and_then(|x| x.as_i64()).unwrap_or(0) as i32;
-    game.base.turn = turn.clamp(0, 77);
+    // 面板 turn 是 1 基（chara_info.turn），引擎是 0 基
+    let panel_turn = turn;
+    game.base.turn = (turn - 1).clamp(0, 77);
     let uma = game.base.uma.clone();
     let stats: HashMap<String, i64> = v
         .get("stats")
@@ -170,9 +200,26 @@ fn run() -> Result<()> {
                 let i = (at - 1) as usize;
                 game.act_level[i] = a.get("level").and_then(|x| x.as_i64()).unwrap_or(1) as i32;
                 game.act_gauge[i] = a.get("gauge").and_then(|x| x.as_i64()).unwrap_or(0) as i32;
+                // 教え：报文里带 advice_id 就回填，否则保持 0
+                if let Some(aid) = a.get("advice_id").and_then(|x| x.as_i64()) {
+                    game.advice_id[i] = aid as i32;
+                    game.advice_level[i] = game.act_level[i].clamp(1, 10);
+                }
             }
         }
     }
+
+    // 人头分布（count_training_persons 依赖它，空 vec 会按 0 人结算）
+    game.base.distribution = (0..5usize)
+        .map(|t| {
+            game.persons
+                .iter()
+                .enumerate()
+                .filter(|(_, p)| p.train_type == t as i32)
+                .map(|(i, _)| i as i32)
+                .collect::<Vec<i32>>()
+        })
+        .collect();
 
     let actions = game.list_actions()?;
     let mut cfg_search = SearchConfig::default();
@@ -203,7 +250,7 @@ fn run() -> Result<()> {
             (label_of(a), mean, se, n)
         })
         .collect();
-    rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     // 発表会兜底（S2 排程规则）：临近检查点且演目未达标时，
     // 优先推「最接近达标」的那个演目的训练/稽古（不是改搜索，只是候选排序约束）
     let mut rows = rows;

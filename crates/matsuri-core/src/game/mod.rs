@@ -186,7 +186,8 @@ impl MatsuriGame {
         let roll = rand::Rng::random::<f32>(&mut _rng) * 100.0;
         let failed = roll < fail_rate;
         // 教え + 発表会加成
-        let (mult, vital_delta) = self.advice_mods(train);
+        let (mult, vital_delta, vital_pct) = self.advice_mods(train);
+        let vital_delta = vital_delta + (value.vital as f64 * vital_pct / 100.0) as i32;
         let vs = &self.data.value_scale;
         let scaled = ActionValue {
             status_pt: [
@@ -219,14 +220,15 @@ impl MatsuriGame {
     }
 
     /// 某个演目上的教え修正：(收益倍率, 体力增减)
-    fn advice_mods(&self, act: usize) -> (f64, i32) {
+    fn advice_mods(&self, act: usize) -> (f64, i32, f64) {
         let aid = self.advice_id.get(act).copied().unwrap_or(0);
         if aid <= 0 {
-            return (1.0, 0);
+            return (1.0, 0, 0.0);
         }
         let level = self.advice_level.get(act).copied().unwrap_or(1).clamp(1, 10);
         let mut gain = 0.0;
         let mut vital = 0;
+        let mut vital_pct = 0.0;
         for e in self
             .data
             .advice_effects
@@ -235,11 +237,11 @@ impl MatsuriGame {
         {
             match e.effect_type {
                 13 | 21 | 202 | 203 => gain += e.value as f64 / 100.0,
-                3 => vital += e.value,
+                3 => vital_pct += e.value as f64,
                 _ => {}
             }
         }
-        (1.0 + gain + self.gain_pct, vital)
+        (1.0 + gain + self.gain_pct, vital, vital_pct)
     }
 
     /// 演目稽古：演目等级高 = 基础值按等级档 + 等级效果（官方 intake 3.2/3.3）
@@ -298,7 +300,8 @@ impl MatsuriGame {
             .unwrap_or(0.0);
         let roll = rand::Rng::random::<f32>(&mut _rng) * 100.0;
         let failed = roll < fail_rate;
-        let (mult, vital_delta) = self.advice_mods(idx);
+        let (mult, vital_delta, vital_pct) = self.advice_mods(idx);
+        let vital_delta = vital_delta + (value.vital as f64 * vital_pct / 100.0) as i32;
         let vs = &self.data.value_scale;
         let scaled = ActionValue {
             status_pt: [
@@ -329,8 +332,10 @@ impl MatsuriGame {
                 *s += effect.base_limit;
             }
         }
-        self.act_gauge[idx] = 0;
-        self.act_level[idx] = (self.act_level[idx] + 1).min(10);
+        if !failed {
+            self.act_gauge[idx] = 0;
+            self.act_level[idx] = (self.act_level[idx] + 1).min(10);
+        }
         Ok(())
     }
 
@@ -421,7 +426,8 @@ impl MatsuriGame {
                 // 终局：把剩余 PT 折算成已购技能评分（约 2.46/PT，上限按真实提示池曲线）
                 if self.turn >= self.max_turn() {
                     let pt = self.base.uma.skill_pt as f64;
-                    let curve = 45000.0_f64.min(pt * 2.46);
+                    // 引擎 score_parts 已计 pt_score_rate(2.0)，补 0.46 到官方 2.46/点
+                    let curve = 45000.0_f64.min(pt * 0.46);
                     self.base.uma.skill_score = curve as i32;
                 }
             }

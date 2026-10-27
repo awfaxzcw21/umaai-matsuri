@@ -68,7 +68,7 @@ def main():
         "cardName": "[友]吾妻",
         "fullName": "【いとどめでたき、まつりかな】吾妻",
         "rarity": 3,
-        "cardType": 2,
+        "cardType": 5,
         "cardValue": [card_value(r) for r in range(5)],
         "uniqueEffectType": 1,
         "uniqueEffectSummary": "羁绊条件值 60；速度加成 +1；耐力加成 +1",
