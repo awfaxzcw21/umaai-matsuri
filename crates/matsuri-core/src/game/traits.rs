@@ -91,7 +91,7 @@ impl Game for MatsuriGame {
         actions.extend((0..5u8).map(Action::Train));
         // 友人出行：第一/二年、全剧本约 5 次、体力未满 90% 才值得去
         let vital_ratio = self.uma().vital as f64 / self.uma().max_vital.max(1) as f64;
-        if self.turn >= 21 && self.turn <= 60 && self.outing_count < 5 && vital_ratio < 0.90 {
+        if self.turn >= 21 && self.turn <= 60 && self.outing_count < 5 && vital_ratio < 0.70 {
             actions.push(Action::Outing);
         }
         actions.push(Action::Rest);
