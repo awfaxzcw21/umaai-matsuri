@@ -17,6 +17,8 @@ pub enum Action {
     Train(u8),
     /// 演目稽古（演目下标 0-4）
     Keiko(u8),
+    /// 友人出行
+    Outing,
     /// 休息
     Rest,
 }
@@ -26,6 +28,7 @@ impl Display for Action {
         match self {
             Self::Train(idx) => write!(f, "训练{idx}"),
             Self::Keiko(idx) => write!(f, "稽古{idx}"),
+            Self::Outing => write!(f, "出行"),
             Self::Rest => write!(f, "休息"),
         }
     }
@@ -38,6 +41,7 @@ impl ActionEnum for Action {
         match self {
             Self::Train(idx) => game.do_train(*idx as usize, rng),
             Self::Keiko(idx) => game.do_keiko(*idx as usize, rng),
+            Self::Outing => game.do_outing(rng),
             Self::Rest => {
                 // S1 占位：休息恢复体力（后续实现按自己的回复规则改）
                 let _ = rng;

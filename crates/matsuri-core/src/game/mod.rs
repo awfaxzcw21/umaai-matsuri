@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use umaai::Config;
 use umaai_core::Data;
 use umaai_core::gamedata::ActionValue;
+use umasim::game::CardTrainingEffect;
 use umaai_core::rng::{StrategyRng, StreamTag, derive_seed};
 use umasim::game::base::{BaseGame, BasePerson, RuleStreams};
 use umasim::game::{Game, InheritInfo, Trainer, TrainingValueSource};
@@ -135,12 +136,21 @@ impl MatsuriGame {
     }
 
     /// 训练结算（S1 版：按剧本资产里的表入账 + 设施计数；失败判定 / 羁绊 / hint 留给剧本作者）
+    /// 友人出行：体力 +51，随机演目 Lv+1（推友人事件）
+    pub(crate) fn do_outing(&mut self, rng: &mut impl Rng) -> Result<()> {
+        let uma = self.uma_mut();
+        uma.vital = (uma.vital + 51).min(uma.max_vital);
+        let idx = rng.random_range(0..5usize);
+        self.act_level[idx] = (self.act_level[idx] + 1).min(10);
+        Ok(())
+    }
+
     /// 合宿窗口（0 基）：12-15 / 36-39 / 60-63（官方 memo）
     fn is_camp_turn(&self) -> bool {
         matches!(self.turn, 12..=15 | 36..=39 | 60..=63)
     }
 
-    pub(crate) fn do_train(&mut self, train: usize, _rng: &mut impl Rng) -> Result<()> {
+    pub(crate) fn do_train(&mut self, train: usize, mut _rng: &mut impl Rng) -> Result<()> {
         // 合宿：所有训练都变成演目稽古（官方：合宿训练与演目稽古同一 ID）
         if self.is_camp_turn() {
             return self.do_keiko(train, _rng);
@@ -165,6 +175,12 @@ impl MatsuriGame {
                 ..Default::default()
             },
         };
+        // 失败判定（引擎公式：训练等级阈值 × 体力）
+        let fail_rate = self
+            .calc_training_failure_rate(&CardTrainingEffect::default(), train)
+            .unwrap_or(0.0);
+        let roll = rand::Rng::random::<f32>(&mut _rng) * 100.0;
+        let failed = roll < fail_rate;
         // 教え + 発表会加成
         let (mult, vital_delta) = self.advice_mods(train);
         let vs = &self.data.value_scale;
@@ -180,7 +196,14 @@ impl MatsuriGame {
             vital: value.vital + vital_delta,
             ..Default::default()
         };
-        self.uma_mut().add_value(&scaled);
+        if failed {
+            // 失败：无属性/PT，体力照扣，干劲 -2、额外 -12 体力
+            let uma = self.uma_mut();
+            uma.vital = (uma.vital + scaled.vital - 12).max(0);
+            uma.motivation = (uma.motivation - 2).max(1);
+        } else {
+            self.uma_mut().add_value(&scaled);
+        }
         self.base.train_level_count[train] += 1;
         // 演目 gauge：有对应人头就涨（官方：有对应人头 +1、友情 +2）
         let persons = self.count_training_persons(train);
@@ -216,7 +239,7 @@ impl MatsuriGame {
     }
 
     /// 演目稽古：演目等级高 = 基础值按等级档 + 等级效果（官方 intake 3.2/3.3）
-    pub(crate) fn do_keiko(&mut self, idx: usize, _rng: &mut impl Rng) -> Result<()> {
+    pub(crate) fn do_keiko(&mut self, idx: usize, mut _rng: &mut impl Rng) -> Result<()> {
         if idx >= 5 {
             return Err(anyhow::anyhow!("演目下标越界: {idx}"));
         }
@@ -266,6 +289,11 @@ impl MatsuriGame {
             vital: row[6],
             ..Default::default()
         };
+        let fail_rate = self
+            .calc_training_failure_rate(&CardTrainingEffect::default(), idx)
+            .unwrap_or(0.0);
+        let roll = rand::Rng::random::<f32>(&mut _rng) * 100.0;
+        let failed = roll < fail_rate;
         let (mult, vital_delta) = self.advice_mods(idx);
         let vs = &self.data.value_scale;
         let scaled = ActionValue {
@@ -280,7 +308,13 @@ impl MatsuriGame {
             vital: value.vital + vital_delta,
             ..Default::default()
         };
-        self.uma_mut().add_value(&scaled);
+        if failed {
+            let uma = self.uma_mut();
+            uma.vital = (uma.vital + scaled.vital - 12).max(0);
+            uma.motivation = (uma.motivation - 2).max(1);
+        } else {
+            self.uma_mut().add_value(&scaled);
+        }
         if five_types && effect.sp_limit > 0 {
             for s in self.uma_mut().five_status_limit.iter_mut() {
                 *s += effect.sp_limit;

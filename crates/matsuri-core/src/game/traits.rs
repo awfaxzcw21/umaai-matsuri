@@ -89,6 +89,10 @@ impl Game for MatsuriGame {
             }
         }
         actions.extend((0..5u8).map(Action::Train));
+        // 友人出行：第一/二年（官方口径大致 turn 21..60）
+        if self.turn >= 21 && self.turn <= 60 {
+            actions.push(Action::Outing);
+        }
         actions.push(Action::Rest);
         Ok(actions)
     }

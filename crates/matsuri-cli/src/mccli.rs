@@ -29,6 +29,7 @@ fn label_of(a: &Action) -> String {
     match a {
         Action::Train(i) => format!("训练 {}", TRAIN[(*i as usize).min(4)]),
         Action::Keiko(i) => format!("稽古 {}", ACT[(*i as usize).min(4)]),
+        Action::Outing => "出行".to_string(),
         Action::Rest => "休息".to_string(),
     }
 }
