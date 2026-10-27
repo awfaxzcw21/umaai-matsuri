@@ -204,6 +204,35 @@ fn run() -> Result<()> {
         })
         .collect();
     rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    // 発表会兜底（S2 排程规则）：临近检查点且演目未达标时，
+    // 优先推「最接近达标」的那个演目的训练/稽古（不是改搜索，只是候选排序约束）
+    let mut rows = rows;
+    if let Some(cp) = game
+        .data
+        .check_points
+        .iter()
+        .find(|c| c.turn >= game.turn)
+        .cloned()
+    {
+        let deadline = cp.turn - game.turn;
+        let deficit: Vec<(usize, i32, i32)> = (0..5usize)
+            .filter(|i| game.act_level[*i] < cp.need)
+            .map(|i| (i, cp.need - game.act_level[i], game.act_gauge[i]))
+            .collect();
+        if deadline <= 15 && !deficit.is_empty() {
+            let idx = deficit
+                .iter()
+                .min_by_key(|(_, gap, gauge)| (*gap, -*gauge))
+                .map(|(i, _, _)| *i)
+                .unwrap_or(0);
+            const NAMES: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
+            let targets = [format!("训练 {}", NAMES[idx]), format!("稽古 {}", NAMES[idx])];
+            if let Some(pos) = rows.iter().position(|(label, _, _, _)| targets.contains(label)) {
+                let pick = rows.remove(pos);
+                rows.insert(0, pick);
+            }
+        }
+    }
     let ranked: Vec<Value> = rows
         .iter()
         .map(|(label, mean, se, n)| {
