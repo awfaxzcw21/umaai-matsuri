@@ -1,772 +1,901 @@
 {
-  "scenario_id": 15,
-  "sample_resource": 0,
-  "training_basic_value": [
-    [
-      [
-        12,
-        0,
-        2,
-        0,
-        0,
-        7,
-        -20
-      ],
-      [
-        14,
-        0,
-        3,
-        0,
-        0,
-        7,
-        -25
-      ]
-    ],
-    [
-      [
-        0,
-        11,
-        0,
-        3,
-        0,
-        7,
-        -22
-      ],
-      [
-        0,
-        14,
-        0,
-        4,
-        0,
-        7,
-        -27
-      ]
-    ],
-    [
-      [
-        0,
-        3,
-        11,
-        0,
-        0,
-        7,
-        -22
-      ],
-      [
-        0,
-        4,
-        14,
-        0,
-        0,
-        7,
-        -27
-      ]
-    ],
-    [
-      [
-        2,
-        0,
-        2,
-        12,
-        0,
-        7,
-        -22
-      ],
-      [
-        2,
-        0,
-        2,
-        15,
-        0,
-        7,
-        -27
-      ]
-    ],
-    [
-      [
-        2,
-        0,
-        0,
-        0,
-        11,
-        7,
-        5
-      ],
-      [
-        2,
-        0,
-        0,
-        0,
-        12,
-        7,
-        5
-      ]
-    ]
-  ],
-  "advice_effects": [
-    {
-      "advice_id": 101,
-      "level": 1,
-      "effect_type": 13,
-      "value": 3
-    },
-    {
-      "advice_id": 101,
-      "level": 2,
-      "effect_type": 13,
-      "value": 5
-    },
-    {
-      "advice_id": 101,
-      "level": 3,
-      "effect_type": 13,
-      "value": 7
-    },
-    {
-      "advice_id": 101,
-      "level": 4,
-      "effect_type": 13,
-      "value": 9
-    },
-    {
-      "advice_id": 101,
-      "level": 5,
-      "effect_type": 13,
-      "value": 10
-    },
-    {
-      "advice_id": 101,
-      "level": 6,
-      "effect_type": 13,
-      "value": 11
-    },
-    {
-      "advice_id": 101,
-      "level": 7,
-      "effect_type": 13,
-      "value": 12
-    },
-    {
-      "advice_id": 101,
-      "level": 8,
-      "effect_type": 13,
-      "value": 13
-    },
-    {
-      "advice_id": 101,
-      "level": 9,
-      "effect_type": 13,
-      "value": 14
-    },
-    {
-      "advice_id": 101,
-      "level": 10,
-      "effect_type": 13,
-      "value": 15
-    },
-    {
-      "advice_id": 201,
-      "level": 1,
-      "effect_type": 4,
-      "value": 10
-    },
-    {
-      "advice_id": 201,
-      "level": 2,
-      "effect_type": 4,
-      "value": 13
-    },
-    {
-      "advice_id": 201,
-      "level": 3,
-      "effect_type": 4,
-      "value": 16
-    },
-    {
-      "advice_id": 201,
-      "level": 4,
-      "effect_type": 4,
-      "value": 20
-    },
-    {
-      "advice_id": 201,
-      "level": 5,
-      "effect_type": 4,
-      "value": 25
-    },
-    {
-      "advice_id": 201,
-      "level": 6,
-      "effect_type": 4,
-      "value": 30
-    },
-    {
-      "advice_id": 201,
-      "level": 7,
-      "effect_type": 4,
-      "value": 35
-    },
-    {
-      "advice_id": 201,
-      "level": 8,
-      "effect_type": 4,
-      "value": 40
-    },
-    {
-      "advice_id": 201,
-      "level": 9,
-      "effect_type": 4,
-      "value": 45
-    },
-    {
-      "advice_id": 201,
-      "level": 10,
-      "effect_type": 4,
-      "value": 50
-    },
-    {
-      "advice_id": 301,
-      "level": 1,
-      "effect_type": 2,
-      "value": 30
-    },
-    {
-      "advice_id": 301,
-      "level": 2,
-      "effect_type": 2,
-      "value": 33
-    },
-    {
-      "advice_id": 301,
-      "level": 3,
-      "effect_type": 2,
-      "value": 36
-    },
-    {
-      "advice_id": 301,
-      "level": 4,
-      "effect_type": 2,
-      "value": 40
-    },
-    {
-      "advice_id": 301,
-      "level": 5,
-      "effect_type": 2,
-      "value": 45
-    },
-    {
-      "advice_id": 301,
-      "level": 6,
-      "effect_type": 2,
-      "value": 50
-    },
-    {
-      "advice_id": 301,
-      "level": 7,
-      "effect_type": 2,
-      "value": 55
-    },
-    {
-      "advice_id": 301,
-      "level": 8,
-      "effect_type": 2,
-      "value": 60
-    },
-    {
-      "advice_id": 301,
-      "level": 9,
-      "effect_type": 2,
-      "value": 70
-    },
-    {
-      "advice_id": 301,
-      "level": 10,
-      "effect_type": 2,
-      "value": 80
-    },
-    {
-      "advice_id": 401,
-      "level": 1,
-      "effect_type": 203,
-      "value": 20
-    },
-    {
-      "advice_id": 401,
-      "level": 2,
-      "effect_type": 203,
-      "value": 22
-    },
-    {
-      "advice_id": 401,
-      "level": 3,
-      "effect_type": 203,
-      "value": 24
-    },
-    {
-      "advice_id": 401,
-      "level": 4,
-      "effect_type": 203,
-      "value": 26
-    },
-    {
-      "advice_id": 401,
-      "level": 5,
-      "effect_type": 203,
-      "value": 28
-    },
-    {
-      "advice_id": 401,
-      "level": 6,
-      "effect_type": 203,
-      "value": 30
-    },
-    {
-      "advice_id": 401,
-      "level": 7,
-      "effect_type": 203,
-      "value": 32
-    },
-    {
-      "advice_id": 401,
-      "level": 8,
-      "effect_type": 203,
-      "value": 34
-    },
-    {
-      "advice_id": 401,
-      "level": 9,
-      "effect_type": 203,
-      "value": 37
-    },
-    {
-      "advice_id": 401,
-      "level": 10,
-      "effect_type": 203,
-      "value": 40
-    },
-    {
-      "advice_id": 501,
-      "level": 1,
-      "effect_type": 3,
-      "value": -1
-    },
-    {
-      "advice_id": 501,
-      "level": 2,
-      "effect_type": 3,
-      "value": -2
-    },
-    {
-      "advice_id": 501,
-      "level": 3,
-      "effect_type": 3,
-      "value": -3
-    },
-    {
-      "advice_id": 501,
-      "level": 4,
-      "effect_type": 3,
-      "value": -4
-    },
-    {
-      "advice_id": 501,
-      "level": 5,
-      "effect_type": 3,
-      "value": -5
-    },
-    {
-      "advice_id": 501,
-      "level": 6,
-      "effect_type": 3,
-      "value": -6
-    },
-    {
-      "advice_id": 501,
-      "level": 7,
-      "effect_type": 3,
-      "value": -8
-    },
-    {
-      "advice_id": 501,
-      "level": 8,
-      "effect_type": 3,
-      "value": -10
-    },
-    {
-      "advice_id": 501,
-      "level": 9,
-      "effect_type": 3,
-      "value": -12
-    },
-    {
-      "advice_id": 501,
-      "level": 10,
-      "effect_type": 3,
-      "value": -15
-    },
-    {
-      "advice_id": 601,
-      "level": 1,
-      "effect_type": 13,
-      "value": 5
-    },
-    {
-      "advice_id": 601,
-      "level": 2,
-      "effect_type": 13,
-      "value": 6
-    },
-    {
-      "advice_id": 601,
-      "level": 3,
-      "effect_type": 13,
-      "value": 7
-    },
-    {
-      "advice_id": 601,
-      "level": 4,
-      "effect_type": 13,
-      "value": 8
-    },
-    {
-      "advice_id": 601,
-      "level": 5,
-      "effect_type": 13,
-      "value": 9
-    },
-    {
-      "advice_id": 601,
-      "level": 6,
-      "effect_type": 13,
-      "value": 10
-    },
-    {
-      "advice_id": 601,
-      "level": 7,
-      "effect_type": 13,
-      "value": 13
-    },
-    {
-      "advice_id": 601,
-      "level": 8,
-      "effect_type": 13,
-      "value": 16
-    },
-    {
-      "advice_id": 601,
-      "level": 9,
-      "effect_type": 13,
-      "value": 20
-    },
-    {
-      "advice_id": 601,
-      "level": 10,
-      "effect_type": 13,
-      "value": 25
-    },
-    {
-      "advice_id": 701,
-      "level": 1,
-      "effect_type": 8,
-      "value": 20
-    },
-    {
-      "advice_id": 701,
-      "level": 2,
-      "effect_type": 8,
-      "value": 22
-    },
-    {
-      "advice_id": 701,
-      "level": 3,
-      "effect_type": 8,
-      "value": 24
-    },
-    {
-      "advice_id": 701,
-      "level": 4,
-      "effect_type": 8,
-      "value": 27
-    },
-    {
-      "advice_id": 701,
-      "level": 5,
-      "effect_type": 8,
-      "value": 30
-    },
-    {
-      "advice_id": 701,
-      "level": 6,
-      "effect_type": 8,
-      "value": 35
-    },
-    {
-      "advice_id": 701,
-      "level": 7,
-      "effect_type": 8,
-      "value": 40
-    },
-    {
-      "advice_id": 701,
-      "level": 8,
-      "effect_type": 8,
-      "value": 50
-    },
-    {
-      "advice_id": 701,
-      "level": 9,
-      "effect_type": 8,
-      "value": 65
-    },
-    {
-      "advice_id": 701,
-      "level": 10,
-      "effect_type": 8,
-      "value": 80
-    },
-    {
-      "advice_id": 801,
-      "level": 1,
-      "effect_type": 202,
-      "value": 1
-    },
-    {
-      "advice_id": 801,
-      "level": 2,
-      "effect_type": 202,
-      "value": 2
-    },
-    {
-      "advice_id": 801,
-      "level": 3,
-      "effect_type": 202,
-      "value": 3
-    },
-    {
-      "advice_id": 801,
-      "level": 4,
-      "effect_type": 202,
-      "value": 4
-    },
-    {
-      "advice_id": 801,
-      "level": 5,
-      "effect_type": 202,
-      "value": 5
-    },
-    {
-      "advice_id": 801,
-      "level": 6,
-      "effect_type": 202,
-      "value": 6
-    },
-    {
-      "advice_id": 801,
-      "level": 7,
-      "effect_type": 202,
-      "value": 7
-    },
-    {
-      "advice_id": 801,
-      "level": 8,
-      "effect_type": 202,
-      "value": 8
-    },
-    {
-      "advice_id": 801,
-      "level": 9,
-      "effect_type": 202,
-      "value": 9
-    },
-    {
-      "advice_id": 801,
-      "level": 10,
-      "effect_type": 202,
-      "value": 10
-    },
-    {
-      "advice_id": 901,
-      "level": 1,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 2,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 3,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 4,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 5,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 6,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 7,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 8,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 9,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 10,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 1001,
-      "level": 1,
-      "effect_type": 21,
-      "value": 1
-    },
-    {
-      "advice_id": 1001,
-      "level": 2,
-      "effect_type": 21,
-      "value": 2
-    },
-    {
-      "advice_id": 1001,
-      "level": 3,
-      "effect_type": 21,
-      "value": 3
-    },
-    {
-      "advice_id": 1001,
-      "level": 4,
-      "effect_type": 21,
-      "value": 4
-    },
-    {
-      "advice_id": 1001,
-      "level": 5,
-      "effect_type": 21,
-      "value": 5
-    },
-    {
-      "advice_id": 1001,
-      "level": 6,
-      "effect_type": 21,
-      "value": 8
-    },
-    {
-      "advice_id": 1001,
-      "level": 7,
-      "effect_type": 21,
-      "value": 11
-    },
-    {
-      "advice_id": 1001,
-      "level": 8,
-      "effect_type": 21,
-      "value": 15
-    },
-    {
-      "advice_id": 1001,
-      "level": 9,
-      "effect_type": 21,
-      "value": 20
-    },
-    {
-      "advice_id": 1001,
-      "level": 10,
-      "effect_type": 21,
-      "value": 25
-    }
-  ],
-  "advice_grant_turns": [
+ "scenario_id": 15,
+ "sample_resource": 0,
+ "training_basic_value": [
+  [
+   [
+    12,
+    0,
     2,
-    23,
-    47
+    0,
+    0,
+    7,
+    -20
+   ],
+   [
+    14,
+    0,
+    3,
+    0,
+    0,
+    7,
+    -25
+   ]
   ],
-  "advice_grant_order": [
-    [
-      101,
-      201,
-      301,
-      401,
-      501
-    ],
-    [
-      601,
-      701
-    ],
-    [
-      801,
-      901,
-      1001
-    ]
+  [
+   [
+    0,
+    11,
+    0,
+    3,
+    0,
+    7,
+    -22
+   ],
+   [
+    0,
+    14,
+    0,
+    4,
+    0,
+    7,
+    -27
+   ]
   ],
-  "check_points": [
-    {
-      "schedule": 1,
-      "turn": 23,
-      "need": 3,
-      "success": {
-        "gain_pct": 20
-      },
-      "great": {
-        "gain_pct": 40
-      }
-    },
-    {
-      "schedule": 2,
-      "turn": 47,
-      "need": 5,
-      "success": {
-        "gain_pct": 40
-      },
-      "great": {
-        "gain_pct": 60
-      }
-    },
-    {
-      "schedule": 3,
-      "turn": 67,
-      "need": 6,
-      "success": {
-        "gain_pct": 60
-      },
-      "great": {
-        "gain_pct": 80
-      }
-    }
+  [
+   [
+    0,
+    3,
+    11,
+    0,
+    0,
+    7,
+    -22
+   ],
+   [
+    0,
+    4,
+    14,
+    0,
+    0,
+    7,
+    -27
+   ]
   ],
-  "value_scale": {
-    "train_stat": 3.4,
-    "train_pt": 7.5,
-    "keiko_stat": 4.5,
-    "keiko_pt": 6.5
+  [
+   [
+    2,
+    0,
+    2,
+    12,
+    0,
+    7,
+    -22
+   ],
+   [
+    2,
+    0,
+    2,
+    15,
+    0,
+    7,
+    -27
+   ]
+  ],
+  [
+   [
+    2,
+    0,
+    0,
+    0,
+    11,
+    7,
+    5
+   ],
+   [
+    2,
+    0,
+    0,
+    0,
+    12,
+    7,
+    5
+   ]
+  ]
+ ],
+ "advice_effects": [
+  {
+   "advice_id": 101,
+   "level": 1,
+   "effect_type": 13,
+   "value": 3
+  },
+  {
+   "advice_id": 101,
+   "level": 2,
+   "effect_type": 13,
+   "value": 5
+  },
+  {
+   "advice_id": 101,
+   "level": 3,
+   "effect_type": 13,
+   "value": 7
+  },
+  {
+   "advice_id": 101,
+   "level": 4,
+   "effect_type": 13,
+   "value": 9
+  },
+  {
+   "advice_id": 101,
+   "level": 5,
+   "effect_type": 13,
+   "value": 10
+  },
+  {
+   "advice_id": 101,
+   "level": 6,
+   "effect_type": 13,
+   "value": 11
+  },
+  {
+   "advice_id": 101,
+   "level": 7,
+   "effect_type": 13,
+   "value": 12
+  },
+  {
+   "advice_id": 101,
+   "level": 8,
+   "effect_type": 13,
+   "value": 13
+  },
+  {
+   "advice_id": 101,
+   "level": 9,
+   "effect_type": 13,
+   "value": 14
+  },
+  {
+   "advice_id": 101,
+   "level": 10,
+   "effect_type": 13,
+   "value": 15
+  },
+  {
+   "advice_id": 201,
+   "level": 1,
+   "effect_type": 4,
+   "value": 10
+  },
+  {
+   "advice_id": 201,
+   "level": 2,
+   "effect_type": 4,
+   "value": 13
+  },
+  {
+   "advice_id": 201,
+   "level": 3,
+   "effect_type": 4,
+   "value": 16
+  },
+  {
+   "advice_id": 201,
+   "level": 4,
+   "effect_type": 4,
+   "value": 20
+  },
+  {
+   "advice_id": 201,
+   "level": 5,
+   "effect_type": 4,
+   "value": 25
+  },
+  {
+   "advice_id": 201,
+   "level": 6,
+   "effect_type": 4,
+   "value": 30
+  },
+  {
+   "advice_id": 201,
+   "level": 7,
+   "effect_type": 4,
+   "value": 35
+  },
+  {
+   "advice_id": 201,
+   "level": 8,
+   "effect_type": 4,
+   "value": 40
+  },
+  {
+   "advice_id": 201,
+   "level": 9,
+   "effect_type": 4,
+   "value": 45
+  },
+  {
+   "advice_id": 201,
+   "level": 10,
+   "effect_type": 4,
+   "value": 50
+  },
+  {
+   "advice_id": 301,
+   "level": 1,
+   "effect_type": 2,
+   "value": 30
+  },
+  {
+   "advice_id": 301,
+   "level": 2,
+   "effect_type": 2,
+   "value": 33
+  },
+  {
+   "advice_id": 301,
+   "level": 3,
+   "effect_type": 2,
+   "value": 36
+  },
+  {
+   "advice_id": 301,
+   "level": 4,
+   "effect_type": 2,
+   "value": 40
+  },
+  {
+   "advice_id": 301,
+   "level": 5,
+   "effect_type": 2,
+   "value": 45
+  },
+  {
+   "advice_id": 301,
+   "level": 6,
+   "effect_type": 2,
+   "value": 50
+  },
+  {
+   "advice_id": 301,
+   "level": 7,
+   "effect_type": 2,
+   "value": 55
+  },
+  {
+   "advice_id": 301,
+   "level": 8,
+   "effect_type": 2,
+   "value": 60
+  },
+  {
+   "advice_id": 301,
+   "level": 9,
+   "effect_type": 2,
+   "value": 70
+  },
+  {
+   "advice_id": 301,
+   "level": 10,
+   "effect_type": 2,
+   "value": 80
+  },
+  {
+   "advice_id": 401,
+   "level": 1,
+   "effect_type": 203,
+   "value": 20
+  },
+  {
+   "advice_id": 401,
+   "level": 2,
+   "effect_type": 203,
+   "value": 22
+  },
+  {
+   "advice_id": 401,
+   "level": 3,
+   "effect_type": 203,
+   "value": 24
+  },
+  {
+   "advice_id": 401,
+   "level": 4,
+   "effect_type": 203,
+   "value": 26
+  },
+  {
+   "advice_id": 401,
+   "level": 5,
+   "effect_type": 203,
+   "value": 28
+  },
+  {
+   "advice_id": 401,
+   "level": 6,
+   "effect_type": 203,
+   "value": 30
+  },
+  {
+   "advice_id": 401,
+   "level": 7,
+   "effect_type": 203,
+   "value": 32
+  },
+  {
+   "advice_id": 401,
+   "level": 8,
+   "effect_type": 203,
+   "value": 34
+  },
+  {
+   "advice_id": 401,
+   "level": 9,
+   "effect_type": 203,
+   "value": 37
+  },
+  {
+   "advice_id": 401,
+   "level": 10,
+   "effect_type": 203,
+   "value": 40
+  },
+  {
+   "advice_id": 501,
+   "level": 1,
+   "effect_type": 3,
+   "value": -1
+  },
+  {
+   "advice_id": 501,
+   "level": 2,
+   "effect_type": 3,
+   "value": -2
+  },
+  {
+   "advice_id": 501,
+   "level": 3,
+   "effect_type": 3,
+   "value": -3
+  },
+  {
+   "advice_id": 501,
+   "level": 4,
+   "effect_type": 3,
+   "value": -4
+  },
+  {
+   "advice_id": 501,
+   "level": 5,
+   "effect_type": 3,
+   "value": -5
+  },
+  {
+   "advice_id": 501,
+   "level": 6,
+   "effect_type": 3,
+   "value": -6
+  },
+  {
+   "advice_id": 501,
+   "level": 7,
+   "effect_type": 3,
+   "value": -8
+  },
+  {
+   "advice_id": 501,
+   "level": 8,
+   "effect_type": 3,
+   "value": -10
+  },
+  {
+   "advice_id": 501,
+   "level": 9,
+   "effect_type": 3,
+   "value": -12
+  },
+  {
+   "advice_id": 501,
+   "level": 10,
+   "effect_type": 3,
+   "value": -15
+  },
+  {
+   "advice_id": 601,
+   "level": 1,
+   "effect_type": 13,
+   "value": 5
+  },
+  {
+   "advice_id": 601,
+   "level": 2,
+   "effect_type": 13,
+   "value": 6
+  },
+  {
+   "advice_id": 601,
+   "level": 3,
+   "effect_type": 13,
+   "value": 7
+  },
+  {
+   "advice_id": 601,
+   "level": 4,
+   "effect_type": 13,
+   "value": 8
+  },
+  {
+   "advice_id": 601,
+   "level": 5,
+   "effect_type": 13,
+   "value": 9
+  },
+  {
+   "advice_id": 601,
+   "level": 6,
+   "effect_type": 13,
+   "value": 10
+  },
+  {
+   "advice_id": 601,
+   "level": 7,
+   "effect_type": 13,
+   "value": 13
+  },
+  {
+   "advice_id": 601,
+   "level": 8,
+   "effect_type": 13,
+   "value": 16
+  },
+  {
+   "advice_id": 601,
+   "level": 9,
+   "effect_type": 13,
+   "value": 20
+  },
+  {
+   "advice_id": 601,
+   "level": 10,
+   "effect_type": 13,
+   "value": 25
+  },
+  {
+   "advice_id": 701,
+   "level": 1,
+   "effect_type": 8,
+   "value": 20
+  },
+  {
+   "advice_id": 701,
+   "level": 2,
+   "effect_type": 8,
+   "value": 22
+  },
+  {
+   "advice_id": 701,
+   "level": 3,
+   "effect_type": 8,
+   "value": 24
+  },
+  {
+   "advice_id": 701,
+   "level": 4,
+   "effect_type": 8,
+   "value": 27
+  },
+  {
+   "advice_id": 701,
+   "level": 5,
+   "effect_type": 8,
+   "value": 30
+  },
+  {
+   "advice_id": 701,
+   "level": 6,
+   "effect_type": 8,
+   "value": 35
+  },
+  {
+   "advice_id": 701,
+   "level": 7,
+   "effect_type": 8,
+   "value": 40
+  },
+  {
+   "advice_id": 701,
+   "level": 8,
+   "effect_type": 8,
+   "value": 50
+  },
+  {
+   "advice_id": 701,
+   "level": 9,
+   "effect_type": 8,
+   "value": 65
+  },
+  {
+   "advice_id": 701,
+   "level": 10,
+   "effect_type": 8,
+   "value": 80
+  },
+  {
+   "advice_id": 801,
+   "level": 1,
+   "effect_type": 202,
+   "value": 1
+  },
+  {
+   "advice_id": 801,
+   "level": 2,
+   "effect_type": 202,
+   "value": 2
+  },
+  {
+   "advice_id": 801,
+   "level": 3,
+   "effect_type": 202,
+   "value": 3
+  },
+  {
+   "advice_id": 801,
+   "level": 4,
+   "effect_type": 202,
+   "value": 4
+  },
+  {
+   "advice_id": 801,
+   "level": 5,
+   "effect_type": 202,
+   "value": 5
+  },
+  {
+   "advice_id": 801,
+   "level": 6,
+   "effect_type": 202,
+   "value": 6
+  },
+  {
+   "advice_id": 801,
+   "level": 7,
+   "effect_type": 202,
+   "value": 7
+  },
+  {
+   "advice_id": 801,
+   "level": 8,
+   "effect_type": 202,
+   "value": 8
+  },
+  {
+   "advice_id": 801,
+   "level": 9,
+   "effect_type": 202,
+   "value": 9
+  },
+  {
+   "advice_id": 801,
+   "level": 10,
+   "effect_type": 202,
+   "value": 10
+  },
+  {
+   "advice_id": 901,
+   "level": 1,
+   "effect_type": 205,
+   "value": 100
+  },
+  {
+   "advice_id": 901,
+   "level": 2,
+   "effect_type": 205,
+   "value": 100
+  },
+  {
+   "advice_id": 901,
+   "level": 3,
+   "effect_type": 205,
+   "value": 100
+  },
+  {
+   "advice_id": 901,
+   "level": 4,
+   "effect_type": 205,
+   "value": 100
+  },
+  {
+   "advice_id": 901,
+   "level": 5,
+   "effect_type": 205,
+   "value": 100
+  },
+  {
+   "advice_id": 901,
+   "level": 6,
+   "effect_type": 205,
+   "value": 100
+  },
+  {
+   "advice_id": 901,
+   "level": 7,
+   "effect_type": 205,
+   "value": 100
+  },
+  {
+   "advice_id": 901,
+   "level": 8,
+   "effect_type": 205,
+   "value": 100
+  },
+  {
+   "advice_id": 901,
+   "level": 9,
+   "effect_type": 205,
+   "value": 100
+  },
+  {
+   "advice_id": 901,
+   "level": 10,
+   "effect_type": 205,
+   "value": 100
+  },
+  {
+   "advice_id": 1001,
+   "level": 1,
+   "effect_type": 21,
+   "value": 1
+  },
+  {
+   "advice_id": 1001,
+   "level": 2,
+   "effect_type": 21,
+   "value": 2
+  },
+  {
+   "advice_id": 1001,
+   "level": 3,
+   "effect_type": 21,
+   "value": 3
+  },
+  {
+   "advice_id": 1001,
+   "level": 4,
+   "effect_type": 21,
+   "value": 4
+  },
+  {
+   "advice_id": 1001,
+   "level": 5,
+   "effect_type": 21,
+   "value": 5
+  },
+  {
+   "advice_id": 1001,
+   "level": 6,
+   "effect_type": 21,
+   "value": 8
+  },
+  {
+   "advice_id": 1001,
+   "level": 7,
+   "effect_type": 21,
+   "value": 11
+  },
+  {
+   "advice_id": 1001,
+   "level": 8,
+   "effect_type": 21,
+   "value": 15
+  },
+  {
+   "advice_id": 1001,
+   "level": 9,
+   "effect_type": 21,
+   "value": 20
+  },
+  {
+   "advice_id": 1001,
+   "level": 10,
+   "effect_type": 21,
+   "value": 25
   }
+ ],
+ "advice_grant_turns": [
+  2,
+  23,
+  47
+ ],
+ "advice_grant_order": [
+  [
+   101,
+   201,
+   301,
+   401,
+   501
+  ],
+  [
+   601,
+   701
+  ],
+  [
+   801,
+   901,
+   1001
+  ]
+ ],
+ "check_points": [
+  {
+   "schedule": 1,
+   "turn": 23,
+   "need": 3,
+   "success": {
+    "gain_pct": 20
+   },
+   "great": {
+    "gain_pct": 40
+   }
+  },
+  {
+   "schedule": 2,
+   "turn": 47,
+   "need": 5,
+   "success": {
+    "gain_pct": 40
+   },
+   "great": {
+    "gain_pct": 60
+   }
+  },
+  {
+   "schedule": 3,
+   "turn": 67,
+   "need": 6,
+   "success": {
+    "gain_pct": 60
+   },
+   "great": {
+    "gain_pct": 80
+   }
+  }
+ ],
+ "value_scale": {
+  "train_stat": 3.4,
+  "train_pt": 7.5,
+  "keiko_stat": 4.5,
+  "keiko_pt": 6.5
+ },
+ "keiko_basic_value": [
+  [
+   16,
+   0,
+   3,
+   0,
+   0,
+   9,
+   -25
+  ],
+  [
+   0,
+   14,
+   0,
+   6,
+   0,
+   10,
+   -25
+  ],
+  [
+   0,
+   6,
+   14,
+   0,
+   0,
+   10,
+   -25
+  ],
+  [
+   3,
+   0,
+   2,
+   15,
+   0,
+   10,
+   -25
+  ],
+  [
+   3,
+   0,
+   0,
+   0,
+   12,
+   8,
+   5
+  ]
+ ],
+ "act_level_effects": [
+  {
+   "level": 1,
+   "all_base": 10,
+   "friend_pct": 2,
+   "sp_practice_pct": 20,
+   "sp_limit": 0,
+   "base_limit": 0
+  },
+  {
+   "level": 2,
+   "all_base": 10,
+   "friend_pct": 3,
+   "sp_practice_pct": 25,
+   "sp_limit": 0,
+   "base_limit": 0
+  },
+  {
+   "level": 3,
+   "all_base": 10,
+   "friend_pct": 4,
+   "sp_practice_pct": 30,
+   "sp_limit": 0,
+   "base_limit": 0
+  },
+  {
+   "level": 4,
+   "all_base": 10,
+   "friend_pct": 5,
+   "sp_practice_pct": 40,
+   "sp_limit": 10,
+   "base_limit": 0
+  },
+  {
+   "level": 5,
+   "all_base": 10,
+   "friend_pct": 6,
+   "sp_practice_pct": 50,
+   "sp_limit": 20,
+   "base_limit": 0
+  },
+  {
+   "level": 6,
+   "all_base": 10,
+   "friend_pct": 7,
+   "sp_practice_pct": 60,
+   "sp_limit": 30,
+   "base_limit": 0
+  },
+  {
+   "level": 7,
+   "all_base": 10,
+   "friend_pct": 8,
+   "sp_practice_pct": 80,
+   "sp_limit": 50,
+   "base_limit": 0
+  },
+  {
+   "level": 8,
+   "all_base": 10,
+   "friend_pct": 10,
+   "sp_practice_pct": 100,
+   "sp_limit": 100,
+   "base_limit": 0
+  },
+  {
+   "level": 9,
+   "all_base": 10,
+   "friend_pct": 12,
+   "sp_practice_pct": 135,
+   "sp_limit": 120,
+   "base_limit": 20
+  },
+  {
+   "level": 10,
+   "all_base": 10,
+   "friend_pct": 15,
+   "sp_practice_pct": 170,
+   "sp_limit": 120,
+   "base_limit": 25
+  }
+ ]
 }
