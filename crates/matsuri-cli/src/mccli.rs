@@ -53,7 +53,63 @@ fn run() -> Result<()> {
     let cfg = Config::load_with_overlay_file(DATA_ROOT, ".").context("载入配置失败")?;
     Data::init(DATA_ROOT)?;
     let data = Arc::new(MatsuriData::load(DATA_ROOT).context("载入剧本数据失败")?);
+
+    // ★用面板报文里的真实卡组（卡号 + 突破数），而不是配置里的示例卡组
+    // SupportCard::new 接受 idrank = cardId*10 + 突破等级
+    let mut deck_ids: Vec<u32> = Vec::new();
+    if let Some(cards) = v.get("support_cards").and_then(|x| x.as_array()) {
+        for c in cards {
+            if let Some(id) = c.get("card_id").and_then(|x| x.as_i64()) {
+                let rank = c
+                    .get("limit")
+                    .and_then(|x| x.as_i64())
+                    .unwrap_or(4)
+                    .clamp(0, 4) as u32;
+                deck_ids.push(id as u32 * 10 + rank);
+            }
+        }
+    }
+    // 卡表可能缺新卡：先把卡表里不存在的卡剔掉，再装配
+    if !deck_ids.is_empty() {
+        if let Ok(raw) = std::fs::read_to_string(format!("{DATA_ROOT}/cardDB.json")) {
+            if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&raw) {
+                let before = deck_ids.len();
+                deck_ids.retain(|idr| map.contains_key(&(idr / 10).to_string()));
+                if deck_ids.len() != before {
+                    eprintln!(
+                        "卡表缺失 {} 张卡（{:?}），已从卡组剔除",
+                        before - deck_ids.len(),
+                        before
+                    );
+                }
+            }
+        }
+    }
+    let mut deck_fallback = false;
     let mut game = build_game(&cfg, data).context("装配对局失败")?;
+
+    // 用报文里的真实支援卡替换引擎默认卡组（缺卡的槽位跳过）
+    {
+        use umasim::game::{SupportCard, Trainer as _};
+        let mut real: Vec<SupportCard> = Vec::new();
+        for id in &deck_ids {
+            match SupportCard::new(*id) {
+                Ok(c) => real.push(c),
+                Err(e) => eprintln!("卡 {id} 无法装配（跳过）: {e}"),
+            }
+        }
+        if real.len() >= 5 {
+            for c in &real {
+                game.base.card_type_count[(c.card_type.clamp(0, 6)) as usize] += 1;
+            }
+            game.base.deck = real;
+            game.persons.clear();
+            game.init_persons().context("重建人头失败")?;
+            eprintln!("已使用报文卡组 {} 张", game.base.deck.len());
+        } else {
+            deck_fallback = true;
+        }
+    }
 
     // ---- 用面板状态覆盖局面 ----
     let turn = v.get("turn").and_then(|x| x.as_i64()).unwrap_or(0) as i32;
@@ -137,6 +193,7 @@ fn run() -> Result<()> {
         "turn": turn,
         "ok": true,
         "engine": "umaai-matsuri-official",
+        "deck_fallback": deck_fallback,
         "ranked": ranked,
         "rollouts": out.action_results.iter().map(|a| a.count()).sum::<u32>()
     });
