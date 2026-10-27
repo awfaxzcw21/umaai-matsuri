@@ -762,5 +762,11 @@
         "gain_pct": 80
       }
     }
-  ]
+  ],
+  "value_scale": {
+    "train_stat": 3.4,
+    "train_pt": 7.5,
+    "keiko_stat": 4.5,
+    "keiko_pt": 6.5
+  }
 }

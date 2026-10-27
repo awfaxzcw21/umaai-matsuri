@@ -167,14 +167,15 @@ impl MatsuriGame {
         };
         // 教え + 発表会加成
         let (mult, vital_delta) = self.advice_mods(train);
+        let vs = &self.data.value_scale;
         let scaled = ActionValue {
             status_pt: [
-                (value.status_pt[0] as f64 * mult) as i32,
-                (value.status_pt[1] as f64 * mult) as i32,
-                (value.status_pt[2] as f64 * mult) as i32,
-                (value.status_pt[3] as f64 * mult) as i32,
-                (value.status_pt[4] as f64 * mult) as i32,
-                (value.status_pt[5] as f64 * mult) as i32,
+                (value.status_pt[0] as f64 * mult * vs.train_stat) as i32,
+                (value.status_pt[1] as f64 * mult * vs.train_stat) as i32,
+                (value.status_pt[2] as f64 * mult * vs.train_stat) as i32,
+                (value.status_pt[3] as f64 * mult * vs.train_stat) as i32,
+                (value.status_pt[4] as f64 * mult * vs.train_stat) as i32,
+                (value.status_pt[5] as f64 * mult * vs.train_pt) as i32,
             ],
             vital: value.vital + vital_delta,
             ..Default::default()
@@ -266,14 +267,15 @@ impl MatsuriGame {
             ..Default::default()
         };
         let (mult, vital_delta) = self.advice_mods(idx);
+        let vs = &self.data.value_scale;
         let scaled = ActionValue {
             status_pt: [
-                (value.status_pt[0] as f64 * mult) as i32,
-                (value.status_pt[1] as f64 * mult) as i32,
-                (value.status_pt[2] as f64 * mult) as i32,
-                (value.status_pt[3] as f64 * mult) as i32,
-                (value.status_pt[4] as f64 * mult) as i32,
-                (value.status_pt[5] as f64 * mult) as i32,
+                (value.status_pt[0] as f64 * mult * vs.keiko_stat) as i32,
+                (value.status_pt[1] as f64 * mult * vs.keiko_stat) as i32,
+                (value.status_pt[2] as f64 * mult * vs.keiko_stat) as i32,
+                (value.status_pt[3] as f64 * mult * vs.keiko_stat) as i32,
+                (value.status_pt[4] as f64 * mult * vs.keiko_stat) as i32,
+                (value.status_pt[5] as f64 * mult * vs.keiko_pt) as i32,
             ],
             vital: value.vital + vital_delta,
             ..Default::default()

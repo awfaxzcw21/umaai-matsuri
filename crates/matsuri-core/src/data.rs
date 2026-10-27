@@ -44,6 +44,25 @@ pub struct MatsuriData {
     /// 発表会
     #[serde(default)]
     pub check_points: Vec<CheckPointDef>,
+    /// 数值缩放（锚定 action_log 实测均值）
+    #[serde(default)]
+    pub value_scale: ValueScale,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+pub struct ValueScale {
+    #[serde(default = "one")]
+    pub train_stat: f64,
+    #[serde(default = "one")]
+    pub train_pt: f64,
+    #[serde(default = "one")]
+    pub keiko_stat: f64,
+    #[serde(default = "one")]
+    pub keiko_pt: f64,
+}
+
+fn one() -> f64 {
+    1.0
 }
 
 /// 教え效果
