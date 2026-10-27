@@ -55,17 +55,38 @@ fn run() -> Result<()> {
     let data = Arc::new(MatsuriData::load(DATA_ROOT).context("载入剧本数据失败")?);
 
     // ★用面板报文里的真实卡组（卡号 + 突破数），而不是配置里的示例卡组
-    // SupportCard::new 接受 idrank = cardId*10 + 突破等级
+    // SupportCard::new 接受 idrank = cardId*10 + 突破等级；
+    // 卡表里某些卡只有 N 档，突破等级要按 cardValue 长度夹取，否则引擎越界
+    let carddb_raw = std::fs::read_to_string(format!("{DATA_ROOT}/cardDB.json")).ok();
+    let carddb: Option<serde_json::Map<String, Value>> = carddb_raw
+        .as_deref()
+        .and_then(|t| serde_json::from_str::<Value>(t).ok())
+        .and_then(|v| match v {
+            Value::Object(m) => Some(m),
+            _ => None,
+        });
     let mut deck_ids: Vec<u32> = Vec::new();
     if let Some(cards) = v.get("support_cards").and_then(|x| x.as_array()) {
         for c in cards {
             if let Some(id) = c.get("card_id").and_then(|x| x.as_i64()) {
-                let rank = c
+                let id = id as u32;
+                let mut rank = c
                     .get("limit")
                     .and_then(|x| x.as_i64())
                     .unwrap_or(4)
                     .clamp(0, 4) as u32;
-                deck_ids.push(id as u32 * 10 + rank);
+                if let Some(map) = &carddb {
+                    if let Some(entry) = map.get(&id.to_string()) {
+                        if let Some(len) = entry
+                            .get("cardValue")
+                            .and_then(|cv| cv.as_array())
+                            .map(|a| a.len())
+                        {
+                            rank = rank.min(len.saturating_sub(1) as u32);
+                        }
+                    }
+                }
+                deck_ids.push(id * 10 + rank);
             }
         }
     }
