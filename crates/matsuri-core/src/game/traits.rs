@@ -223,14 +223,14 @@ impl Game for MatsuriGame {
 }
 
 impl FlatSearchGame for MatsuriGame {
-    /// rollout 基策（S1 用契约参考实现；后续实现换成自己的策略）
-    type RolloutTrainer = RandomTrainer;
+    /// rollout 基策（S2）：机制性走子
+    type RolloutTrainer = crate::trainer::MatsuriRolloutTrainer;
 
     /// 没有 leaf 估值器时声明 `false`：搜索入口会直接拒绝 `max_depth > 0`
     const SUPPORTS_TRUNCATED_LEAF: bool = false;
 
     fn default_rollout_trainer() -> Self::RolloutTrainer {
-        RandomTrainer
+        crate::trainer::MatsuriRolloutTrainer
     }
 
     fn apply_root_action(&mut self, action: &Self::Action, rng: &mut StdRng) -> Result<()> {

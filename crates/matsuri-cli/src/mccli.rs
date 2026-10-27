@@ -18,7 +18,7 @@ use umaai::Config;
 use umaai_core::Data;
 use umasim::game::Game;
 use umasim::search::{FlatSearch, FlatSearchGame, SearchConfig};
-use umasim::trainer::RandomTrainer;
+use matsuri_core::trainer::MatsuriRolloutTrainer;
 
 const DATA_ROOT: &str = "data";
 
@@ -187,7 +187,7 @@ fn run() -> Result<()> {
         g.apply_root_action(a, &mut r)?;
         while g.next() {
             let mut rr = StdRng::seed_from_u64(seed ^ 0x51ED_2701);
-            g.run_stage(&RandomTrainer, &mut rr)?;
+            g.run_stage(&MatsuriRolloutTrainer, &mut rr)?;
         }
         Ok(g.search_score(1.0)?)
     })?;

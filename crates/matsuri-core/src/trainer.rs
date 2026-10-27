@@ -70,3 +70,81 @@ mod tests {
         assert_eq!(trainer.preferred_training(3), 0);
     }
 }
+
+/// rollout 基策（S2）：机制性走子，不做搜索决策。
+///
+/// 规则（只读局面）：
+/// 1. 演目槽满 → 稽古（等级最低的那个）
+/// 2. 体力 < 45% → 休息
+/// 3. 発表会前若有演目未达标 → 优先练那个演目的训练
+/// 4. 否则 → 补缺口最大的训练
+#[derive(Debug, Clone, Default)]
+pub struct MatsuriRolloutTrainer;
+
+impl MatsuriRolloutTrainer {
+    fn desired(game: &MatsuriGame) -> Action {
+        // 1) 稽古
+        if let Some(idx) = (0..5usize)
+            .filter(|i| game.act_gauge[*i] >= 5 && game.act_level[*i] < 10)
+            .min_by_key(|i| (game.act_level[*i], *i))
+        {
+            return Action::Keiko(idx as u8);
+        }
+        // 2) 低体力
+        let ratio = game.uma().vital as f64 / game.uma().max_vital.max(1) as f64;
+        if ratio < 0.45 {
+            return Action::Rest;
+        }
+        // 3) 発表会截止：练未达标的演目
+        let need = game
+            .data
+            .check_points
+            .iter()
+            .find(|c| c.turn >= game.turn)
+            .cloned();
+        if let Some(cp) = need {
+            if cp.turn - game.turn <= 15 {
+                if let Some(idx) = (0..5usize)
+                    .filter(|i| game.act_level[*i] < cp.need)
+                    .min_by_key(|i| game.act_level[*i])
+                {
+                    return Action::Train(idx as u8);
+                }
+            }
+        }
+        // 4) 缺口最大
+        let mut best = (0usize, f64::MAX);
+        for i in 0..5 {
+            let gap = (game.uma().five_status_limit[i] - game.uma().five_status[i]) as f64
+                / game.uma().five_status_limit[i].max(1) as f64;
+            if gap < best.1 {
+                best = (i, gap);
+            }
+        }
+        Action::Train(best.0 as u8)
+    }
+}
+
+impl Trainer<MatsuriGame> for MatsuriRolloutTrainer {
+    fn select_action(
+        &self,
+        game: &MatsuriGame,
+        actions: &[Action],
+        _rng: &mut StdRng,
+    ) -> Result<usize> {
+        let want = Self::desired(game);
+        if let Some(i) = actions.iter().position(|a| *a == want) {
+            return Ok(i);
+        }
+        Ok(0)
+    }
+
+    fn select_choice(
+        &self,
+        _game: &MatsuriGame,
+        choices: &[Vec<EventChoice>],
+        _rng: &mut StdRng,
+    ) -> Result<usize> {
+        Ok(if choices.is_empty() { 0 } else { 0 })
+    }
+}
