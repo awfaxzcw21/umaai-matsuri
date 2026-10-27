@@ -32,6 +32,43 @@ pub struct MatsuriData {
     /// 研钻之教え「追加の稽古」发生率（官方 intake 3.4）
     #[serde(default)]
     pub kensan_rate: Vec<i32>,
+    /// 教え效果（官方 intake 3.4）
+    #[serde(default)]
+    pub advice_effects: Vec<AdviceEffect>,
+    /// 伝受回合（0 基）
+    #[serde(default)]
+    pub advice_grant_turns: Vec<i32>,
+    /// 每次伝受分配的教え id 列表
+    #[serde(default)]
+    pub advice_grant_order: Vec<Vec<i32>>,
+    /// 発表会
+    #[serde(default)]
+    pub check_points: Vec<CheckPointDef>,
+}
+
+/// 教え效果
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct AdviceEffect {
+    pub advice_id: i32,
+    pub level: i32,
+    pub effect_type: i32,
+    pub value: i32,
+}
+
+/// 進捗発表会定义
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct CheckPointDef {
+    pub schedule: i32,
+    pub turn: i32,
+    pub need: i32,
+    pub success: BuffDef,
+    pub great: BuffDef,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct BuffDef {
+    #[serde(default)]
+    pub gain_pct: i32,
 }
 
 /// 演目等级效果（官方 intake 3.3）

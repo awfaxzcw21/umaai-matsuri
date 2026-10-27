@@ -65,6 +65,10 @@ pub struct MatsuriGame {
     pub act_level: [i32; 5],
     /// 每个演目挂的教え id（0 = 未分配）
     pub advice_id: [i32; 5],
+    /// 教え等级（用演目等级近似）
+    pub advice_level: [i32; 5],
+    /// 発表会累计的永久收益加成（0.2 = +20%）
+    pub gain_pct: f64,
 }
 
 impl Deref for MatsuriGame {
@@ -103,6 +107,8 @@ impl MatsuriGame {
             act_gauge: [0; 5],
             act_level: [1; 5],
             advice_id: [0; 5],
+            advice_level: [1; 5],
+            gain_pct: 0.0,
             persons: Vec::new(),
             stage: Stage::Begin,
             strategy: None,
@@ -138,12 +144,33 @@ impl MatsuriGame {
             .and_then(|levels| levels.get(level).or_else(|| levels.last()))
             .copied()
             .unwrap_or([0; 7]);
-        let value = ActionValue {
-            status_pt: [row[0], row[1], row[2], row[3], row[4], row[5]],
-            vital: row[6],
+        // 用引擎默认训练结算：吃卡组 buff / 人头 / 等级（与拉面杯同一套口径）
+        let value = match self
+            .calc_training_buff(train)
+            .and_then(|b| self.calc_training_value(&b, train))
+        {
+            Ok(v) => v,
+            Err(_) => ActionValue {
+                status_pt: [row[0], row[1], row[2], row[3], row[4], row[5]],
+                vital: row[6],
+                ..Default::default()
+            },
+        };
+        // 教え + 発表会加成
+        let (mult, vital_delta) = self.advice_mods(train);
+        let scaled = ActionValue {
+            status_pt: [
+                (value.status_pt[0] as f64 * mult) as i32,
+                (value.status_pt[1] as f64 * mult) as i32,
+                (value.status_pt[2] as f64 * mult) as i32,
+                (value.status_pt[3] as f64 * mult) as i32,
+                (value.status_pt[4] as f64 * mult) as i32,
+                (value.status_pt[5] as f64 * mult) as i32,
+            ],
+            vital: value.vital + vital_delta,
             ..Default::default()
         };
-        self.uma_mut().add_value(&value);
+        self.uma_mut().add_value(&scaled);
         self.base.train_level_count[train] += 1;
         // 演目 gauge：有对应人头就涨（官方：有对应人头 +1、友情 +2）
         let persons = self.count_training_persons(train);
@@ -152,6 +179,30 @@ impl MatsuriGame {
             self.act_gauge[train] = (self.act_gauge[train] + gain as i32).min(5);
         }
         Ok(())
+    }
+
+    /// 某个演目上的教え修正：(收益倍率, 体力增减)
+    fn advice_mods(&self, act: usize) -> (f64, i32) {
+        let aid = self.advice_id.get(act).copied().unwrap_or(0);
+        if aid <= 0 {
+            return (1.0, 0);
+        }
+        let level = self.advice_level.get(act).copied().unwrap_or(1).clamp(1, 10);
+        let mut gain = 0.0;
+        let mut vital = 0;
+        for e in self
+            .data
+            .advice_effects
+            .iter()
+            .filter(|e| e.advice_id == aid && e.level == level)
+        {
+            match e.effect_type {
+                13 | 21 | 202 | 203 => gain += e.value as f64 / 100.0,
+                3 => vital += e.value,
+                _ => {}
+            }
+        }
+        (1.0 + gain + self.gain_pct, vital)
     }
 
     /// 演目稽古：演目等级高 = 基础值按等级档 + 等级效果（官方 intake 3.2/3.3）
@@ -205,7 +256,20 @@ impl MatsuriGame {
             vital: row[6],
             ..Default::default()
         };
-        self.uma_mut().add_value(&value);
+        let (mult, vital_delta) = self.advice_mods(idx);
+        let scaled = ActionValue {
+            status_pt: [
+                (value.status_pt[0] as f64 * mult) as i32,
+                (value.status_pt[1] as f64 * mult) as i32,
+                (value.status_pt[2] as f64 * mult) as i32,
+                (value.status_pt[3] as f64 * mult) as i32,
+                (value.status_pt[4] as f64 * mult) as i32,
+                (value.status_pt[5] as f64 * mult) as i32,
+            ],
+            vital: value.vital + vital_delta,
+            ..Default::default()
+        };
+        self.uma_mut().add_value(&scaled);
         if five_types && effect.sp_limit > 0 {
             for s in self.uma_mut().five_status_limit.iter_mut() {
                 *s += effect.sp_limit;
@@ -239,8 +303,48 @@ impl MatsuriGame {
     ) -> Result<()> {
         match self.stage {
             Stage::Begin => {
+                // 生涯比赛：引擎按回合生成比赛事件（与 BasicGame 同口径）
+                if self.base.uma.is_race_turn(self.base.turn) {
+                    let scale = (100 + self.base.uma.race_bonus) as f64 / 100.0;
+                    self.base.push_race_event(scale, 1.0)?;
+                }
+                // 执行本回合事件（比赛事件也在其中）
+                let events = std::mem::take(&mut self.base.unresolved_events);
+                for event in &events {
+                    self.run_event(event, trainer, decision, &mut streams.event)?;
+                }
                 // 人头分配：走回合固定流（seed 可复现）
                 self.distribute_all(&mut streams.turn_fixed)?;
+                // 伝受：按回合把教え分配到演目
+                if let Some(idx) = self
+                    .data
+                    .advice_grant_turns
+                    .iter()
+                    .position(|t| *t == self.turn)
+                {
+                    if let Some(list) = self.data.advice_grant_order.get(idx) {
+                        for (slot, aid) in list.iter().enumerate() {
+                            if slot < 5 {
+                                self.advice_id[slot] = *aid;
+                                self.advice_level[slot] = self.act_level[slot].clamp(1, 10);
+                            }
+                        }
+                    }
+                }
+                // 発表会：全演目达标 → 永久收益加成
+                if let Some(cp) = self
+                    .data
+                    .check_points
+                    .iter()
+                    .find(|c| c.turn == self.turn)
+                    .cloned()
+                {
+                    if self.act_level.iter().all(|lv| *lv >= cp.need) {
+                        let great = self.act_level.iter().all(|lv| *lv > cp.need);
+                        let buff = if great { cp.great } else { cp.success };
+                        self.gain_pct += buff.gain_pct as f64 / 100.0;
+                    }
+                }
                 // 事件链留待后续（`streams.event`）
             }
             Stage::Train => {
