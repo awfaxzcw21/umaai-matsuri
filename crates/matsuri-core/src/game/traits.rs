@@ -81,6 +81,10 @@ impl Game for MatsuriGame {
 
     fn list_actions(&self) -> Result<Vec<Self::Action>> {
         // S1：五个训练 + 休息；后续实现在这里列自己的动作（比赛 / 出行 / 剧本机制）
+        // 合宿窗口：只有训练（引擎里训练=演目稽古），没有出行/休息
+        if self.is_camp_turn() {
+            return Ok((0..5u8).map(Action::Train).collect());
+        }
         let mut actions: Vec<Action> = Vec::new();
         // 演目槽满 → 稽古作为可选动作（官方：gauge 满才亮）
         for idx in 0..5u8 {
@@ -89,7 +93,7 @@ impl Game for MatsuriGame {
             }
         }
         actions.extend((0..5u8).map(Action::Train));
-        // 友人出行：官方口径「全剧本 5 次」，用完即止（不额外加我编的体力门槛）
+        // 友人出行：官方口径「全剧本 5 次」，用完即止
         if self.turn >= 21 && self.turn <= 60 && self.outing_count < 5 {
             actions.push(Action::Outing);
         }

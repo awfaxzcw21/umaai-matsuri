@@ -150,7 +150,7 @@ impl MatsuriGame {
     }
 
     /// 合宿窗口（0 基）：12-15 / 36-39 / 60-63（官方 memo）
-    fn is_camp_turn(&self) -> bool {
+    pub(crate) fn is_camp_turn(&self) -> bool {
         matches!(self.turn, 12..=15 | 36..=39 | 60..=63)
     }
 
