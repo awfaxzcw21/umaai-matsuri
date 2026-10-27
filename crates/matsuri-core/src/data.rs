@@ -23,6 +23,31 @@ pub struct MatsuriData {
     pub sample_resource: i32,
     /// 训练基础值表：`[训练 0-4][等级] -> [速 耐 力 根 智 PT 体力消耗]`
     pub training_basic_value: Vec<Vec<[i32; 7]>>,
+    /// 演目稽古基础值（5 个演目）
+    #[serde(default)]
+    pub keiko_basic_value: Vec<[i32; 7]>,
+    /// 演目等级效果（官方 intake 3.3）
+    #[serde(default)]
+    pub act_level_effects: Vec<ActLevelEffect>,
+    /// 研钻之教え「追加の稽古」发生率（官方 intake 3.4）
+    #[serde(default)]
+    pub kensan_rate: Vec<i32>,
+}
+
+/// 演目等级效果（官方 intake 3.3）
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct ActLevelEffect {
+    pub level: i32,
+    /// 全基础 +N（105）
+    pub all_base: i32,
+    /// 友情加成 %（202）
+    pub friend_pct: i32,
+    /// SP 练习效果 %（201，编成卡类型 ≥5）
+    pub sp_practice_pct: i32,
+    /// SP 上限（109，编成卡类型 ≥5）
+    pub sp_limit: i32,
+    /// 基础上限（206）
+    pub base_limit: i32,
 }
 
 impl MatsuriData {

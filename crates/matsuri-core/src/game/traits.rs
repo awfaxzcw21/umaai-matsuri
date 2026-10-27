@@ -81,7 +81,14 @@ impl Game for MatsuriGame {
 
     fn list_actions(&self) -> Result<Vec<Self::Action>> {
         // S1：五个训练 + 休息；后续实现在这里列自己的动作（比赛 / 出行 / 剧本机制）
-        let mut actions: Vec<Action> = (0..5u8).map(Action::Train).collect();
+        let mut actions: Vec<Action> = Vec::new();
+        // 演目槽满 → 稽古作为可选动作（官方：gauge 满才亮）
+        for idx in 0..5u8 {
+            if self.act_gauge[idx as usize] >= 5 && self.act_level[idx as usize] < 10 {
+                actions.push(Action::Keiko(idx));
+            }
+        }
+        actions.extend((0..5u8).map(Action::Train));
         actions.push(Action::Rest);
         Ok(actions)
     }

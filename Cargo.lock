@@ -485,6 +485,8 @@ dependencies = [
  "anyhow",
  "matsuri-core",
  "rand",
+ "serde",
+ "serde_json",
  "umaai",
  "umaai-cli",
  "umaai-core",

@@ -24,7 +24,7 @@ use umasim::game::{Game, InheritInfo, Trainer, TrainingValueSource};
 pub use action::Action;
 pub use stage::Stage;
 
-use crate::data::MatsuriData;
+use crate::data::{ActLevelEffect, MatsuriData};
 
 /// 剧本资源快照（给前端的纯数据 View）
 ///
@@ -37,6 +37,10 @@ use crate::data::MatsuriData;
 pub struct MatsuriView {
     /// S1 占位：剧本自持资源；S2 后替换为演目账本
     pub sample_resource: i32,
+    /// 演目 gauge（0..5）
+    pub act_gauge: [i32; 5],
+    /// 演目等级（1..10）
+    pub act_level: [i32; 5],
 }
 
 /// 剧本局面
@@ -55,6 +59,12 @@ pub struct MatsuriGame {
     pub strategy: Option<StrategyRng>,
     /// 剧本自持资产（宿主载入后注入；训练表等数值都取自它）
     pub data: Arc<MatsuriData>,
+    /// 演目 gauge（0..5）
+    pub act_gauge: [i32; 5],
+    /// 演目等级（1..10）
+    pub act_level: [i32; 5],
+    /// 每个演目挂的教え id（0 = 未分配）
+    pub advice_id: [i32; 5],
 }
 
 impl Deref for MatsuriGame {
@@ -90,6 +100,9 @@ impl MatsuriGame {
                 Data::get()?.consts.five_status_limit_base,
                 race_grades,
             )?,
+            act_gauge: [0; 5],
+            act_level: [1; 5],
+            advice_id: [0; 5],
             persons: Vec::new(),
             stage: Stage::Begin,
             strategy: None,
@@ -110,6 +123,8 @@ impl MatsuriGame {
     pub fn view(&self) -> MatsuriView {
         MatsuriView {
             sample_resource: self.data.sample_resource,
+            act_gauge: self.act_gauge,
+            act_level: self.act_level,
         }
     }
 
@@ -130,6 +145,79 @@ impl MatsuriGame {
         };
         self.uma_mut().add_value(&value);
         self.base.train_level_count[train] += 1;
+        // 演目 gauge：有对应人头就涨（官方：有对应人头 +1、友情 +2）
+        let persons = self.count_training_persons(train);
+        let gain = if persons > 0 { 1 + persons.min(2) } else { 0 };
+        if gain > 0 {
+            self.act_gauge[train] = (self.act_gauge[train] + gain as i32).min(5);
+        }
+        Ok(())
+    }
+
+    /// 演目稽古：演目等级高 = 基础值按等级档 + 等级效果（官方 intake 3.2/3.3）
+    pub(crate) fn do_keiko(&mut self, idx: usize, _rng: &mut impl Rng) -> Result<()> {
+        if idx >= 5 {
+            return Err(anyhow::anyhow!("演目下标越界: {idx}"));
+        }
+        let level = self.act_level[idx].clamp(1, 10) as usize;
+        let row = self
+            .data
+            .keiko_basic_value
+            .get(idx)
+            .copied()
+            .unwrap_or([0; 7]);
+        // 演目等级效果
+        let effect = self
+            .data
+            .act_level_effects
+            .iter()
+            .find(|e| e.level == level as i32)
+            .cloned()
+            .unwrap_or(ActLevelEffect {
+                level: level as i32,
+                all_base: 0,
+                friend_pct: 0,
+                sp_practice_pct: 0,
+                sp_limit: 0,
+                base_limit: 0,
+            });
+        let five_types = self
+            .base
+            .card_type_count
+            .iter()
+            .filter(|c| **c > 0)
+            .count()
+            >= 5;
+        let sp_bonus = if five_types {
+            (row[5] as f64 * (effect.sp_practice_pct as f64 + 100.0) / 100.0) as i32 - row[5]
+        } else {
+            0
+        };
+        let value = ActionValue {
+            status_pt: [
+                row[0] + effect.all_base,
+                row[1] + effect.all_base,
+                row[2] + effect.all_base,
+                row[3] + effect.all_base,
+                row[4] + effect.all_base,
+                row[5] + sp_bonus,
+            ],
+            vital: row[6],
+            ..Default::default()
+        };
+        self.uma_mut().add_value(&value);
+        if five_types && effect.sp_limit > 0 {
+            for s in self.uma_mut().five_status_limit.iter_mut() {
+                *s += effect.sp_limit;
+            }
+        }
+        if effect.base_limit > 0 {
+            for s in self.uma_mut().five_status_limit.iter_mut() {
+                *s += effect.base_limit;
+            }
+        }
+        self.act_gauge[idx] = 0;
+        self.act_level[idx] = (self.act_level[idx] + 1).min(10);
         Ok(())
     }
 
@@ -151,9 +239,9 @@ impl MatsuriGame {
     ) -> Result<()> {
         match self.stage {
             Stage::Begin => {
-                // S1 占位：回合开始的事件链。后续实现在这里用 `streams.event`（事件流）生成
-                // 并结算回合事件、用 `streams.turn_fixed`（回合固定流）做人头分配 / 角标 / hint。
-                let _ = (&mut streams.event, &mut streams.turn_fixed);
+                // 人头分配：走回合固定流（seed 可复现）
+                self.distribute_all(&mut streams.turn_fixed)?;
+                // 事件链留待后续（`streams.event`）
             }
             Stage::Train => {
                 let actions = self.list_actions()?;

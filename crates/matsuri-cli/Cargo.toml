@@ -11,6 +11,10 @@ publish.workspace = true
 name = "matsuri"
 path = "src/main.rs"
 
+[[bin]]
+name = "matsuri-mccli"
+path = "src/mccli.rs"
+
 [dependencies]
 matsuri-core.workspace = true
 umaai-core.workspace = true
@@ -19,3 +23,5 @@ umaai.workspace = true
 umaai-cli.workspace = true
 anyhow.workspace = true
 rand.workspace = true
+serde_json.workspace = true
+serde.workspace = true
