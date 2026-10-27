@@ -135,7 +135,16 @@ impl MatsuriGame {
     }
 
     /// 训练结算（S1 版：按剧本资产里的表入账 + 设施计数；失败判定 / 羁绊 / hint 留给剧本作者）
+    /// 合宿窗口（0 基）：12-15 / 36-39 / 60-63（官方 memo）
+    fn is_camp_turn(&self) -> bool {
+        matches!(self.turn, 12..=15 | 36..=39 | 60..=63)
+    }
+
     pub(crate) fn do_train(&mut self, train: usize, _rng: &mut impl Rng) -> Result<()> {
+        // 合宿：所有训练都变成演目稽古（官方：合宿训练与演目稽古同一 ID）
+        if self.is_camp_turn() {
+            return self.do_keiko(train, _rng);
+        }
         let table = self.training_basic_table();
         let level = self.train_level(train).clamp(1, 5) - 1;
         // 当前表档位可少于 5：等级超出即取末档（后续实现给满 5 档）
@@ -303,6 +312,16 @@ impl MatsuriGame {
     ) -> Result<()> {
         match self.stage {
             Stage::Begin => {
+                // 回合事件（与 BasicGame 同口径）
+                let mut turn_events = self.generate_events(&mut streams.event);
+                if self.turn == 77 {
+                    if let Ok(ending) = umaai_core::Data::get().and_then(|d| d.system_event("ending").cloned()) {
+                        self.base.unresolved_events.push(ending);
+                    }
+                }
+                for event in &turn_events {
+                    self.run_event(event, trainer, decision, &mut streams.event)?;
+                }
                 // 生涯比赛：引擎按回合生成比赛事件（与 BasicGame 同口径）
                 if self.base.uma.is_race_turn(self.base.turn) {
                     let scale = (100 + self.base.uma.race_bonus) as f64 / 100.0;
@@ -313,8 +332,9 @@ impl MatsuriGame {
                 for event in &events {
                     self.run_event(event, trainer, decision, &mut streams.event)?;
                 }
-                // 人头分配：走回合固定流（seed 可复现）
+                // 人头分配 + 提示（hint）：走回合固定流（seed 可复现）
                 self.distribute_all(&mut streams.turn_fixed)?;
+                self.distribute_hint(&mut streams.turn_fixed)?;
                 // 伝受：按回合把教え分配到演目
                 if let Some(idx) = self
                     .data
@@ -330,6 +350,10 @@ impl MatsuriGame {
                             }
                         }
                     }
+                }
+                // 転成：第 2 次伝受时把两个初始教え当材料，吃融合效果
+                if self.turn == 23 {
+                    self.gain_pct += 0.25;
                 }
                 // 発表会：全演目达标 → 永久收益加成
                 if let Some(cp) = self

@@ -93,9 +93,62 @@ impl Game for MatsuriGame {
         Ok(actions)
     }
 
-    fn generate_events(&self, _rng: &mut impl Rng) -> Vec<EventData> {
-        // S1 占位：后续实现在这里生成回合事件（固定回合 / 概率 / 剧本条件）
-        Vec::new()
+    fn generate_events(&self, rng: &mut impl Rng) -> Vec<EventData> {
+        // 与 BasicGame 同口径：剧本事件优先，否则按事件分布抽卡事件 / 马娘事件 / 掉心情
+        let Ok(data) = umaai_core::Data::get() else {
+            return vec![];
+        };
+        let mut events = vec![];
+        let story = self.list_turn_events(&data.events.story_events);
+        if !story.is_empty() {
+            return story;
+        }
+        if data.consts.no_event_turns.contains(&self.turn) {
+            return vec![];
+        }
+        let dist = data.consts.get_event_distribution();
+        match umasim::game::sample_bucket(&dist, rng) {
+            Ok(0) => {
+                let card_event_times: Vec<u32> = [8001, 8002, 8003]
+                    .iter()
+                    .map(|x| *self.base.events.get(x).unwrap_or(&0))
+                    .collect();
+                let mut available: Vec<usize> = Vec::new();
+                if card_event_times[0] < 5 {
+                    available.push(0);
+                }
+                if card_event_times[1] < card_event_times[0] {
+                    available.push(1);
+                }
+                if card_event_times[2] < card_event_times[1] {
+                    available.push(2);
+                }
+                if !available.is_empty() {
+                    let idx = available[rng.random_range(0..available.len())];
+                    let mut event = data.events.card_events[idx].clone();
+                    let mut p = rng.random_range(0..6);
+                    while !self.person_is_available(p) {
+                        p = rng.random_range(0..6);
+                    }
+                    event.person_index = Some(p as i32);
+                    events.push(event);
+                }
+            }
+            Ok(1) => {
+                if let Some(event) = self.random_select_event(&data.events.uma_events, rng) {
+                    events.push(event);
+                }
+            }
+            Ok(2) => {
+                if self.turn >= 12 {
+                    if let Ok(event) = data.system_event("drop_motivation") {
+                        events.push(event.clone());
+                    }
+                }
+            }
+            _ => {}
+        }
+        events
     }
 
     fn apply_event(&mut self, event: &EventData, choice: usize, rng: &mut impl Rng) -> Result<()> {
