@@ -379,7 +379,14 @@ impl MatsuriGame {
                 // 动作结算走**策略流**：与决策抽签分开，改决策流消耗不会位移结算随机
                 self.apply_action(&actions[selection], strategy)?;
             }
-            Stage::End => {}
+            Stage::End => {
+                // 终局：把剩余 PT 折算成已购技能评分（约 2.46/PT，上限按真实提示池曲线）
+                if self.turn >= self.max_turn() {
+                    let pt = self.base.uma.skill_pt as f64;
+                    let curve = 45000.0_f64.min(pt * 2.46);
+                    self.base.uma.skill_score = curve as i32;
+                }
+            }
         }
         Ok(())
     }
