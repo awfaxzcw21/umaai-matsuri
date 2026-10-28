@@ -68,6 +68,9 @@ pub struct MatsuriGame {
     pub advice_id: [i32; 5],
     /// 教え等级（用演目等级近似）
     pub advice_level: [i32; 5],
+    /// 每个训练的真实面板 PT 收益快照（来自报文 `commands[].skill_point`；0 = 未注入，回退按比例 1.0）
+    /// 用于恢复「训练哪个维度」的真实 PT 差异（速度 62 vs 根性 23），B2 分源第一步。
+    pub train_pt_anchor: [i32; 5],
     /// 発表会累计的永久收益加成（0.2 = +20%）
     pub gain_pct: f64,
     /// 已用友人出行次数（官方：全剧本约 5 次）
@@ -111,6 +114,7 @@ impl MatsuriGame {
             act_level: [1; 5],
             advice_id: [0; 5],
             advice_level: [1; 5],
+            train_pt_anchor: [0; 5],
             gain_pct: 0.0,
             outing_count: 0,
             persons: Vec::new(),
@@ -190,6 +194,22 @@ impl MatsuriGame {
         let (mult, vital_delta, vital_pct) = self.advice_mods(train);
         let vital_delta = vital_delta + (value.vital as f64 * vital_pct / 100.0) as i32;
         let vs = &self.data.value_scale;
+        // B2 分源：恢复「训练哪个维度」的真实 PT 差异（速度 62 vs 根性 23），
+        // 用 anchor 均值归一 → 只改 per-train 相对权重、不改总量（绝对值对齐留待 B2 后续）。
+        let pt_ratio = {
+            let valid: Vec<i32> = self
+                .train_pt_anchor
+                .iter()
+                .copied()
+                .filter(|&x| x > 0)
+                .collect();
+            if valid.len() == 5 && self.train_pt_anchor[train] > 0 {
+                let mean = valid.iter().sum::<i32>() as f64 / valid.len() as f64;
+                self.train_pt_anchor[train] as f64 / mean
+            } else {
+                1.0
+            }
+        };
         let scaled = ActionValue {
             status_pt: [
                 (value.status_pt[0] as f64 * mult * vs.train_stat) as i32,
@@ -197,7 +217,7 @@ impl MatsuriGame {
                 (value.status_pt[2] as f64 * mult * vs.train_stat) as i32,
                 (value.status_pt[3] as f64 * mult * vs.train_stat) as i32,
                 (value.status_pt[4] as f64 * mult * vs.train_stat) as i32,
-                (value.status_pt[5] as f64 * mult * vs.train_pt) as i32,
+                (value.status_pt[5] as f64 * mult * vs.train_pt * pt_ratio) as i32,
             ],
             vital: value.vital + vital_delta,
             ..Default::default()

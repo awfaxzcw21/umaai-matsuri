@@ -141,6 +141,10 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
             for c in cmds {
                 let Some(name) = c.get("train").and_then(|x| x.as_str()) else { continue };
                 let Some(idx) = TRAINS.iter().position(|t| *t == name) else { continue };
+                // B2 分源：真实训练 PT 收益快照（面板 skill_point，含得意/等级/教え/発表会全加成）
+                if let Some(sp) = c.get("skill_point").and_then(|x| x.as_i64()) {
+                    game.train_pt_anchor[idx] = sp as i32;
+                }
                 if let Some(ids) = c.get("partner_ids").and_then(|x| x.as_array()) {
                     for id in ids {
                         let Some(idv) = id.as_i64() else { continue };
