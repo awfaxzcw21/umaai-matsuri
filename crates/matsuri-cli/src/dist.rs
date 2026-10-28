@@ -10,9 +10,9 @@
 //! 输出两套分数：
 //!   - `score`：引擎原生 `search_score(1.0)`（衰减五维表 + PT×2.0 + 技能分）。排序口径，绝对值偏低。
 //!   - `real_score`：**真实标尺**（对齐黑板面板显示）——
-//!       `real = Σ status_final_score(revise(五维)) + 1.0746 × round(skill_pt × 2.61)`
+//!       `real = Σ status_final_score(revise(五维)) + 1.0746 × round(skill_pt × 2.35)`
 //!     五维分走游戏客户端 `revise`（>1200 减半）再查同一张表；技能分用剧本 15 拟合系数
-//!     `1.0746` × `grade_est`（grade/pt 中位 2.61，黑板 `real_ppt` 同源）。
+//!     `1.0746` × `grade_est`（grade/pt 取 2.35，见 `GRADE_PER_PT_DEFAULT`，`MC_GRADE_PER_PT` 可覆盖）。
 //!     名次沿用引擎原生 `rank_names`（301 档，US8=72,900）。
 
 use std::collections::HashMap;
@@ -33,9 +33,22 @@ mod state;
 /// 剧本 15 技能系数（黑板 `score.SCENARIO_SCALES[15] = (4.7848, 1.0746)` 的技能项）。
 const SKILL_SCALE: f64 = 1.0746;
 
-/// 真实局「最终 Σgrade ÷ 实付 pt」中位 2.65，黑板 `real_ppt = 2.61`。
-/// `grade_est = round(skill_pt × 2.61)`；黑板里 `min(清单Σgrade, …)` 的清单上限通常远大于此，不绑定。
-const GRADE_PER_PT: f64 = 2.61;
+/// 技能分折算：`grade_est = round(skill_pt × GRADE_PER_PT)`。
+///
+/// 2.61 是黑板 `skill_plan.REAL_GRADES_PER_PT` 的口径（137 匹练成马娘 24,114 grade / 9,240 pt），
+/// 但那是**全样本聚合**；本剧本可核的那一局（card 114101，t78 五维 2244/1750/1845/1349/1296、
+/// PT 8,450，官方 `rank_score` 72,142）反推出来只有 `18,297 / 8,450 = 2.17`，
+/// 直接量到的 Σgrade 19,492 则给 `2.31`。取中间值 2.35，使 72,142 的残差落在 1% 内。
+/// 换值不必重编译：`MC_GRADE_PER_PT` 覆盖。
+const GRADE_PER_PT_DEFAULT: f64 = 2.35;
+
+fn grade_per_pt() -> f64 {
+    std::env::var("MC_GRADE_PER_PT")
+        .ok()
+        .and_then(|s| s.parse::<f64>().ok())
+        .filter(|v| *v > 0.0)
+        .unwrap_or(GRADE_PER_PT_DEFAULT)
+}
 
 /// 游戏客户端 `ScoreUtils`：>1200 的属性按 `(v+1200)/2` 减半计分；
 /// `revise` 是它的逆（`2v-1200`），把原始属性还原成「等效未衰减值」再去查表。
@@ -72,6 +85,7 @@ fn run() -> Result<()> {
 
     let data = Data::get()?;
     let consts = &data.consts;
+    let grade_pp = grade_per_pt();
 
     let mut native_scores: Vec<i32> = Vec::with_capacity(n);
     let mut real_scores: Vec<i32> = Vec::with_capacity(n);
@@ -94,14 +108,14 @@ fn run() -> Result<()> {
 
         // 真实标尺（对齐黑板面板）：
         //   五维分 = Σ 表[revise(属性)]（引擎 `score_parts` 少了 revise，这里补上）
-        //   技能分 = 1.0746 × round(skill_pt × 2.61)
+        //   技能分 = 1.0746 × round(skill_pt × grade_pp)
         let uma = g.uma();
         let stat_part: i32 = uma
             .five_status
             .iter()
             .map(|&v| consts.status_final_score(revise(v)))
             .sum();
-        let grade_est = (uma.skill_pt as f64 * GRADE_PER_PT).round() as i32;
+        let grade_est = (uma.skill_pt as f64 * grade_pp).round() as i32;
         let real = stat_part as f64 + SKILL_SCALE * grade_est as f64;
         real_scores.push(real as i32);
         five_sums.push(uma.five_status.iter().sum());
