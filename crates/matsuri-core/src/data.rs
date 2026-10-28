@@ -47,6 +47,35 @@ pub struct MatsuriData {
     /// 数值缩放（锚定 action_log 实测均值）
     #[serde(default)]
     pub value_scale: ValueScale,
+    /// 比赛后隐藏事件（bwiki 238 条，剧本 15 专属）
+    #[serde(default)]
+    pub hidden_events: Vec<HiddenEventDef>,
+    /// 生涯比赛目标技能点（每场，含卡「赛后」加成之后）
+    ///
+    /// 引擎系统事件 `race_career` 面板值 67 PT，而参考局报文实测每场约 108~216。
+    /// `> 0` 时按 `target / (面板值 × scale)` 反推 `pt_rate`，使比赛 PT 落在目标值；
+    /// `0`（默认）表示不校准、保持引擎原始数值。
+    #[serde(default)]
+    pub race_pt_target: f64,
+    /// 终盘（0 基回合 >= 67，即 1 基 t68 之后）每场目标技能点
+    ///
+    /// 参考局 t68 后各场稳定 216 PT（`チーム対抗戦`），高于前中期，单独一档。
+    #[serde(default)]
+    pub race_pt_target_late: f64,
+}
+
+/// 比赛后隐藏事件（bwiki「隐藏事件一览」，剧本 15 专属）
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+pub struct HiddenEventDef {
+    /// 五维属性收益（速 / 耐 / 力 / 根 / 智）
+    #[serde(default)]
+    pub stat: [i32; 5],
+    /// 技能点
+    #[serde(default)]
+    pub pt: i32,
+    /// 体力（可为负）
+    #[serde(default)]
+    pub vital: i32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
@@ -82,6 +111,21 @@ pub struct CheckPointDef {
     pub need: i32,
     pub success: BuffDef,
     pub great: BuffDef,
+    /// 达标奖励：全能力 +N（官方発表会 t24/48/68 = 5/10/15）
+    #[serde(default)]
+    pub all_stat: i32,
+    /// 达标奖励：技能点 +N（t24/48/68 = 200/300/400）
+    #[serde(default)]
+    pub pt: i32,
+    /// 达标奖励：五维训练等级 +N（前两回各 +1）
+    #[serde(default)]
+    pub train_lv: i32,
+    /// 达标奖励：体力 +N（本祭 t68 = 30）
+    #[serde(default)]
+    pub vital: i32,
+    /// 达标奖励：干劲 +N（本祭 t68 = 1）
+    #[serde(default)]
+    pub motivation: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]

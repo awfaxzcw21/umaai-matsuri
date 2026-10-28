@@ -18,7 +18,7 @@ use umaai::Config;
 use umaai_core::Data;
 use umaai_core::gamedata::ActionValue;
 use umasim::game::CardTrainingEffect;
-use umaai_core::rng::{StrategyRng, StreamTag, derive_seed};
+use umaai_core::rng::{EventRng, StrategyRng, StreamTag, derive_seed};
 use umasim::game::base::{BaseGame, BasePerson, RuleStreams};
 use umasim::game::{Game, InheritInfo, Trainer, TrainingValueSource};
 
@@ -353,6 +353,28 @@ impl MatsuriGame {
         });
     }
 
+    /// 比赛后隐藏事件（bwiki「隐藏事件一览」238 条，剧本 15 专属）
+    ///
+    /// 与 Python 模拟器同口径：生涯比赛回合后按 `HIDDEN_EVENT_RATE` 概率抽一条，
+    /// 效果只结算属性 / 技能点 / 体力（hint 未建模，因 bwiki 抓取未落 numbers）。
+    fn apply_hidden_event(&mut self, rng: &mut EventRng) {
+        const HIDDEN_EVENT_RATE: f64 = 0.35;
+        if self.data.hidden_events.is_empty() || !rng.random_bool(HIDDEN_EVENT_RATE) {
+            return;
+        }
+        let (stat, pt, vital) = {
+            let ev = &self.data.hidden_events[rng.random_range(0..self.data.hidden_events.len())];
+            (ev.stat, ev.pt, ev.vital)
+        };
+        let limits = self.uma().five_status_limit;
+        let uma = self.uma_mut();
+        for i in 0..5 {
+            uma.five_status[i] = (uma.five_status[i] + stat[i]).min(limits[i]);
+        }
+        uma.skill_pt += pt;
+        uma.vital = (uma.vital + vital).clamp(0, uma.max_vital);
+    }
+
     /// 单阶段推进（S1 版阶段机；后续实现按自己的回合结构改）
     pub(crate) fn stage_body<T: Trainer<Self>>(
         &mut self,
@@ -376,12 +398,32 @@ impl MatsuriGame {
                 // 生涯比赛：引擎按回合生成比赛事件（与 BasicGame 同口径）
                 if self.base.uma.is_race_turn(self.base.turn) {
                     let scale = (100 + self.base.uma.race_bonus) as f64 / 100.0;
-                    self.base.push_race_event(scale, 1.0)?;
+                    // 比赛 PT 校准：按「每场目标 PT」反推 pt_rate（0 = 不校准）
+                    let target = if self.base.turn >= 67 {
+                        self.data.race_pt_target_late
+                    } else {
+                        self.data.race_pt_target
+                    };
+                    let pt_rate = if target > 0.0 {
+                        let panel_pt = umaai_core::Data::get()
+                            .and_then(|d| d.system_event("race_career").cloned())
+                            .map(|e| e.choices[0][0].value.status_pt[5])
+                            .unwrap_or(67)
+                            .max(1);
+                        target / (f64::from(panel_pt) * scale)
+                    } else {
+                        1.0
+                    };
+                    self.base.push_race_event(scale, pt_rate)?;
                 }
                 // 执行本回合事件（比赛事件也在其中）
                 let events = std::mem::take(&mut self.base.unresolved_events);
                 for event in &events {
                     self.run_event(event, trainer, decision, &mut streams.event)?;
+                }
+                // B1a：比赛后隐藏事件（bwiki 238 条，剧本 15 专属，按概率抽一条）
+                if self.base.uma.is_race_turn(self.base.turn) {
+                    self.apply_hidden_event(&mut streams.event);
                 }
                 // 人头分配 + 提示（hint）：走回合固定流（seed 可复现）
                 self.distribute_all(&mut streams.turn_fixed)?;
@@ -418,6 +460,33 @@ impl MatsuriGame {
                         let great = self.act_level.iter().all(|lv| *lv > cp.need);
                         let buff = if great { cp.great } else { cp.success };
                         self.gain_pct += buff.gain_pct as f64 / 100.0;
+                        // 达标实数奖励（官方 Wiki 文案，见 docs/plan/intake.md）
+                        // t24 = 全能力+5 / PT+200 / トレLv+1
+                        // t48 = 全能力+10 / PT+300 / トレLv+1
+                        // t68 = 全能力+15 / PT+400 / 体力+30 / やる気+1
+                        if cp.all_stat > 0 {
+                            let limits = self.uma().five_status_limit;
+                            let uma = self.uma_mut();
+                            for i in 0..5 {
+                                uma.five_status[i] = (uma.five_status[i] + cp.all_stat).min(limits[i]);
+                            }
+                        }
+                        if cp.pt > 0 {
+                            self.uma_mut().skill_pt += cp.pt;
+                        }
+                        if cp.train_lv > 0 {
+                            // 训练等级 = 1 + count/4，所以每 +1 级 = count +4
+                            for t in 0..5 {
+                                self.base.train_level_count[t] += cp.train_lv * 4;
+                            }
+                        }
+                        if cp.vital > 0 {
+                            let uma = self.uma_mut();
+                            uma.vital = (uma.vital + cp.vital).min(uma.max_vital);
+                        }
+                        if cp.motivation > 0 {
+                            self.uma_mut().add_motivation(cp.motivation);
+                        }
                     }
                 }
                 // 事件链留待后续（`streams.event`）
