@@ -77,6 +77,10 @@ fn run() -> Result<()> {
     let mut real_scores: Vec<i32> = Vec::with_capacity(n);
     let mut five_sums: Vec<i32> = Vec::with_capacity(n);
     let mut pts: Vec<i32> = Vec::with_capacity(n);
+
+    // 逐样本明细（尾部诊断用）：`MC_DUMP=<path>` 时才落盘，避免默认输出变大。
+    let dump_path = std::env::var("MC_DUMP").ok();
+    let mut dump: Vec<Value> = Vec::new();
     for i in 0..n {
         // 与 mccli 2-ply 同族的种子散列：换 MC_SEED 不换抽样结构，只换基点
         let seed = seed_base
@@ -102,6 +106,25 @@ fn run() -> Result<()> {
         real_scores.push(real as i32);
         five_sums.push(uma.five_status.iter().sum());
         pts.push(uma.skill_pt);
+
+        if dump_path.is_some() {
+            dump.push(json!({
+                "i": i,
+                "real": real as i32,
+                "native": native_scores[native_scores.len() - 1],
+                "five": uma.five_status.to_vec(),
+                "sum": uma.five_status.iter().sum::<i32>(),
+                "pt": uma.skill_pt,
+                "act": g.act_level.to_vec(),
+                "gauge": g.act_gauge.to_vec(),
+                "gain": g.gain_pct,
+            }));
+        }
+    }
+
+    if let Some(path) = dump_path.as_deref() {
+        let body: Vec<String> = dump.iter().map(|v| v.to_string()).collect();
+        std::fs::write(path, body.join("\n")).context("写样本明细失败")?;
     }
 
     let result = json!({

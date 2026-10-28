@@ -83,17 +83,19 @@ pub struct MatsuriRolloutTrainer;
 
 impl MatsuriRolloutTrainer {
     fn desired(game: &MatsuriGame) -> Action {
-        // 1) 稽古
+        // 1) 低体力先休息。**必须排在稽古之前**：稽古失败时体力照扣（-12）但
+        //    gauge 不清零、Lv 不升，低体力下会锁进「必败稽古 → 体力 0」的死循环
+        //    （实测 t37–t39 连续三次失败后 vital 恒 0，整局再没恢复）。
+        let ratio = game.uma().vital as f64 / game.uma().max_vital.max(1) as f64;
+        if ratio < 0.45 {
+            return Action::Rest;
+        }
+        // 2) 稽古
         if let Some(idx) = (0..5usize)
             .filter(|i| game.act_gauge[*i] >= 5 && game.act_level[*i] < 10)
             .min_by_key(|i| (game.act_level[*i], *i))
         {
             return Action::Keiko(idx as u8);
-        }
-        // 2) 低体力
-        let ratio = game.uma().vital as f64 / game.uma().max_vital.max(1) as f64;
-        if ratio < 0.45 {
-            return Action::Rest;
         }
         // 3) 発表会截止：练未达标的演目
         let need = game
