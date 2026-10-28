@@ -157,7 +157,8 @@ impl MatsuriGame {
     pub(crate) fn do_train(&mut self, train: usize, mut _rng: &mut impl Rng) -> Result<()> {
         // 合宿：所有训练都变成演目稽古（官方：合宿训练与演目稽古同一 ID）
         if self.is_camp_turn() {
-            return self.do_keiko(train, _rng);
+            // 合宿：训练=稽古，但不升 Lv（官方：合宿结束统一 +1）
+            return self.do_keiko_impl(train, _rng, false);
         }
         let table = self.training_basic_table();
         let level = self.train_level(train).clamp(1, 5) - 1;
@@ -246,6 +247,10 @@ impl MatsuriGame {
 
     /// 演目稽古：演目等级高 = 基础值按等级档 + 等级效果（官方 intake 3.2/3.3）
     pub(crate) fn do_keiko(&mut self, idx: usize, mut _rng: &mut impl Rng) -> Result<()> {
+        self.do_keiko_impl(idx, _rng, true)
+    }
+
+    fn do_keiko_impl(&mut self, idx: usize, mut _rng: &mut impl Rng, level_up: bool) -> Result<()> {
         if idx >= 5 {
             return Err(anyhow::anyhow!("演目下标越界: {idx}"));
         }
