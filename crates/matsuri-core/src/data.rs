@@ -9,6 +9,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
+use umaai_core::gamedata::EventData;
 
 /// 剧本数据文件名（放在宿主注入的剧本数据根下）
 pub const MATSURI_DATA_FILE: &str = "scenario_matsuri.json";
@@ -50,6 +51,13 @@ pub struct MatsuriData {
     /// 比赛后隐藏事件（bwiki 238 条，剧本 15 专属）
     #[serde(default)]
     pub hidden_events: Vec<HiddenEventDef>,
+    /// 剧本 15 专属剧情事件选项（报文 harvest 解码的 57 组真实事件，id 9001-9058）
+    ///
+    /// 与引擎核心 `events.json` 的 `uma_events`（5001-5007 通用占位）并存：
+    /// 每回合 `event_distribution` 的 uma 分支从「通用 + 剧本专属」合并池抽，
+    /// 剧本专属事件带真实选项（属性 / 体力 / 干劲 / PT 组合），`player_select=true`。
+    #[serde(default)]
+    pub scenario_events: Vec<EventData>,
     /// 生涯比赛目标技能点（每场，含卡「赛后」加成之后）
     ///
     /// 引擎系统事件 `race_career` 面板值 67 PT，而参考局报文实测每场约 108~216。

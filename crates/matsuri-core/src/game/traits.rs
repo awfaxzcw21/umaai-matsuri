@@ -144,8 +144,18 @@ impl Game for MatsuriGame {
                 }
             }
             Ok(1) => {
-                if let Some(event) = self.random_select_event(&data.events.uma_events, rng) {
-                    events.push(event);
+                // 通用马娘事件 + 剧本专属剧情事件（scenario_events）合并抽签：
+                // 剧本专属事件带真实选项（属性/体力/干劲/PT 组合），max_time=1 每局至多一次。
+                if self.data.scenario_events.is_empty() {
+                    if let Some(event) = self.random_select_event(&data.events.uma_events, rng) {
+                        events.push(event);
+                    }
+                } else {
+                    let mut pool: Vec<EventData> = data.events.uma_events.clone();
+                    pool.extend(self.data.scenario_events.iter().cloned());
+                    if let Some(event) = self.random_select_event(&pool, rng) {
+                        events.push(event);
+                    }
                 }
             }
             Ok(2) => {

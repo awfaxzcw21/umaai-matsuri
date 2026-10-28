@@ -156,6 +156,21 @@ impl Trainer<MatsuriGame> for MatsuriRolloutTrainer {
         choices: &[Vec<EventChoice>],
         _rng: &mut StdRng,
     ) -> Result<usize> {
-        Ok(if choices.is_empty() { 0 } else { 0 })
+        // rollout 基策选「综合价值最高」的选项（终局评分同向）：
+        //   五维 1 点 ≈ 属性分，PT 1 点 ≈ 技能分，体力能换训练、干劲影响训练收益。
+        // 每组取首个结果（剧本事件每组 1 个 prob=100 的结果，通用事件同构）。
+        if choices.len() <= 1 {
+            return Ok(0);
+        }
+        let best = (0..choices.len())
+            .max_by_key(|&i| {
+                choices[i].first().map_or(i32::MIN, |c| {
+                    let v = &c.value;
+                    let stat: i32 = v.status_pt.iter().take(5).sum();
+                    stat + v.status_pt[5] * 2 + v.vital * 2 + v.motivation * 20
+                })
+            })
+            .unwrap_or(0);
+        Ok(best)
     }
 }
