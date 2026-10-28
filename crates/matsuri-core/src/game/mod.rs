@@ -237,7 +237,8 @@ impl MatsuriGame {
             .filter(|e| e.advice_id == aid && e.level == level)
         {
             match e.effect_type {
-                13 | 21 | 202 | 203 => gain += e.value as f64 / 100.0,
+                13 | 21 | 203 => gain += e.value as f64 / 100.0,
+                202 => gain += e.value as f64 / 200.0,
                 3 => vital_pct += e.value as f64,
                 _ => {}
             }
