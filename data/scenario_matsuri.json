@@ -731,7 +731,7 @@
   "check_points": [
     {
       "schedule": 1,
-      "turn": 24,
+      "turn": 23,
       "need": 3,
       "success": {
         "gain_pct": 20
@@ -747,7 +747,7 @@
     },
     {
       "schedule": 2,
-      "turn": 48,
+      "turn": 47,
       "need": 5,
       "success": {
         "gain_pct": 40
@@ -763,7 +763,7 @@
     },
     {
       "schedule": 3,
-      "turn": 68,
+      "turn": 67,
       "need": 6,
       "success": {
         "gain_pct": 60
@@ -779,10 +779,10 @@
     }
   ],
   "value_scale": {
-    "train_stat": 4.43,
-    "train_pt": 19.53,
-    "keiko_stat": 5.863,
-    "keiko_pt": 16.926
+    "train_stat": 2.65,
+    "train_pt": 10.0,
+    "keiko_stat": 3.508,
+    "keiko_pt": 8.667
   },
   "race_pt_target": 150.0,
   "race_pt_target_late": 200.0,

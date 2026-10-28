@@ -340,7 +340,10 @@ impl MatsuriGame {
         }
         if !failed {
             self.act_gauge[idx] = 0;
-            self.act_level[idx] = (self.act_level[idx] + 1).min(10);
+            // 合宿（level_up=false）：训练=稽古但不升 Lv（官方：合宿结束全演目 +1）
+            if level_up {
+                self.act_level[idx] = (self.act_level[idx] + 1).min(10);
+            }
         }
         Ok(())
     }
@@ -447,6 +450,12 @@ impl MatsuriGame {
                 // 転成：第 2 次伝受时把两个初始教え当材料，吃融合效果
                 if self.turn == 23 {
                     self.gain_pct += 0.25;
+                }
+                // 合宿结束：全演目 Lv +1（官方：合宿中演目 Lv 不升，结束统一 +1）
+                if matches!(self.turn, 16 | 40 | 64) {
+                    for i in 0..5 {
+                        self.act_level[i] = (self.act_level[i] + 1).min(10);
+                    }
                 }
                 // 発表会：全演目达标 → 永久收益加成
                 if let Some(cp) = self

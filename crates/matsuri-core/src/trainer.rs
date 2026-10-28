@@ -83,6 +83,16 @@ pub struct MatsuriRolloutTrainer;
 
 impl MatsuriRolloutTrainer {
     fn desired(game: &MatsuriGame) -> Action {
+        // 0) 合宿：候选只有 5 个训练（=稽古、不升 Lv），练「等级最低」的演目把属性摊开，
+        //    避免落空后 fallback 到 Train(0) 死磕第一个演目（实测 act0 被合宿 3 回合
+        //    反复稽古而 act3/4 长期 Lv4）。
+        if game.is_camp_turn() {
+            let idx = (0..5usize)
+                .filter(|i| game.act_level[*i] < 10)
+                .min_by_key(|i| (game.act_level[*i], -game.act_gauge[*i], *i))
+                .unwrap_or(0);
+            return Action::Train(idx as u8);
+        }
         // 1) 低体力先休息。**必须排在稽古之前**：稽古失败时体力照扣（-12）但
         //    gauge 不清零、Lv 不升，低体力下会锁进「必败稽古 → 体力 0」的死循环
         //    （实测 t37–t39 连续三次失败后 vital 恒 0，整局再没恢复）。
@@ -97,7 +107,7 @@ impl MatsuriRolloutTrainer {
         {
             return Action::Keiko(idx as u8);
         }
-        // 3) 発表会截止：练未达标的演目
+        // 3) 発表会截止：练未达标的演目（等级低优先，同等级优先 gauge 高的，更接近稽古）
         let need = game
             .data
             .check_points
@@ -108,22 +118,21 @@ impl MatsuriRolloutTrainer {
             if cp.turn - game.turn <= 15 {
                 if let Some(idx) = (0..5usize)
                     .filter(|i| game.act_level[*i] < cp.need)
-                    .min_by_key(|i| game.act_level[*i])
+                    .min_by_key(|i| (game.act_level[*i], -game.act_gauge[*i], *i))
                 {
                     return Action::Train(idx as u8);
                 }
             }
         }
-        // 4) 缺口最大
-        let mut best = (0usize, f64::MAX);
-        for i in 0..5 {
-            let gap = (game.uma().five_status_limit[i] - game.uma().five_status[i]) as f64
-                / game.uma().five_status_limit[i].max(1) as f64;
-            if gap < best.1 {
-                best = (i, gap);
-            }
-        }
-        Action::Train(best.0 as u8)
+        // 4) 平衡演目：练「等级最低」的演目（把 gauge 填满 → 下一步稽古升 Lv）。
+        //    祭典杯的核心循环是 训练(涨槽) → 稽古(升 Lv)，5 个演目等级要齐头并进
+        //    才过得了発表会（need 3/5/6）。按「五维缺口最大」练会把某个演目练到
+        //    封顶而长期忽略其余（实测 act_level 终局 [8.4,5.9,5.5,5.1,5.0]，
+        //    発表会 0 达标）。同等级里优先 gauge 高（更接近稽古）的。
+        let best = (0..5usize)
+            .filter(|i| game.act_level[*i] < 10)
+            .min_by_key(|i| (game.act_level[*i], -game.act_gauge[*i], *i));
+        Action::Train(best.unwrap_or(0) as u8)
     }
 }
 
