@@ -145,6 +145,14 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
                 if let Some(sp) = c.get("skill_point").and_then(|x| x.as_i64()) {
                     game.train_pt_anchor[idx] = sp as i32;
                 }
+                // 3b：真实训练五维收益快照（面板 stat_gains，同样是全加成真值）
+                if let Some(sg) = c.get("stat_gains").and_then(|x| x.as_object()) {
+                    for (i, name) in TRAINS.iter().enumerate() {
+                        if let Some(val) = sg.get(*name).and_then(|x| x.as_i64()) {
+                            game.train_stat_anchor[idx][i] = val as i32;
+                        }
+                    }
+                }
                 if let Some(ids) = c.get("partner_ids").and_then(|x| x.as_array()) {
                     for id in ids {
                         let Some(idv) = id.as_i64() else { continue };

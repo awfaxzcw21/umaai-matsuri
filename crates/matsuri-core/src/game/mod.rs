@@ -71,6 +71,11 @@ pub struct MatsuriGame {
     /// 每个训练的真实面板 PT 收益快照（来自报文 `commands[].skill_point`；0 = 未注入，回退按比例 1.0）
     /// 用于恢复「训练哪个维度」的真实 PT 差异（速度 62 vs 根性 23），B2 分源第一步。
     pub train_pt_anchor: [i32; 5],
+    /// 每个训练的真实面板五维收益快照（来自报文 `commands[].stat_gains`，5×5：训练 × 速度/耐力/力量/根性/智力）
+    /// 全零 = 未注入 → 回退 `value.status_pt × mult × value_scale.train_stat`。
+    /// 报文值是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/教え/発表会），
+    /// 直接吃它可绕过 value_scale 的黑盒校准。
+    pub train_stat_anchor: [[i32; 5]; 5],
     /// 発表会累计的永久收益加成（0.2 = +20%）
     pub gain_pct: f64,
     /// 已用友人出行次数（官方：全剧本约 5 次）
@@ -115,6 +120,7 @@ impl MatsuriGame {
             advice_id: [0; 5],
             advice_level: [1; 5],
             train_pt_anchor: [0; 5],
+            train_stat_anchor: [[0; 5]; 5],
             gain_pct: 0.0,
             outing_count: 0,
             persons: Vec::new(),
@@ -210,13 +216,34 @@ impl MatsuriGame {
                 1.0
             }
         };
-        let scaled = ActionValue {
-            status_pt: [
+        // 3b：报文 `stat_gains` 是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/
+        // 教え/発表会），直接用可绕过 value_scale 黑盒；未注入时才回退旧路径。
+        let stat_anchor = self.train_stat_anchor[train];
+        let stat = if stat_anchor.iter().any(|&x| x > 0) {
+            let k = self.data.stat_anchor_scale;
+            [
+                (stat_anchor[0] as f64 * k) as i32,
+                (stat_anchor[1] as f64 * k) as i32,
+                (stat_anchor[2] as f64 * k) as i32,
+                (stat_anchor[3] as f64 * k) as i32,
+                (stat_anchor[4] as f64 * k) as i32,
+            ]
+        } else {
+            [
                 (value.status_pt[0] as f64 * mult * vs.train_stat) as i32,
                 (value.status_pt[1] as f64 * mult * vs.train_stat) as i32,
                 (value.status_pt[2] as f64 * mult * vs.train_stat) as i32,
                 (value.status_pt[3] as f64 * mult * vs.train_stat) as i32,
                 (value.status_pt[4] as f64 * mult * vs.train_stat) as i32,
+            ]
+        };
+        let scaled = ActionValue {
+            status_pt: [
+                stat[0],
+                stat[1],
+                stat[2],
+                stat[3],
+                stat[4],
                 (value.status_pt[5] as f64 * mult * vs.train_pt * pt_ratio) as i32,
             ],
             vital: value.vital + vital_delta,

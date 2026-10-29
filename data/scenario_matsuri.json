@@ -784,6 +784,7 @@
   "keiko_stat": 3.508,
   "keiko_pt": 8.667
  },
+ "stat_anchor_scale": 1.45,
  "race_pt_target": 150.0,
  "race_pt_target_late": 200.0,
  "keiko_basic_value": [

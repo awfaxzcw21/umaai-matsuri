@@ -48,6 +48,13 @@ pub struct MatsuriData {
     /// 数值缩放（锚定 action_log 实测均值）
     #[serde(default)]
     pub value_scale: ValueScale,
+    /// 报文五维快照的补偿系数（3b）
+    ///
+    /// `train_stat_anchor` 直接吃报文 `stat_gains`（游戏算好的全加成真值），
+    /// 但引擎 rollout 的训练/稽古次数与真实仍有差（引擎约 21~30 次 vs 真实 34 次），
+    /// 所以留一个总量补偿旋钮：1.0 = 不补偿。
+    #[serde(default = "one")]
+    pub stat_anchor_scale: f64,
     /// 比赛后隐藏事件（bwiki 238 条，剧本 15 专属）
     #[serde(default)]
     pub hidden_events: Vec<HiddenEventDef>,
