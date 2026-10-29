@@ -104120,5 +104120,200 @@
    4,
    1
   ]
+ },
+ "30322": {
+  "cardId": 30322,
+  "charaId": 1024,
+  "cardName": "[力]摩耶重炮",
+  "fullName": "[力]摩耶重炮",
+  "rarity": 3,
+  "cardType": 2,
+  "cardValue": [
+   {
+    "filled": true,
+    "bonus": [
+     0,
+     1,
+     0,
+     0,
+     0,
+     1
+    ],
+    "initialBonus": [
+     0,
+     25,
+     0,
+     0,
+     0,
+     30
+    ],
+    "hintBonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     15
+    ],
+    "hintLevel": 3,
+    "youQing": 25,
+    "ganJing": 40,
+    "xunLian": 1,
+    "initialJiBan": 25,
+    "saiHou": 5,
+    "hintProbIncrease": 60,
+    "deYiLv": 10
+   },
+   {
+    "filled": true,
+    "bonus": [
+     0,
+     1,
+     0,
+     0,
+     0,
+     1
+    ],
+    "initialBonus": [
+     0,
+     26,
+     0,
+     0,
+     0,
+     37
+    ],
+    "hintBonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     15
+    ],
+    "hintLevel": 3,
+    "youQing": 27,
+    "ganJing": 45,
+    "xunLian": 5,
+    "initialJiBan": 27,
+    "saiHou": 6,
+    "hintProbIncrease": 70,
+    "deYiLv": 10
+   },
+   {
+    "filled": true,
+    "bonus": [
+     0,
+     1,
+     0,
+     0,
+     0,
+     1
+    ],
+    "initialBonus": [
+     0,
+     27,
+     0,
+     0,
+     0,
+     45
+    ],
+    "hintBonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     20
+    ],
+    "hintLevel": 4,
+    "youQing": 30,
+    "ganJing": 50,
+    "xunLian": 10,
+    "initialJiBan": 30,
+    "saiHou": 7,
+    "hintProbIncrease": 80,
+    "deYiLv": 10
+   },
+   {
+    "filled": true,
+    "bonus": [
+     0,
+     1,
+     0,
+     0,
+     0,
+     1
+    ],
+    "initialBonus": [
+     0,
+     28,
+     0,
+     0,
+     0,
+     52
+    ],
+    "hintBonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     20
+    ],
+    "hintLevel": 4,
+    "youQing": 32,
+    "ganJing": 55,
+    "xunLian": 10,
+    "initialJiBan": 32,
+    "saiHou": 8,
+    "hintProbIncrease": 90,
+    "deYiLv": 60
+   },
+   {
+    "filled": true,
+    "bonus": [
+     0,
+     1,
+     0,
+     0,
+     0,
+     2
+    ],
+    "initialBonus": [
+     0,
+     30,
+     0,
+     0,
+     0,
+     60
+    ],
+    "hintBonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     25
+    ],
+    "hintLevel": 5,
+    "youQing": 35,
+    "ganJing": 60,
+    "xunLian": 10,
+    "initialJiBan": 35,
+    "saiHou": 10,
+    "hintProbIncrease": 100,
+    "deYiLv": 120
+   }
+  ],
+  "uniqueEffectType": 21,
+  "uniqueEffectSummary": "编入支援卡种类>=4时，训练效果提高 (10)",
+  "uniqueEffectParam": [
+   103,
+   4,
+   8,
+   10,
+   0,
+   0
+  ]
  }
 }
