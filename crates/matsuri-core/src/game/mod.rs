@@ -80,6 +80,11 @@ pub struct MatsuriGame {
     pub gain_pct: f64,
     /// 已用友人出行次数（官方：全剧本约 5 次）
     pub outing_count: i32,
+    /// 装配时的起点回合（0 基，来自面板 turn−1）
+    ///
+    /// 用于「早局专用补偿」：`early_pt_scale` 只在起点 < 29（面板 t30 前）时启用。
+    /// `newgame` 里为 0，宿主装配真实局面后覆盖。
+    pub start_turn: i32,
 }
 
 impl Deref for MatsuriGame {
@@ -123,6 +128,7 @@ impl MatsuriGame {
             train_stat_anchor: [[0; 5]; 5],
             gain_pct: 0.0,
             outing_count: 0,
+            start_turn: 0,
             persons: Vec::new(),
             stage: Stage::Begin,
             strategy: None,
@@ -130,6 +136,18 @@ impl MatsuriGame {
         };
         game.init_persons()?;
         Ok(game)
+    }
+
+    /// 早局（起点回合 < 29，即面板 t30 前）的训练/稽古 PT 补偿系数
+    ///
+    /// 引擎 `train_pt`/`keiko_pt` 在 t38 前后标定：早局起步时整体 PT 偏低约 20%，
+    /// 晚局起步已偏高，故只在 `start_turn < 29` 时放大，返回 `data.early_pt_scale`。
+    fn early_pt_scale(&self) -> f64 {
+        if self.start_turn < 29 {
+            self.data.early_pt_scale
+        } else {
+            1.0
+        }
     }
 
     /// 追加一个人头（按当前人数分配人头序号）
@@ -244,7 +262,8 @@ impl MatsuriGame {
                 stat[2],
                 stat[3],
                 stat[4],
-                (value.status_pt[5] as f64 * mult * vs.train_pt * pt_ratio) as i32,
+                (value.status_pt[5] as f64 * mult * vs.train_pt * pt_ratio * self.early_pt_scale())
+                    as i32,
             ],
             vital: value.vital + vital_delta,
             ..Default::default()
@@ -363,7 +382,7 @@ impl MatsuriGame {
                 (value.status_pt[2] as f64 * mult * vs.keiko_stat) as i32,
                 (value.status_pt[3] as f64 * mult * vs.keiko_stat) as i32,
                 (value.status_pt[4] as f64 * mult * vs.keiko_stat) as i32,
-                (value.status_pt[5] as f64 * mult * vs.keiko_pt) as i32,
+                (value.status_pt[5] as f64 * mult * vs.keiko_pt * self.early_pt_scale()) as i32,
             ],
             vital: value.vital + vital_delta,
             ..Default::default()
@@ -465,6 +484,17 @@ impl MatsuriGame {
                         1.0
                     };
                     self.base.push_race_event(scale, pt_rate)?;
+                    // 比赛五维奖励：引擎 `race_career` 只给各维 +7，真实约 +20~26，
+                    // 缺口由剧本层 `race_stat_gain` 补（见 data.rs）。
+                    let race_stat_gain = self.data.race_stat_gain;
+                    if race_stat_gain > 0 {
+                        let limits = self.uma().five_status_limit;
+                        let uma = self.uma_mut();
+                        for i in 0..5 {
+                            uma.five_status[i] =
+                                (uma.five_status[i] + race_stat_gain).min(limits[i]);
+                        }
+                    }
                 }
                 // 执行本回合事件（比赛事件也在其中）
                 let events = std::mem::take(&mut self.base.unresolved_events);

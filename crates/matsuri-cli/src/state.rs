@@ -200,6 +200,8 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
     // 面板 turn 是 1 基（chara_info.turn），引擎是 0 基
     let panel_turn = turn;
     game.base.turn = (turn - 1).clamp(0, 77);
+    // 记录起点回合：`early_pt_scale` 只在早局（面板 t30 前）启用
+    game.start_turn = game.base.turn;
     let uma = game.base.uma.clone();
     let stats: HashMap<String, i64> = v
         .get("stats")

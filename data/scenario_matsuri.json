@@ -787,6 +787,8 @@
   "stat_anchor_scale": 1.45,
   "race_pt_target": 150.0,
   "race_pt_target_late": 200.0,
+  "race_stat_gain": 20,
+  "early_pt_scale": 1.5,
   "keiko_basic_value": [
     [
       16,
