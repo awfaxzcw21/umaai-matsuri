@@ -159,15 +159,37 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
                         for p in game.persons.iter_mut() {
                             if p.chara_id as i64 == idv {
                                 p.train_type = idx as i32;
-                                if let Some(bs) = bonds {
-                                    if let Some(f) = bs.get(&idv.to_string()).and_then(|x| x.as_i64()) {
-                                        p.friendship = f as i32;
-                                    }
-                                }
                             }
                         }
                     }
                 }
+            }
+        }
+        // 羁绊快照 → 人头 → 卡组。
+        // 报文里的 training_partner_id 有两套 id：支援卡给的是「卡位」（1..=6），
+        // 剧本追加人头给的是 chara_id（4 位数）。之前只按 chara_id 匹配，支援卡一条都对不上，
+        // 导致 deck[].friendship 一直是卡面 initial_jiban —— 支援卡固有（unique_effect_type 1|2）
+        // 的「羁绊 ≥ 80 触发词条」永远不生效（t38 那套卡 4 张卡阈值都是 80，快照全是 100）。
+        if let Some(bs) = bonds {
+            const DECK_SLOTS: i64 = 6;
+            let chara_ids: Vec<i64> = game.persons.iter().map(|p| p.chara_id as i64).collect();
+            for (k, val) in bs.iter() {
+                let Some(idv) = k.parse::<i64>().ok() else { continue };
+                let Some(f) = val.as_i64() else { continue };
+                let idx = if (1..=DECK_SLOTS).contains(&idv) {
+                    (idv - 1) as usize
+                } else if let Some(i) = chara_ids.iter().position(|c| *c == idv) {
+                    i
+                } else {
+                    continue;
+                };
+                if idx < game.persons.len() {
+                    game.persons[idx].friendship = f as i32;
+                }
+            }
+            let n = game.base.deck.len().min(game.persons.len());
+            for i in 0..n {
+                game.base.deck[i].friendship = game.persons[i].friendship;
             }
         }
     }

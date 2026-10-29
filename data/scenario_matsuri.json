@@ -779,10 +779,10 @@
   }
  ],
  "value_scale": {
-  "train_stat": 2.65,
-  "train_pt": 10.0,
-  "keiko_stat": 3.508,
-  "keiko_pt": 8.667
+  "train_stat": 2.6,
+  "train_pt": 9.0,
+  "keiko_stat": 3.4412,
+  "keiko_pt": 7.8
  },
  "stat_anchor_scale": 1.45,
  "race_pt_target": 150.0,
