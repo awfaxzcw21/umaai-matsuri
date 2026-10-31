@@ -24,9 +24,14 @@ pub struct MatsuriData {
     pub sample_resource: i32,
     /// 训练基础值表：`[训练 0-4][等级] -> [速 耐 力 根 智 PT 体力消耗]`
     pub training_basic_value: Vec<Vec<[i32; 7]>>,
-    /// 演目稽古基础值（5 个演目）
+    /// 演目稽古基础值（5 个演目，Junior 档 = 静态表 5101-5105）
     #[serde(default)]
     pub keiko_basic_value: Vec<[i32; 7]>,
+    /// 演目稽古基础值 · **Classic 以后档**（memo §3.2；静态表只记了 Junior 档）
+    ///
+    /// 切换时点 = `KEIKO_LATE_TURN`（turn 23，Junior 进度汇报会后）。为空则一直用 Junior 档。
+    #[serde(default)]
+    pub keiko_basic_value_late: Vec<[i32; 7]>,
     /// 演目等级效果（官方 intake 3.3）
     #[serde(default)]
     pub act_level_effects: Vec<ActLevelEffect>,
@@ -65,24 +70,21 @@ pub struct MatsuriData {
     /// 剧本专属事件带真实选项（属性 / 体力 / 干劲 / PT 组合），`player_select=true`。
     #[serde(default)]
     pub scenario_events: Vec<EventData>,
-    /// 生涯比赛目标技能点（每场，含卡「赛后」加成之后）
+    /// 赛后奖励基准表（未乘任何加成）
     ///
-    /// 引擎系统事件 `race_career` 面板值 67 PT，而参考局报文实测每场约 108~216。
-    /// `> 0` 时按 `target / (面板值 × scale)` 反推 `pt_rate`，使比赛 PT 落在目标值；
-    /// `0`（默认）表示不校准、保持引擎原始数值。
+    /// 2026-11-01 一手报文复算：赛后五维/PT 由「马娘固有赛后事件」给出，其**通用基准值**
+    /// 为目標賽 五维各 +5 / PT +72、URA 五维各 +10 / PT +40·60·80。取代原先的
+    /// `race_pt_target` / `race_pt_target_late` / `race_stat_gain`（那三个是拿参考局
+    /// 实测值反推的拟合常量，不是机制）。
     #[serde(default)]
-    pub race_pt_target: f64,
-    /// 终盘（0 基回合 >= 67，即 1 基 t68 之后）每场目标技能点
+    pub race_reward: RaceRewardTable,
+    /// 属性软上限（报文 `chara_info.default_max_*`，各局恒 1200）
     ///
-    /// 参考局 t68 后各场稳定 216 PT（`チーム対抗戦`），高于前中期，单独一档。
-    #[serde(default)]
-    pub race_pt_target_late: f64,
-    /// 每场生涯比赛的额外五维奖励（每维 +N，受五维上限约束）
-    ///
-    /// 引擎系统事件 `race_career` 每场只给五维各 +7，而参考局报文实测纯比赛回合
-    /// 五维涨 100~130（各维 +20~26）。`0`（默认）= 不额外补，保持引擎原始行为。
-    #[serde(default)]
-    pub race_stat_gain: i32,
+    /// 增量中**落在该值以上的部分减半**（向下取整），不是「超过就整条减半」：
+    /// pre=1195 / 满增量 30 → 实得 5 + 12 = 17（cid168 t76 URA 準決勝 wiz 实测）。
+    /// `0` = 关闭。
+    #[serde(default = "default_soft_cap")]
+    pub soft_cap: i32,
     /// 早局（起点回合 < 29）的训练/稽古 PT 补偿系数
     ///
     /// 引擎 `train_pt`/`keiko_pt` 是按 t38 前后标定的：从早局起步时整体 PT 偏低约 20%，
@@ -90,6 +92,38 @@ pub struct MatsuriData {
     /// `1.0`（默认）= 不补偿。
     #[serde(default = "one")]
     pub early_pt_scale: f64,
+    /// 训练/稽古接近上限的收益衰减半衰距离（剧本 15 专属防偏科机制）
+    ///
+    /// 引擎 `calc_training_value` 是静态表、不看当前属性/五维上限，导致搜索一直堆
+    /// 已高的属性（面板实测速度练到接近上限还继续推荐，耐力/力量起不来）。
+    /// 真实训练收益会随属性逼近上限而递减；本字段是衰减公式 `remain/(remain+K)` 的 K：
+    /// 某维剩余空间等于 K 时，该维收益打 5 折。`0`（默认）= 不衰减。
+    #[serde(default)]
+    pub cap_decay: f64,
+    /// 衰减系数下限（防止贴上限时收益完全归零）
+    ///
+    /// `1.0`（默认）= 不设下限（此时衰减公式在贴上限时趋近 0）。
+    #[serde(default = "one")]
+    pub cap_decay_floor: f64,
+    /// 每次训练给「该训练位上每个人头」的羁绊增量（补真实「一起训练涨羁绊」）
+    ///
+    /// 引擎 `MatsuriGame::do_train` 覆写后不再涨羁绊，导致羁绊开局多少整局多少、
+    /// 永远到不了 80 闪彩圈。真实每次一起训练该位人头羁绊约 +3~7。
+    /// `0`（默认）= 不涨（保持旧行为）。
+    #[serde(default)]
+    pub friend_gain_per_train: i32,
+    /// 新增彩圈（羁绊 ≥80 且得意）对训练收益的倍率增量（每人头）
+    ///
+    /// 锚点 `stat_gains` 是「起步回合」的游戏预测值，已含起步时已有的彩圈；本字段只对
+    /// 「起步后新触发」的彩圈生效（增量 = 当前彩圈数 − 起步彩圈数），避免双重计算。
+    /// 真实彩圈约 +20~30%。`0.0`（默认）= 不生效（保持旧行为）。
+    #[serde(default)]
+    pub shining_boost: f64,
+    /// 凹羁绊窗口：前 N 回合优先练「得意且羁绊未满」的训练（模拟真人前期凹 80）
+    ///
+    /// `0`（默认）= 不启用凹羁绊。
+    #[serde(default)]
+    pub friend_window: i32,
 }
 
 /// 比赛后隐藏事件（bwiki「隐藏事件一览」，剧本 15 专属）
@@ -120,6 +154,33 @@ pub struct ValueScale {
 
 fn one() -> f64 {
     1.0
+}
+
+fn default_soft_cap() -> i32 {
+    1200
+}
+
+/// 单场赛后奖励基准：`stat` = 五维每维，`pt` = 技能点（都是**未乘加成**的原始值）
+#[derive(Debug, Clone, Copy, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RaceRewardDef {
+    pub stat: i32,
+    pub pt: i32,
+}
+
+/// 赛后奖励基准表
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RaceRewardTable {
+    /// 目標賽（生涯赛）：五维各 +5 / PT +72
+    #[serde(default)]
+    pub target: RaceRewardDef,
+    /// URA 予選 / 準決勝 / 決勝：五维各 +10 / PT +40 / +60 / +80
+    #[serde(default)]
+    pub ura: Vec<RaceRewardDef>,
+    /// 目標外 GI / GII / GIII（**本轮不建模**，只留表位；`null` = 无干净样本，未定）
+    #[serde(default)]
+    pub non_target: Vec<Option<RaceRewardDef>>,
 }
 
 /// 教え效果
@@ -212,6 +273,16 @@ impl MatsuriData {
                 );
             }
         }
+        ensure!(
+            self.race_reward.ura.is_empty() || self.race_reward.ura.len() == 3,
+            "race_reward.ura 应为 3 档（予選/準決勝/決勝），实际 {}",
+            self.race_reward.ura.len()
+        );
+        ensure!(
+            self.race_reward.non_target.len() <= 3,
+            "race_reward.non_target 最多 3 档（GI/GII/GIII），实际 {}",
+            self.race_reward.non_target.len()
+        );
         Ok(())
     }
 }
