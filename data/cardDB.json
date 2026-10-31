@@ -104315,5 +104315,198 @@
    0,
    0
   ]
+ },
+ "10149": {
+  "cardId": 10149,
+  "charaId": 9052,
+  "cardName": "",
+  "fullName": "",
+  "rarity": 1,
+  "cardType": 5,
+  "cardValue": [
+   {
+    "filled": true,
+    "bonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "initialBonus": [
+     15,
+     15,
+     0,
+     0,
+     0,
+     0
+    ],
+    "hintBonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     5
+    ],
+    "hintLevel": 0,
+    "ganJing": 15,
+    "xunLian": 5,
+    "initialJiBan": 15,
+    "saiHou": 1,
+    "eventRecoveryAmountUp": 20,
+    "eventEffectUp": 20,
+    "failRateDrop": 5,
+    "vitalCostDrop": 5
+   },
+   {
+    "filled": true,
+    "bonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "initialBonus": [
+     16,
+     16,
+     0,
+     0,
+     0,
+     0
+    ],
+    "hintBonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     5
+    ],
+    "hintLevel": 0,
+    "ganJing": 18,
+    "xunLian": 5,
+    "initialJiBan": 16,
+    "saiHou": 1,
+    "eventRecoveryAmountUp": 23,
+    "eventEffectUp": 21,
+    "failRateDrop": 6,
+    "vitalCostDrop": 6
+   },
+   {
+    "filled": true,
+    "bonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "initialBonus": [
+     18,
+     18,
+     0,
+     0,
+     0,
+     0
+    ],
+    "hintBonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     5
+    ],
+    "hintLevel": 0,
+    "ganJing": 21,
+    "xunLian": 5,
+    "initialJiBan": 18,
+    "saiHou": 1,
+    "eventRecoveryAmountUp": 26,
+    "eventEffectUp": 22,
+    "failRateDrop": 8,
+    "vitalCostDrop": 8
+   },
+   {
+    "filled": true,
+    "bonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "initialBonus": [
+     20,
+     20,
+     0,
+     0,
+     0,
+     0
+    ],
+    "hintBonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     5
+    ],
+    "hintLevel": 0,
+    "ganJing": 25,
+    "xunLian": 5,
+    "initialJiBan": 20,
+    "saiHou": 1,
+    "eventRecoveryAmountUp": 30,
+    "eventEffectUp": 23,
+    "failRateDrop": 10,
+    "vitalCostDrop": 10
+   },
+   {
+    "filled": true,
+    "bonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "initialBonus": [
+     20,
+     20,
+     0,
+     0,
+     0,
+     0
+    ],
+    "hintBonus": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     5
+    ],
+    "hintLevel": 0,
+    "ganJing": 25,
+    "xunLian": 5,
+    "initialJiBan": 20,
+    "saiHou": 5,
+    "eventRecoveryAmountUp": 30,
+    "eventEffectUp": 25,
+    "failRateDrop": 10,
+    "vitalCostDrop": 10
+   }
+  ],
+  "uniqueEffectType": 0,
+  "uniqueEffectSummary": "",
+  "uniqueEffectParam": []
  }
 }

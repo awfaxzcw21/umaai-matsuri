@@ -96,14 +96,16 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
     if !deck_ids.is_empty() {
         if let Ok(raw) = std::fs::read_to_string(format!("{DATA_ROOT}/cardDB.json")) {
             if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&raw) {
-                let before = deck_ids.len();
+                // 先收集缺失的卡号再剔除：之前这条日志把「卡组张数」当成卡号打出来了，
+                // 看到「缺失 1 张卡（6）」根本不知道是哪张，白查一轮。
+                let missing: Vec<u32> = deck_ids
+                    .iter()
+                    .filter(|idr| !map.contains_key(&(**idr / 10).to_string()))
+                    .map(|idr| idr / 10)
+                    .collect();
                 deck_ids.retain(|idr| map.contains_key(&(idr / 10).to_string()));
-                if deck_ids.len() != before {
-                    eprintln!(
-                        "卡表缺失 {} 张卡（{:?}），已从卡组剔除",
-                        before - deck_ids.len(),
-                        before
-                    );
+                if !missing.is_empty() {
+                    eprintln!("卡表缺失 {} 张卡，已从卡组剔除：{:?}", missing.len(), missing);
                 }
             }
         }
@@ -274,6 +276,10 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
                 .collect::<Vec<i32>>()
         })
         .collect();
+
+    // 起步彩圈快照：报文的 stat_gains 已含起步彩圈，涨羁绊/新增彩圈只能给「增量」加成，
+    // 否则对起步就彩圈的卡双重计算（见 do_train 的 shining_mult：按真实 youqing% 增量结算）。
+    game.capture_initial_shining();
 
     Ok(LoadedState {
         game,

@@ -21,6 +21,8 @@ pub enum Action {
     Outing,
     /// 休息
     Rest,
+    /// 保健室（练习ベタ 时出现：体力 +20 并解除 debuff）
+    Clinic,
 }
 
 impl Display for Action {
@@ -30,6 +32,7 @@ impl Display for Action {
             Self::Keiko(idx) => write!(f, "稽古{idx}"),
             Self::Outing => write!(f, "出行"),
             Self::Rest => write!(f, "休息"),
+            Self::Clinic => write!(f, "保健室"),
         }
     }
 }
@@ -41,12 +44,30 @@ impl ActionEnum for Action {
         match self {
             Self::Train(idx) => game.do_train(*idx as usize, rng),
             Self::Keiko(idx) => game.do_keiko(*idx as usize, rng),
-            Self::Outing => game.do_outing(rng),
+            Self::Outing => {
+                game.do_outing(rng)?;
+                // 演目槽：外出 +1（官方口径 2026-10-31，落点 Lv 最低→槽最低→属性序）
+                game.push_act_gauge(1);
+                // 吾妻外出：每段再给「最低演目」+1 级（memo §2.4，一局 5 段）
+                game.bump_lowest_act_level();
+                Ok(())
+            }
             Self::Rest => {
                 // S1 占位：休息恢复体力（后续实现按自己的回复规则改）
                 let _ = rng;
                 let uma = game.uma_mut();
+                // 2026-10-31 真机：休息一次回 **50** 体力（旧占位写 20）
+                uma.vital = (uma.vital + 50).min(uma.max_vital);
+                // 演目槽：休息 +1（官方口径 2026-10-31）
+                game.push_act_gauge(1);
+                Ok(())
+            }
+            Self::Clinic => {
+                // 2026-10-31 真机：保健室「体力 +20、練習ベタ が治った」
+                let _ = rng;
+                let uma = game.uma_mut();
                 uma.vital = (uma.vital + 20).min(uma.max_vital);
+                game.practice_bad = false;
                 Ok(())
             }
         }

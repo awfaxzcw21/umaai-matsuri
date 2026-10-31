@@ -25,6 +25,7 @@ fn label_of(a: &Action) -> String {
         Action::Keiko(i) => format!("稽古 {}", ACT[(*i as usize).min(4)]),
         Action::Outing => "出行".to_string(),
         Action::Rest => "休息".to_string(),
+        Action::Clinic => "保健室".to_string(),
     }
 }
 

@@ -76,8 +76,9 @@ mod tests {
 /// 规则（只读局面）：
 /// 1. 演目槽满 → 稽古（等级最低的那个）
 /// 2. 体力 < 45% → 休息
-/// 3. 発表会前若有演目未达标 → 优先练那个演目的训练
-/// 4. 否则 → 补缺口最大的训练
+/// 3. 凹羁绊窗口内 → 优先练有「支援卡未满 80」的训练位（羁绊最低优先）
+/// 4. 発表会前若有演目未达标 → 优先练那个演目的训练
+/// 5. 否则 → 补缺口最大的训练
 #[derive(Debug, Clone, Default)]
 pub struct MatsuriRolloutTrainer;
 
@@ -107,7 +108,45 @@ impl MatsuriRolloutTrainer {
         {
             return Action::Keiko(idx as u8);
         }
-        // 3) 発表会截止：练未达标的演目（等级低优先，同等级优先 gauge 高的，更接近稽古）
+        // 3) 凹羁绊窗口：前 friend_window 回合优先练「有支援卡且羁绊未满」的训练，
+        //    模拟真人前期把关键卡凹到 80 闪彩圈（彩圈收益见 do_train 的 shining_boost）。
+        //    只认 card_id 非空的支援卡人头，理事长/记者/友人（card_id=None）不参与凹。
+        //    （放在発表会截止之前：前期凹羁绊是长期投资，発表会前 15 回合才紧张）
+        if game.data.friend_window > 0 && game.turn < game.data.friend_window {
+            let near_shining = |t: usize| -> bool {
+                game.distribution().get(t).map_or(false, |d| {
+                    d.iter().any(|p| {
+                        *p >= 0
+                            && game.persons.get(*p as usize).map_or(false, |person| {
+                                person.card_id.is_some() && person.friendship < 80
+                            })
+                    })
+                })
+            };
+            if let Some(idx) = (0..5usize)
+                .filter(|&i| near_shining(i))
+                .min_by_key(|&i| {
+                    // 优先羁绊最低的支援卡所在的训练（凹最需要的那张）
+                    let min_bond = game
+                        .distribution()
+                        .get(i)
+                        .map(|d| {
+                            d.iter()
+                                .filter(|p| **p >= 0)
+                                .filter_map(|p| game.persons.get(*p as usize))
+                                .filter(|person| person.card_id.is_some())
+                                .map(|person| person.friendship)
+                                .min()
+                                .unwrap_or(100)
+                        })
+                        .unwrap_or(100);
+                    (min_bond, i)
+                })
+            {
+                return Action::Train(idx as u8);
+            }
+        }
+        // 4) 発表会截止：练未达标的演目（等级低优先，同等级优先 gauge 高的，更接近稽古）
         let need = game
             .data
             .check_points
@@ -124,14 +163,18 @@ impl MatsuriRolloutTrainer {
                 }
             }
         }
-        // 4) 平衡演目：练「等级最低」的演目（把 gauge 填满 → 下一步稽古升 Lv）。
-        //    祭典杯的核心循环是 训练(涨槽) → 稽古(升 Lv)，5 个演目等级要齐头并进
-        //    才过得了発表会（need 3/5/6）。按「五维缺口最大」练会把某个演目练到
-        //    封顶而长期忽略其余（实测 act_level 终局 [8.4,5.9,5.5,5.1,5.0]，
-        //    発表会 0 达标）。同等级里优先 gauge 高（更接近稽古）的。
-        let best = (0..5usize)
-            .filter(|i| game.act_level[*i] < 10)
-            .min_by_key(|i| (game.act_level[*i], -game.act_gauge[*i], *i));
+        // 5) 平衡五维：练「离上限最远」的训练（相对缺口 cur/limit 最小 = 最缺），
+        //    配合 do_train/do_keiko 的 `cap_decay` 衰减，接近上限的维度收益递减，
+        //    自然把五个属性都拉起来、不再死堆已高的属性。
+        //    （旧「练等级最低演目」会把演目等级摊平，但五维仍偏——实测速度溢出、
+        //    耐力偏低；発表会达标仍由上方规则 3 在截止前 15 回合兜底。）
+        let best = (0..5usize).min_by_key(|i| {
+            let cur = game.uma().five_status[*i] as i64;
+            let lim = game.uma().five_status_limit[*i].max(1) as i64;
+            // 千分位相对缺口（0..1000，越小越缺）；同缺口优先 gauge 高（更接近稽古）
+            let gap_permille = cur * 1000 / lim;
+            (gap_permille, -game.act_gauge[*i], *i)
+        });
         Action::Train(best.unwrap_or(0) as u8)
     }
 }

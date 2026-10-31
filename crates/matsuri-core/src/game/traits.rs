@@ -13,7 +13,7 @@ use umasim::game::{
 use umasim::search::FlatSearchGame;
 use umasim::trainer::RandomTrainer;
 
-use super::{Action, MatsuriGame, Stage};
+use super::{ACT_GAUGE_MAX, Action, MatsuriGame, Stage};
 use crate::MAX_TURN;
 
 impl TrainingValueSource for MatsuriGame {
@@ -86,13 +86,18 @@ impl Game for MatsuriGame {
             return Ok((0..5u8).map(Action::Train).collect());
         }
         let mut actions: Vec<Action> = Vec::new();
-        // 演目槽满 → 稽古作为可选动作（官方：gauge 满才亮）
+        // 演目亮起（槽满且未封顶）→ 该训练位只能做演目稽古，不能普通训练（memo §2.3）
+        let mut lit = [false; 5];
         for idx in 0..5u8 {
-            if self.act_gauge[idx as usize] >= 5 && self.act_level[idx as usize] < 10 {
+            // 演目槽满 → 稽古作为可选动作（官方：gauge 满才亮）
+            if self.act_gauge[idx as usize] >= ACT_GAUGE_MAX
+                && self.act_level[idx as usize] < 10
+            {
+                lit[idx as usize] = true;
                 actions.push(Action::Keiko(idx));
             }
         }
-        actions.extend((0..5u8).map(Action::Train));
+        actions.extend((0..5u8).filter(|i| !lit[*i as usize]).map(Action::Train));
         // 出行：第一/二年、未满 5 次、且体力 < 40% 才放进候选（与隔壁手写策略同口径）
         let vital_ratio = self.uma().vital as f64 / self.uma().max_vital.max(1) as f64;
         if self.turn >= 21 && self.turn <= 60 && self.outing_count < 5 && vital_ratio < 0.40 {

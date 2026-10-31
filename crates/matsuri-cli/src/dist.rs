@@ -7,13 +7,18 @@
 //! 与 `matsuri-mccli` 共用 `state::assemble_game` 装配；策略用引擎自带的 `MatsuriRolloutTrainer`
 //! 基策（rollout 基策，非决策者），随机性只来自 `fork_for_rollout(seed)` 派生的局面/事件流。
 //!
-//! 输出两套分数：
+//! 输出：
 //!   - `score`：引擎原生 `search_score(1.0)`（衰减五维表 + PT×2.0 + 技能分）。排序口径，绝对值偏低。
-//!   - `real_score`：**真实标尺**（对齐黑板面板显示）——
+//!   - `real_score`：**面板显示用**（对齐黑板面板）——
 //!       `real = Σ status_final_score(revise(五维)) + 1.0746 × round(skill_pt × 2.35)`
 //!     五维分走游戏客户端 `revise`（>1200 减半）再查同一张表；技能分用剧本 15 拟合系数
 //!     `1.0746` × `grade_est`（grade/pt 取 2.35，见 `GRADE_PER_PT_DEFAULT`，`MC_GRADE_PER_PT` 可覆盖）。
 //!     名次沿用引擎原生 `rank_names`（301 档，US8=72,900）。
+//!   - `gate`：**三分量门禁**（2026-10-31 起）。`real_score` 里混了一个**为凑 72,142 反解出来的
+//!     拟合系数 2.35**（见 `GRADE_PER_PT_DEFAULT` 注释），拿它判机制改动会被这个系数搅混。
+//!     所以门禁改为三个**可独立核对**的分量各自对照真实局：
+//!     `five_sum`（五维和，直接加）、`stat_score`（五维分，游戏原生表、无拟合）、`pt`（直接计数）。
+//!     `grade_est` 一并输出，但它**只是折算估计、不是实测**——真实 Σgrade 得从游戏里数技能清单。
 
 use std::collections::HashMap;
 
@@ -40,6 +45,13 @@ const SKILL_SCALE: f64 = 1.0746;
 /// PT 8,450，官方 `rank_score` 72,142）反推出来只有 `18,297 / 8,450 = 2.17`，
 /// 直接量到的 Σgrade 19,492 则给 `2.31`。取中间值 2.35，使 72,142 的残差落在 1% 内。
 /// 换值不必重编译：`MC_GRADE_PER_PT` 覆盖。
+///
+/// ⚠ **这个数是拟合出来的，不是量出来的机制**（2026-10-31 标注）。它只是为了让 `real_score`
+/// 对上 72,142；**不要拿它当门禁**。门禁请看 `gate` 字段的三分量（`five_sum` / `stat_score` / `pt`），
+/// 真实 Σgrade 要从游戏技能清单直接数。
+///
+/// ⚠ 另一个未定的口径问题：2.35 该除「总得到 PT」还是「实付 PT」没有定论。本机收的一局
+/// （PT 8,339 / 实付 7,649 / Σgrade 17,022）按总 PT 是 2.04、按实付是 2.23，两个都不到 2.35。
 const GRADE_PER_PT_DEFAULT: f64 = 2.35;
 
 fn grade_per_pt() -> f64 {
@@ -90,7 +102,9 @@ fn run() -> Result<()> {
     let mut native_scores: Vec<i32> = Vec::with_capacity(n);
     let mut real_scores: Vec<i32> = Vec::with_capacity(n);
     let mut five_sums: Vec<i32> = Vec::with_capacity(n);
+    let mut stat_scores: Vec<i32> = Vec::with_capacity(n);
     let mut pts: Vec<i32> = Vec::with_capacity(n);
+    let mut grade_ests: Vec<i32> = Vec::with_capacity(n);
 
     // 逐样本明细（尾部诊断用）：`MC_DUMP=<path>` 时才落盘，避免默认输出变大。
     let dump_path = std::env::var("MC_DUMP").ok();
@@ -119,7 +133,9 @@ fn run() -> Result<()> {
         let real = stat_part as f64 + SKILL_SCALE * grade_est as f64;
         real_scores.push(real as i32);
         five_sums.push(uma.five_status.iter().sum());
+        stat_scores.push(stat_part);
         pts.push(uma.skill_pt);
+        grade_ests.push(grade_est);
 
         if dump_path.is_some() {
             dump.push(json!({
@@ -128,7 +144,9 @@ fn run() -> Result<()> {
                 "native": native_scores[native_scores.len() - 1],
                 "five": uma.five_status.to_vec(),
                 "sum": uma.five_status.iter().sum::<i32>(),
+                "stat": stat_part,
                 "pt": uma.skill_pt,
+                "grade": grade_est,
                 "act": g.act_level.to_vec(),
                 "gauge": g.act_gauge.to_vec(),
                 "gain": g.gain_pct,
@@ -150,6 +168,15 @@ fn run() -> Result<()> {
         "schedule": loaded.schedule_note,
         "score": summarize(consts, &native_scores),
         "real_score": summarize(consts, &real_scores),
+        // 三分量门禁：各自可独立核对，不含拟合系数。
+        "gate": {
+            "note": "五维和 / 五维分 / PT 三项各自与真实局对照；grade_est 只是折算估计，真实 Σgrade 需从游戏技能清单直接数",
+            "five_sum": describe(&five_sums),
+            "stat_score": describe(&stat_scores),
+            "pt": describe(&pts),
+            "grade_est": describe(&grade_ests),
+            "grade_per_pt_used": grade_pp,
+        },
         "debug": {
             "five_sum_mean": if n == 0 { 0.0 } else { five_sums.iter().map(|&s| s as f64).sum::<f64>() / n as f64 },
             "five_sum_min": five_sums.iter().copied().min().unwrap_or(0),
@@ -161,6 +188,55 @@ fn run() -> Result<()> {
     });
     std::fs::write(&result_path, serde_json::to_string(&result)?)?;
     Ok(())
+}
+
+/// 纯数值描述统计（不带名次直方图）——门禁三分量用。
+fn describe(values: &[i32]) -> Value {
+    let n = values.len();
+    let mean = if n == 0 {
+        0.0
+    } else {
+        values.iter().map(|&s| s as f64).sum::<f64>() / n as f64
+    };
+    let std = if n == 0 {
+        0.0
+    } else {
+        let var = values
+            .iter()
+            .map(|&s| {
+                let d = s as f64 - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / n as f64;
+        var.sqrt()
+    };
+    let mut sorted = values.to_vec();
+    sorted.sort_unstable();
+    let pct = |p: f64| -> f64 {
+        if n == 0 {
+            0.0
+        } else {
+            let idx = ((n as f64 - 1.0) * p).round() as usize;
+            sorted[idx.min(n - 1)] as f64
+        }
+    };
+    let median = if n == 0 {
+        0.0
+    } else if n % 2 == 1 {
+        sorted[n / 2] as f64
+    } else {
+        (sorted[n / 2 - 1] as f64 + sorted[n / 2] as f64) / 2.0
+    };
+    json!({
+        "mean": mean,
+        "median": median,
+        "std": std,
+        "p10": pct(0.10),
+        "p90": pct(0.90),
+        "min": sorted.first().copied().unwrap_or(0),
+        "max": sorted.last().copied().unwrap_or(0),
+    })
 }
 
 /// 一组分数的描述统计 + 名次直方图 + 关键档达标概率，统一塞进一个 JSON 对象。
