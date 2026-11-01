@@ -41,6 +41,13 @@ impl Trainer<MatsuriGame> for MatsuriTrainer {
         actions
             .iter()
             .position(|action| matches!(action, Action::Train(idx) if usize::from(*idx) == train))
+            // 演目亮起（槽满）时该训练位只出 `Keiko`，普通 `Train` 不在候选里（memo §2.3），
+            // 样例训练员同样接受稽古，避免开箱即崩。
+            .or_else(|| {
+                actions.iter().position(
+                    |action| matches!(action, Action::Keiko(idx) if usize::from(*idx) == train),
+                )
+            })
             .ok_or_else(|| anyhow!("候选动作缺少训练 {train}"))
     }
 
