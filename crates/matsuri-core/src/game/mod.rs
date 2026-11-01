@@ -1067,7 +1067,33 @@ fn soft_cap_gain(cap: i32, pre: i32, gain: i32) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{race_reward_two_stage, soft_cap_gain};
+    use super::*;
+
+    #[test]
+    fn engine_picks_distinct_rows_per_train_level() {
+        // 步骤1验收：基础表填满 Lv1-5 后，引擎 `default_calc_training_value` 按
+        // train_level 取到不同行（旧表每种训练只有两行相同行，Lv3-5 被 clamp 住不增长）。
+        // 零卡组零人头零 buff：主属性 = floor(表值 × (1 + 成长率%))。
+        let _ = Data::init(crate::testing::data_dir());
+        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
+        let mut game =
+            MatsuriGame::newgame(106301, &[], InheritInfo::default(), &[], data).unwrap();
+        let bonus = game.uma().five_status_bonus;
+        for train in 0..5 {
+            for lv in 1..=5 {
+                game.base.train_level_count[train] = ((lv - 1) * 4) as i32;
+                let v = Game::calc_training_value(&game, &CardTrainingEffect::default(), train)
+                    .unwrap();
+                let row = game.data.training_basic_value[train][lv - 1];
+                let expected = (row[train] as f64 * (1.0 + 0.01 * bonus[train] as f64)).floor();
+                assert_eq!(
+                    v.status_pt[train] as f64,
+                    expected,
+                    "训练 {train} Lv{lv} 应取到基础表第 {lv} 行"
+                );
+            }
+        }
+    }
 
     #[test]
     fn soft_cap_partial_halving() {
