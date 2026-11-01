@@ -267,12 +267,21 @@ pub struct CheckPointDef {
     pub need: i32,
     pub success: BuffDef,
     pub great: BuffDef,
-    /// 达标奖励：全能力 +N（官方発表会 t24/48/68 = 5/10/15）
+    /// 达标奖励：全能力 +N（官方発表会 t24/48/68 = 5/10/15，**大成功档**）
     #[serde(default)]
     pub all_stat: i32,
-    /// 达标奖励：技能点 +N（t24/48/68 = 200/300/400）
+    /// 达标奖励：技能点 +N（t24/48/68 = 200/300/400，**大成功档**）
     #[serde(default)]
     pub pt: i32,
+    /// **成功档**的全能力 +N（memo L220 / L228 / L250：t24 = 3 / t48 = 5 / t68 = 10）
+    #[serde(default)]
+    pub success_all_stat: i32,
+    /// **成功档**的技能点 +N（t24 = 100 / t48 = 150 / t68 = 200）
+    #[serde(default)]
+    pub success_pt: i32,
+    /// 达标奖励：理事长羁绊 +N（**大成功档**；t24 / t48 = 15，t68 未定 = 0）
+    #[serde(default)]
+    pub chairman_bond: i32,
     /// 达标奖励：五维训练等级 +N（前两回各 +1）
     #[serde(default)]
     pub train_lv: i32,

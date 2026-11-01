@@ -281,6 +281,23 @@
   同 `select_index`）event 15389 → SP+180；cid179（uma 1063）event 14041 t23 阪神JF 给五维 +19，
   无法反解成任何整数基准（需 base∈[12.16,12.90)）。⇒ 上述基准表只刻画**通用基准值**，
   固有事件的逐 id 差异属**未解释偏差，本轮不建模**。
+- **演目 Lv 上限 = 面板 `festa_info.max_act_level`**（2026-11-01 步骤 7，报文实证）：
+  **不带吾妻 / R 吾妻（卡 10149）= 6，SSR 吾妻（卡 30323）= 10**（0 凸即可，凸数无关）。
+  7 局报文逐回合 `act_info_array`：5 局 `max_act_level = 10` 的局演目 Lv 顶到 **10**，
+  门禁参考局（cid179）`max_act_level = 6`、终局 **6/6/6/6/6** ⇒ 上限**真的在封顶**。
+  落点 `MatsuriGame::act_level_cap`：面板有值以面板为准（`state.rs` 注入），
+  纯模拟按卡组推导（带稀有度 ≥ 3 的吾妻 ⇒ 10，否则 6）。
+  ⇒ 引擎此前一律 `.min(10)`，等于给**教诲效果**白送 Lv 7~10 的加成。
+- **発表会两档奖励**（memo L215-250；成功档原先缺失）：
+  大成功 = 5ステ+5 / SP+200 / トレLv+1（t24）、5ステ+10 / SP+300 / トレLv+1（t48）、
+  5ステ+15 / SP+400 / 体力+30 / やる気+1（t68）；
+  成功 = 5ステ+3 / SP+100（t24）、5ステ+5 / SP+150（t48）、5ステ+10 / SP+200（t68）。
+  另：**大成功给理事长羁绊 +15**（t24 / t48；t68 未定）。全能力奖励**吃 1200 软上限**
+  —— 别的 AI 记的「#2 速+5 耐+10 … 非均匀」正是均匀值被软上限砍半的结果。
+  ❌**未建模**：粉丝数（引擎没有粉丝系统）、技能 Lv（引擎没有技能模型）。
+- **合宿开始（= 教えの付け替え 同一个事件）的体力分年**：**1 年目 +10**（真机日志「1年目、駿大祭合宿開始！」）
+  / **2 年目 +15**（「2年目、駿大祭合宿開始！」）；**3 年目 +15 是外推**（第 3 年没采样）。
+  落点 `camp_start_vitality`。
 - **1200 软上限**（报文 `chara_info.default_max_*`，各局恒 1200）：增量中**超出 1200 的部分**减半、
   向下取整，不是「超过就整条减半」。判据：cid168 t76 URA 準決勝 智力 pre=1195 / 满增量 30 → 17
   （= 5 + ⌊25/2⌋）；cid168 t54 大阪杯 速度 pre≥1200 / 满增量 7 → 3（= ⌊7/2⌋，据此排除 round）。
@@ -379,6 +396,9 @@
 | 合宿延长 | 排程数据（S2） | 回合边界 | `<待建>` | `<机制测试>` | §4 |
 | 目標賽赛后奖励 | `race_reward.target` / `.ura` | `Begin`（生涯赛回合） | `race_reward_def` + `race_reward_two_stage` | `two_stage_floor_not_single_stage` | §4 |
 | 自选比赛（目標外） | `free_races` + `race_reward.non_target` | `Race`（仅引擎回合 44 / 68） | `do_free_race` | `free_race_window_matches_packet_evidence`、`free_race_action_only_on_window_turns`、`free_race_pays_one_random_stat_and_pt`、`free_race_unknown_grade_is_not_target_row` | §4 |
+| 演目 Lv 上限 | 面板 `max_act_level`（或卡组推导） | 全动作 | `act_level_cap_for` / `act_level_cap` | `act_level_cap_is_six_unless_ssr_agatsuma`、`act_level_never_exceeds_cap` | §4 |
+| 発表会两档 | `check_points`（`success_all_stat` / `success_pt` / `chairman_bond`） | `Begin`（发表回合） | `apply_check_point` | `check_point_tiers_follow_memo`、`check_point_gives_chairman_bond_on_great_only`、`check_point_all_stat_respects_soft_cap` | §4 |
+| 合宿开始体力 | `camp_start_vitality` | `Begin`（回合 12 / 36 / 60） | `stage_body` | `camp_start_vitality_by_year` | §4 |
 
 ## 5. 事件
 

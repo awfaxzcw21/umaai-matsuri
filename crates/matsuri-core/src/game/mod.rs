@@ -21,7 +21,7 @@ use umaai_core::gamedata::ActionValue;
 use umaai_core::rng::{EventRng, StrategyRng, StreamTag, derive_seed};
 use umasim::game::CardTrainingEffect;
 use umasim::game::base::{BaseGame, BasePerson, RuleStreams};
-use umasim::game::{Game, InheritInfo, PersonType, Trainer, TrainingValueSource};
+use umasim::game::{Game, InheritInfo, PersonType, SupportCard, Trainer, TrainingValueSource};
 
 pub use action::Action;
 pub use stage::Stage;
@@ -229,6 +229,12 @@ pub struct MatsuriGame {
     /// 「助力の支え」剩余次数（0..3）：排练成功时获得，3 次内的训练（含友情训练与排练）
     /// 训练效果 +5%；再次获得时剩余次数重置回 3（memo §4.2 / master.mdb type 20）。
     pub assist_support: i32,
+    /// 演目 Lv 上限（面板 `festa_info.max_act_level`）
+    ///
+    /// 真值（CN memo §2.4）：**不带吾妻 / R 吾妻 = 6，SSR 吾妻 = 10**（0 凸即可，凸数无关）。
+    /// 友人「吾妻」SSR = 卡 30323、R = 卡 10149（两者 `chara_id` 同为 9052，靠稀有度区分）。
+    /// 面板直接给这个值 ⇒ 宿主装配真实局面时以面板为准（`state.rs` 注入）。
+    pub act_level_cap: i32,
 }
 
 impl Deref for MatsuriGame {
@@ -244,6 +250,32 @@ impl DerefMut for MatsuriGame {
         &mut self.base
     }
 }
+
+/// 合宿开始（= 教えの付け替え 同一个事件）给的体力
+///
+/// 真机日志：「1年目、駿大祭合宿開始！」= **+10**；「2年目、駿大祭合宿開始！」= **+15**
+/// （docs/机制对照表 §6）。第 3 年**没有样本** ⇒ 取与第 2 年同值（⚠ 外推，待采样后修正）。
+fn camp_start_vitality(turn: i32) -> i32 {
+    match turn {
+        12 => 10,
+        36 | 60 => 15,
+        _ => 0,
+    }
+}
+
+/// 由卡组推导演目 Lv 上限：带 **SSR 吾妻**（卡 30323 / 稀有度 3）= 10，否则 6
+///
+/// CN memo §2.4：「不带 / R 吾妻 **6**；SSR 吾妻 **10**（实测 `max_act_level = 10`，0 凸即可）」。
+/// 面板本身带这个值，真实局面以面板为准；这里只给**纯模拟**（无面板）用。
+fn act_level_cap_for(deck: &[SupportCard]) -> i32 {
+    let ssr_agatsuma = deck
+        .iter()
+        .any(|c| c.data.chara_id == AGATSUMA_CHARA_ID && c.data.rarity >= 3);
+    if ssr_agatsuma { 10 } else { 6 }
+}
+
+/// 友人「吾妻」的角色 id（`cardDB.json` 的 `charaId`；R 卡 10149 与 SSR 卡 30323 同值）
+const AGATSUMA_CHARA_ID: u32 = 9052;
 
 impl MatsuriGame {
     /// 建一局（要求宿主已初始化静态数据：`umaai_core::Data::init`）
@@ -279,12 +311,14 @@ impl MatsuriGame {
             race_bonus: 0.0,
             practice_bad: false,
             assist_support: 0,
+            act_level_cap: 6,
             persons: Vec::new(),
             stage: Stage::Begin,
             strategy: None,
             data,
         };
         game.init_persons()?;
+        game.act_level_cap = act_level_cap_for(&game.base.deck);
         Ok(game)
     }
 
@@ -310,7 +344,8 @@ impl MatsuriGame {
         let uma = self.uma_mut();
         uma.vital = (uma.vital + 51).min(uma.max_vital);
         let idx = rng.random_range(0..5usize);
-        self.act_level[idx] = (self.act_level[idx] + 1).min(10);
+        let cap = self.act_level_cap;
+        self.act_level[idx] = (self.act_level[idx] + 1).min(cap);
         self.outing_count += 1;
         Ok(())
     }
@@ -670,7 +705,8 @@ impl MatsuriGame {
         // URA 收尾期（面板 t68–77 = 引擎 67..=76，memo §7 本番演出限定效果）：
         // 所选训练对应演目 +1 级；同时每次训练 体力 +30、干劲 +1。
         if (67..=76).contains(&self.base.turn) {
-            self.act_level[train.clamp(0, 4)] = (self.act_level[train.clamp(0, 4)] + 1).min(10);
+            let cap = self.act_level_cap;
+            self.act_level[train.clamp(0, 4)] = (self.act_level[train.clamp(0, 4)] + 1).min(cap);
             let max_vital = self.uma().max_vital;
             let uma = self.uma_mut();
             uma.vital = (uma.vital + 30).min(max_vital.max(uma.vital));
@@ -698,32 +734,61 @@ impl MatsuriGame {
         if cp.schedule == 3 {
             self.race_bonus = if great { 1.00 } else { 0.30 };
         }
-        // 达标实数奖励（官方 Wiki 文案，见 docs/plan/intake.md）
-        // t24 = 全能力+5 / PT+200 / トレLv+1
-        // t48 = 全能力+10 / PT+300 / トレLv+1
-        // t68 = 全能力+15 / PT+400 / 体力+30 / やる気+1
-        if cp.all_stat > 0 {
+        // 达标实数奖励（memo L215-250；官方 Wiki 文案，见 docs/plan/intake.md）
+        //   大成功：t24 = 5ステ+5 / SP+200 / トレLv+1；t48 = 5ステ+10 / SP+300 / トレLv+1；
+        //           t68 = 5ステ+15 / SP+400 / 体力+30 / やる気+1
+        //   成功  ：t24 = 5ステ+3 / SP+100；t48 = 5ステ+5 / SP+150；t68 = 5ステ+10 / SP+200
+        // （成功档没有 トレLv+1，也没有体力 / 干劲）
+        let (all_stat, pt, train_lv, vital, motivation, chairman) = if great {
+            (
+                cp.all_stat,
+                cp.pt,
+                cp.train_lv,
+                cp.vital,
+                cp.motivation,
+                cp.chairman_bond,
+            )
+        } else {
+            (cp.success_all_stat, cp.success_pt, 0, 0, 0, 0)
+        };
+        if all_stat > 0 {
             let limits = self.uma().five_status_limit;
+            let pre = self.uma().five_status;
+            let soft_cap = self.data.soft_cap;
             let uma = self.uma_mut();
-            for (st, lim) in uma.five_status.iter_mut().zip(limits.iter()) {
-                *st = (*st + cp.all_stat).min(*lim);
+            for (i, (st, lim)) in uma.five_status.iter_mut().zip(limits.iter()).enumerate() {
+                // 全能力奖励吃 1200 软上限：清单里那条「#2 速+5 耐+10 … 非均匀」就是
+                // 均匀的 5ステ+10 被软上限砍掉过线的那一项（不是「非均匀设计」）。
+                let gain = soft_cap_gain(soft_cap, pre[i], all_stat);
+                *st = (*st + gain).min(*lim);
             }
         }
-        if cp.pt > 0 {
-            self.uma_mut().skill_pt += cp.pt;
+        if pt > 0 {
+            self.uma_mut().skill_pt += pt;
         }
-        if cp.train_lv > 0 {
+        if train_lv > 0 {
             // 训练等级 = 1 + count/4，所以每 +1 级 = count +4
             for t in 0..5 {
-                self.base.train_level_count[t] += cp.train_lv * 4;
+                self.base.train_level_count[t] += train_lv * 4;
             }
         }
-        if cp.vital > 0 {
+        if vital > 0 {
             let uma = self.uma_mut();
-            uma.vital = (uma.vital + cp.vital).min(uma.max_vital);
+            uma.vital = (uma.vital + vital).min(uma.max_vital);
         }
-        if cp.motivation > 0 {
-            self.uma_mut().add_motivation(cp.motivation);
+        if motivation > 0 {
+            self.uma_mut().add_motivation(motivation);
+        }
+        if chairman > 0 {
+            // 理事长羁绊（大成功档；memo L219 / L232）。理事长是人头里的 `PersonType::Yayoi`。
+            let idx = self
+                .persons
+                .iter()
+                .position(|p| p.person_type == PersonType::Yayoi);
+            if let Some(idx) = idx {
+                let Self { base, persons, .. } = self;
+                base.add_friendship(persons, idx, chairman);
+            }
         }
     }
 
@@ -1109,7 +1174,8 @@ impl MatsuriGame {
                 best = i;
             }
         }
-        self.act_level[best] = (self.act_level[best] + 1).min(10);
+        let cap = self.act_level_cap;
+        self.act_level[best] = (self.act_level[best] + 1).min(cap);
     }
 
     /// 演目稽古：演目等级高 = 基础值按等级档 + 等级效果（官方 intake 3.2/3.3）
@@ -1304,7 +1370,8 @@ impl MatsuriGame {
                 // 稽古成功**只在「槽满→升级」那一下清槽**；槽未满的成功稽古不动槽；
                 // 合宿期成功稽古也不清槽（合宿结束统一全演目 +1，槽数原样继承）。
                 self.act_gauge[idx] = 0;
-                self.act_level[idx] = (self.act_level[idx] + 1).min(10);
+                let cap = self.act_level_cap;
+                self.act_level[idx] = (self.act_level[idx] + 1).min(cap);
                 // 演目Lv9/10 的「基礎能力上限 +20/+25」（act_effect 206）是**每级固定值**，
                 // 只能在升级那一刻结算「新旧等级之差」一次；每次稽古都加会把上限无限抬高。
                 let limit_at = |lv: i32| -> i32 {
@@ -1315,7 +1382,8 @@ impl MatsuriGame {
                         .map(|e| e.base_limit)
                         .unwrap_or(0)
                 };
-                let delta = (limit_at((level as i32 + 1).min(10)) - limit_at(level as i32)).max(0);
+                let cap = self.act_level_cap;
+                let delta = (limit_at((level as i32 + 1).min(cap)) - limit_at(level as i32)).max(0);
                 if delta > 0 {
                     for s in self.uma_mut().five_status_limit.iter_mut() {
                         *s += delta;
@@ -1461,16 +1529,23 @@ impl MatsuriGame {
                         }
                     }
                 }
-                // 合宿开始：体力 +10、干劲 +1（2026-10-31 真机「1年目、駿大祭合宿開始！」）
-                if matches!(self.turn, 12 | 36 | 60) {
+                // 合宿开始（与「教えの付け替え」是同一个事件：memo L319「付け替えは合宿直前」；
+                // JP memo 的「7月前半行動前」就是本事件）。
+                // 体力：**1 年目 +10**（真机日志「1年目、駿大祭合宿開始！」）
+                //      **2 年目 +15**（真机日志「2年目、駿大祭合宿開始！」，docs/机制对照表 §6）
+                //      **3 年目 +15**（⚠ 外推：第 3 年没有样本，取与 2 年目同值，待采样后修正）
+                // 干劲 +1（两年样本一致）
+                let camp_vital = camp_start_vitality(self.turn);
+                if camp_vital > 0 {
                     let uma = self.uma_mut();
-                    uma.vital = (uma.vital + 10).min(uma.max_vital);
+                    uma.vital = (uma.vital + camp_vital).min(uma.max_vital);
                     uma.motivation = (uma.motivation + 1).min(5);
                 }
                 // 合宿结束：全演目 Lv +1（官方：合宿中演目 Lv 不升，结束统一 +1）
                 if matches!(self.turn, 16 | 40 | 64) {
+                    let cap = self.act_level_cap;
                     for i in 0..5 {
-                        self.act_level[i] = (self.act_level[i] + 1).min(10);
+                        self.act_level[i] = (self.act_level[i] + 1).min(cap);
                     }
                 }
                 // 発表会：全演目达标 → 永久收益加成
@@ -1891,6 +1966,99 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(20261101);
         game.do_train(0, &mut rng).unwrap();
         assert_eq!(game.assist_support, 2, "训练消耗一次「助力の支え」");
+    }
+
+    #[test]
+    fn check_point_tiers_follow_memo() {
+        // memo L215-250：成功档 3/100・5/150・10/200；大成功档 5/200・10/300・15/400
+        let _ = Data::init(crate::testing::data_dir());
+        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
+        let cp = data.check_points[0].clone();
+        let mut game =
+            MatsuriGame::newgame(106301, &[], InheritInfo::default(), &[], data).unwrap();
+        let before = game.uma().five_status;
+        let pt_before = game.uma().skill_pt;
+        game.apply_check_point(&cp, false);
+        assert_eq!(game.uma().five_status[0] - before[0], 3, "成功档 = 5ステ+3");
+        assert_eq!(game.uma().skill_pt - pt_before, 100, "成功档 = SP+100");
+        let before = game.uma().five_status;
+        let pt_before = game.uma().skill_pt;
+        game.apply_check_point(&cp, true);
+        assert_eq!(
+            game.uma().five_status[0] - before[0],
+            5,
+            "大成功档 = 5ステ+5"
+        );
+        assert_eq!(game.uma().skill_pt - pt_before, 200, "大成功档 = SP+200");
+    }
+
+    #[test]
+    fn check_point_gives_chairman_bond_on_great_only() {
+        // memo L219：第 1 回発表会 大成功「理事長絆+15」；成功档没有
+        let mut game = game_with_roster(&[(0, 1)]);
+        let cp = game.data.check_points[0].clone();
+        let chairman = game
+            .persons
+            .iter()
+            .position(|p| p.person_type == PersonType::Yayoi)
+            .expect("人头里应有理事長");
+        game.apply_check_point(&cp, false);
+        assert_eq!(game.persons[chairman].friendship, 0, "成功档没有理事长羁绊");
+        game.apply_check_point(&cp, true);
+        assert_eq!(
+            game.persons[chairman].friendship, 15,
+            "大成功 = 理事長絆+15"
+        );
+    }
+
+    #[test]
+    fn check_point_all_stat_respects_soft_cap() {
+        // 清单里的「#2 速+5 耐+10 … 非均匀」= 均匀的 5ステ+10 被 1200 软上限砍半
+        let mut game = game_with_roster(&[(0, 1)]);
+        let cp = game.data.check_points[1].clone(); // all_stat = 10
+        let uma = game.uma_mut();
+        uma.five_status[0] = 1300; // 速已过 1200
+        uma.five_status[1] = 800; // 耐没过
+        game.apply_check_point(&cp, true);
+        assert_eq!(game.uma().five_status[0] - 1300, 5, "过线的项减半");
+        assert_eq!(game.uma().five_status[1] - 800, 10, "没过线的项照给");
+    }
+
+    #[test]
+    fn act_level_cap_is_six_unless_ssr_agatsuma() {
+        // 报文 `festa_info.max_act_level`：R 吾妻（10149）/不带 = 6，SSR 吾妻（30323）= 10
+        let _ = Data::init(crate::testing::data_dir());
+        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
+        let plain =
+            MatsuriGame::newgame(106301, &[], InheritInfo::default(), &[], data.clone()).unwrap();
+        assert_eq!(plain.act_level_cap, 6, "不带吾妻 ⇒ 上限 6");
+        // 引擎的卡组 id 口径是 `卡号 × 10 + 凸数`（`SupportCard::new`）⇒ SSR 吾妻 = 303230
+        let ssr =
+            MatsuriGame::newgame(106301, &[303230], InheritInfo::default(), &[], data).unwrap();
+        assert_eq!(ssr.act_level_cap, 10, "SSR 吾妻 ⇒ 上限 10");
+    }
+
+    #[test]
+    fn act_level_never_exceeds_cap() {
+        let mut game = game_with_roster(&[(0, 1)]);
+        assert_eq!(game.act_level_cap, 6);
+        for _ in 0..20 {
+            game.bump_lowest_act_level();
+        }
+        assert!(
+            game.act_level.iter().all(|l| *l <= 6),
+            "演目 Lv 不得越过上限：{:?}",
+            game.act_level
+        );
+    }
+
+    #[test]
+    fn camp_start_vitality_by_year() {
+        // 真机日志：1年目「駿大祭合宿開始！」体力 +10；2年目同事件 +15（3 年目为外推）
+        assert_eq!(camp_start_vitality(12), 10, "1 年目 +10");
+        assert_eq!(camp_start_vitality(36), 15, "2 年目 +15");
+        assert_eq!(camp_start_vitality(60), 15, "3 年目：外推，同 2 年目");
+        assert_eq!(camp_start_vitality(13), 0, "其它回合没有");
     }
 
     #[test]

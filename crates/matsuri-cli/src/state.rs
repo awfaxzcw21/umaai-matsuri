@@ -325,6 +325,11 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
             schedule_note = json!({"before": have, "after": want_turns});
         }
     }
+    // 演目 Lv 上限：面板 `max_act_level` 是权威值（R 吾妻 = 6 / SSR 吾妻 = 10），
+    // 面板没给时保留按卡组推出来的值。
+    if let Some(cap) = v.get("max_act_level").and_then(|x| x.as_i64()) {
+        game.act_level_cap = cap.clamp(1, 10) as i32;
+    }
     if let Some(acts) = v.get("acts").and_then(|x| x.as_array()) {
         for a in acts {
             let at = a.get("act_type").and_then(|x| x.as_i64()).unwrap_or(0);

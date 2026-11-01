@@ -439,6 +439,9 @@
         "hint_pct": 50
       },
       "all_stat": 5,
+    "success_all_stat": 3,
+    "success_pt": 100,
+    "chairman_bond": 15,
       "pt": 200,
       "train_lv": 1,
       "vital": 0,
@@ -459,6 +462,9 @@
         "hint_pct": 100
       },
       "all_stat": 10,
+    "success_all_stat": 5,
+    "success_pt": 150,
+    "chairman_bond": 15,
       "pt": 300,
       "train_lv": 1,
       "vital": 0,
@@ -479,6 +485,9 @@
         "hint_pct": 150
       },
       "all_stat": 15,
+    "success_all_stat": 10,
+    "success_pt": 200,
+    "chairman_bond": 0,
       "pt": 400,
       "train_lv": 0,
       "vital": 30,

@@ -59,6 +59,12 @@
 | `free_race_action_only_on_window_turns`（`core/src/game/mod.rs`） | `Action::Race` 只在窗口回合出现，且排在候选末尾（训练位下标不位移） | `mechanism.md` §4 |
 | `free_race_pays_one_random_stat_and_pt`（`core/src/game/mod.rs`） | 目標外 GI = **1 随机项** +10 / PT +45；非生涯比赛给演目槽 +1 | `mechanism.md` §4 |
 | `free_race_unknown_grade_is_not_target_row`（`core/src/game/mod.rs`） | GII 无样本 ⇒ 返回 `None`，不回落目標賽档（未知不猜） | `mechanism.md` §4 |
+| `check_point_tiers_follow_memo`（`core/src/game/mod.rs`） | 発表会成功档 3/100、大成功档 5/200（memo L215-250） | `mechanism.md` §4 |
+| `check_point_gives_chairman_bond_on_great_only`（`core/src/game/mod.rs`） | 大成功给理事長絆+15，成功档没有 | `mechanism.md` §4 |
+| `check_point_all_stat_respects_soft_cap`（`core/src/game/mod.rs`） | 発表会的全能力奖励吃 1200 软上限（过线的那项减半） | `mechanism.md` §4 |
+| `act_level_cap_is_six_unless_ssr_agatsuma`（`core/src/game/mod.rs`） | 演目 Lv 上限：不带/ R 吾妻 = 6、SSR 吾妻 = 10（报文 7 局实证） | `mechanism.md` §4 |
+| `act_level_never_exceeds_cap`（`core/src/game/mod.rs`） | 演目 Lv 不得越过上限 | `mechanism.md` §4 |
+| `camp_start_vitality_by_year`（`core/src/game/mod.rs`） | 合宿开始体力：1 年 +10 / 2 年 +15 / 3 年外推 +15 | `mechanism.md` §4 |
 | `t30_advice_binding_matches_panel`（`cli/tests/state_t30.rs`） | fixture 报文给的教诲绑定 `[401, 501, 601, 301, 701]` 与各演目的担当人数（速度 2 / 根性 0 / 嘉宾 `train_type = -1` 不计担当） | `mechanism.md` §3.3 |
 
 ## 4. 冒烟与基线
