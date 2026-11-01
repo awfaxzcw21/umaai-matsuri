@@ -239,6 +239,23 @@
 - 「助力の支え」（`type 20`）：排练成功时获得，3 次内的训练（含友情训练与排练）训练效果 +5%；
   再次获得时剩余次数重置回 3。
 - 羁绊 / 红点 / 训练后处理：暂按引擎默认档，剧本覆写点待 S4/S5 确认。
+- **训练位排列（2026-11-01 步骤 8 落地）**：支援卡按**卡种站位**，优先待在自己卡种的那一格。
+  - 引擎底座用 `deyilv` 当「自身格权重」（`weights[train_type] += deyilv`），
+    本仓覆写 `Game::deyilv` 改用**与卡种无关的固定权重**（`SELF_SLOT_P`）：
+    **真机报文证明 cardDB 的 `deYiLv` 数值不驱动落位**（413 条训练命令实测，
+    `deYiLv` = 10/43/60/75 的卡参与「自己类型」训练的比例 58.0 / 65.8 / 61.5 / 47.1%，**无单调性**），
+    偏置是「按卡种站位」这一分类效应。
+  - 对标量：**卡参与「自己类型」训练 = 73.1%**（零假设 35.6%，z=+15.9；分类型
+    速 94.7 / 力 88.6 / 智 82.0 / 耐 78.6；根 0% 是因为那批卡组里没有根卡）。
+  - ⚠️ **报文里没有逐格布局**（角色在 `training_partner_array` 里的位置是分散的，
+    1009 在 pos2/pos3/pos1 各占 46%/28%/12%），所以「卡在某一格」不可直接测，
+    只能测「训练 t 的参与者里有没有 t 类卡」——本仓与报文同口径。
+  - ⚠️ **未闭合的口径差**：同一批报文逐卡算「参与自己类型 / 参与总次数」只有 47~66%，
+    与 73.1% 的差距来自 ①本仓卡组没有耐力卡（该格恒 0）②引擎 9.1% 不在率
+    ③真实玩家会优先选「有同类型卡」的那一格（我们的训练员不做这件事）。
+    这三条记在 `docs/TODO_20261101_pm.md` 的步骤 8 段。
+  - 影响：`calc_training_buff` 只累加 `distribution[train]` 里的卡，排列错了 ⇒
+    训练增益系统性偏低。改完门禁 五维和 −8.6% → **+4.2%**、五维分 −22.3% → **+9.7%**。
 
 **实现落点**
 
@@ -248,6 +265,7 @@
 | 演目稽古 | `keiko_basic_value` / `act_level_effects` | `ActTrain` | `do_keiko_impl` | `train_and_keiko_domains_do_not_leak` | §3.2 |
 | 教え加成 | `advice_effects` / `fusion_effects` / `fusion_grants` | `Train` / `ActTrain` | `advice_mods_train` / `advice_mods_keiko` | `advice_scope_follows_memo_table`、`fusion_replaces_base_effect_with_fixed_tier`、`advice_only_applies_when_act_member_present`、`advice_stacks_by_participant_count`、`gain_zone_does_not_multiply_skill_pt` | §3.3 |
 | 资产对照 master.mdb | 同上 | — | `MatsuriData::load` | `real_asset_advice_effects_match_master_mdb`、`real_asset_fusion_effects_match_master_mdb` | §3.3 |
+| 训练位排列（按卡种站位） | `SELF_SLOT_P`（常量） | 回合开始 | `Game::deyilv`（覆写） | `arrangement_metric_matches_packet_observation`、`arrangement_metric_is_stable_across_seeds` | §3.4 |
 
 ## 4. 比赛与赛程
 

@@ -218,9 +218,19 @@ impl Game for MatsuriGame {
         self.base.absent_rate_drop
     }
 
-    fn deyilv(&mut self, _person_index: i32) -> f32 {
-        // S1 占位：后续实现按自己的卡组效果算「人头得意率」
-        1.0
+    fn deyilv(&mut self, person_index: i32) -> f32 {
+        // 剧本 15 的落位规则：**支援卡按卡种站位**（自己卡种的格优先）。
+        //
+        // 引擎底座拿 `deyilv` 当「自身格权重」用（`weights[train_type] += deyilv`），
+        // 且 `deyilv` **不进增益计算**（`calc_training_value` 只吃 buffs.bonus / youqing /
+        // ganjing / xunlian / 人数），所以改它只动排列、不动收益公式。
+        //
+        // 这里不用卡牌的 `deYiLv` 数值：真机报文显示它与落位无剂量关系（见
+        // `SELF_SLOT_P` 的注释），偏置是「按卡种站位」的分类效应。
+        if person_index < 0 || person_index as usize >= self.base.deck.len() {
+            return 0.0; // 非卡人头（理事长/记者）：与引擎底座一致 ⇒ 均匀分布
+        }
+        super::self_slot_weight()
     }
 
     fn has_group_buff(&self) -> bool {
