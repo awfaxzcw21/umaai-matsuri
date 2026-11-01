@@ -332,10 +332,9 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
                 let i = (at - 1) as usize;
                 game.act_level[i] = a.get("level").and_then(|x| x.as_i64()).unwrap_or(1) as i32;
                 game.act_gauge[i] = a.get("gauge").and_then(|x| x.as_i64()).unwrap_or(0) as i32;
-                // 教え：报文里带 advice_id 就回填，否则保持 0
+                // 教え：报文里带 advice_id 就回填（基础教诲；Lv 由绑定演目的当前 Lv 决定）
                 if let Some(aid) = a.get("advice_id").and_then(|x| x.as_i64()) {
-                    game.advice_id[i] = aid as i32;
-                    game.advice_level[i] = game.act_level[i].clamp(1, 10);
+                    game.advice_base[i] = aid as i32;
                 }
             }
         }

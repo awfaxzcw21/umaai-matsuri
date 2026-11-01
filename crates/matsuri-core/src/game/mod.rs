@@ -34,6 +34,116 @@ pub const ACT_GAUGE_MAX: i32 = 5;
 /// 排练基础值切到「Classic 以后档」的回合（= Junior 进度汇报会 turn 23，见 memo §3.2）
 pub const KEIKO_LATE_TURN: i32 = 23;
 
+/// 一条教诲效果行（已解析到「教诲 id + 效果类型 + 值 + 条件」）
+#[derive(Debug, Clone, Copy)]
+struct AdviceRow {
+    /// 效果归属的教诲 id（转成固定档用被融合的基础教诲 id）
+    advice_id: i32,
+    effect_type: i32,
+    value: i32,
+    /// 条件类型（master.mdb `condition_type`）：0 = 无条件，2 = 体力阈值，3 = 友情非发生
+    condition_type: i32,
+    /// 条件值（体力阈值等）
+    condition_value: i32,
+    /// 该行来自转成固定档（作用域按被融合的基础教诲查）
+    fused: bool,
+}
+
+/// 教诲效果的分区结果（memo §3.3 的乘区口径）
+///
+/// 基础能力 = floor(下段 × (1+友情合計) × (1+訓練効果合計) × (1+獲得量合計))
+/// 技能Pt   = floor(下段 × (1+友情合計) × (1+訓練効果合計 + SP訓練効果))
+#[derive(Debug, Clone, Copy, Default)]
+struct AdviceMods {
+    /// 主属性获得量加成 %（獲得量区：只乘主属性）
+    main_pct: f64,
+    /// 副属性获得量加成 %（獲得量区：只乘副属性，技能Pt 除外）
+    sub_pct: f64,
+    /// 训练/排练效果加成 %（訓練効果区：主属性 + 副属性 + 技能Pt）
+    effect_pct: f64,
+    /// 友情加成 %（友情区：主属性 + 副属性 + 技能Pt）
+    friend_pct: f64,
+    /// 体力消费下降 %（排练域）
+    vital_pct: f64,
+}
+
+/// 是不是 5 种**基础教诲**之一（101 / 201 / 301 / 401 / 501）
+fn is_base_advice(advice_id: i32) -> bool {
+    matches!(advice_id, 101 | 201 | 301 | 401 | 501)
+}
+
+/// 该维度用哪个教诲倍率：主属性吃「主属性獲得量区」，其余维度吃「副属性獲得量区」
+///
+/// 训练位 / 演目的主属性就是它自己那一位（速度↔演目 1 …），其余四维是副属性。
+fn stat_mult(main_stat: usize, stat: usize, main_mult: f64, sub_mult: f64) -> f64 {
+    if stat == main_stat {
+        main_mult
+    } else {
+        sub_mult
+    }
+}
+
+/// 教诲效果的作用域：`(训练域, 排练域)`
+///
+/// memo §4.2（十种教诲逐级效果）与 §4.5（转成效果）的逐条口径：
+///
+/// | 教诲 | 效果 | 域 |
+/// |---|---|---|
+/// | 101 絆 | 13 主属性获得量 | 排练（「演目稽古でメイン基礎能力の獲得量アップ」）|
+/// | 101 絆 | 16 羁绊 +3 | 训练（「トレーニング時に全編成サポカの絆ゲージ+3」）|
+/// | 201 得意 | 4 得意率 | 全局（无模型，只记录）|
+/// | 301 ヒント | 2 ヒント発生率 | 全局（无模型，只记录）|
+/// | 401 助力 | 203 训练效果（条件 3 = 友情非发生）| 训练 |
+/// | 401 助力 | 20 助力の支え | 排练获得（未实现）|
+/// | 501 体力 | 3 体力消费 | 排练 |
+/// | 601 特化 | 13 主属性获得量 | 训练 + 排练 |
+/// | 601 特化 | 206 基础上限 | 全局 |
+/// | 701 研钻 | 8 追加稽古发生率 | 训练 + 排练（事件未实现）|
+/// | 801 協力 | 202 友情ボーナス | 训练（仅友情训练）|
+/// | 801 協力 | 18 额外登场 | 训练（未实现）|
+/// | 901 不屈 | 205 失败率 | 训练 |
+/// | 901 不屈 | 203 排练效果 | 排练 |
+/// | 1001 兼修 | 21 副属性获得量（技能Pt 対象外）| 训练 + 排练 |
+/// | 1001 兼修 | 203 排练效果 | 排练 |
+///
+/// 转成固定档按**被融合的基础教诲**查域：101→13 排练 / 101→17 全局 / 201→4 全局 /
+/// 201→202 排练 / 301→2 全局 / 301→19 排练 / 401→203 训练 / 401→20 排练 / 501→3 排练。
+fn advice_scope(row: &AdviceRow) -> (bool, bool) {
+    if row.fused {
+        return match (row.advice_id, row.effect_type) {
+            (101, 13) => (false, true),
+            (101, 17) => (false, false),
+            (201, 4) => (false, false),
+            (201, 202) => (false, true),
+            (301, 2) => (false, false),
+            (301, 19) => (false, true),
+            (401, 203) => (true, false),
+            (401, 20) => (false, true),
+            (501, 3) => (false, true),
+            _ => (false, false),
+        };
+    }
+    match (row.advice_id, row.effect_type) {
+        (101, 13) => (false, true),
+        (101, 16) => (true, false),
+        (201, _) => (false, false),
+        (301, _) => (false, false),
+        (401, 203) => (true, false),
+        (401, 20) => (false, true),
+        (501, 3) => (false, true),
+        (601, 13) => (true, true),
+        (601, 206) => (false, false),
+        (701, 8) => (true, true),
+        (801, 202) => (true, false),
+        (801, 18) => (true, true),
+        (901, 205) => (true, false),
+        (901, 203) => (false, true),
+        (1001, 21) => (true, true),
+        (1001, 203) => (false, true),
+        _ => (false, false),
+    }
+}
+
 /// 剧本资源快照（给前端的纯数据 View）
 ///
 /// 形态 A 五条纪律（见引擎仓 `docs/scenario/contracts.md`）：**单一取数口** / 只放引擎不知道的字段 /
@@ -71,10 +181,13 @@ pub struct MatsuriGame {
     pub act_gauge: [i32; 5],
     /// 演目等级（1..10）
     pub act_level: [i32; 5],
-    /// 每个演目挂的教え id（0 = 未分配）
-    pub advice_id: [i32; 5],
-    /// 教え等级（用演目等级近似）
-    pub advice_level: [i32; 5],
+    /// 每个演目槽上的**基础教诲** id（101/201/301/401/501，0 = 未分配）
+    pub advice_base: [i32; 5],
+    /// 每个演目槽上的**融合教诲** id（601/701/801/901/1001，0 = 未融合）
+    ///
+    /// 融合（転成）后基础教诲的等级效果整条换成 `fusion_effects` 的固定档，
+    /// 新教诲的效果再叠加其上（memo §4.5）。
+    pub advice_fusion: [i32; 5],
     /// 每个训练的真实面板五维收益快照（来自报文 `commands[].stat_gains`，5×5：训练 × 速度/耐力/力量/根性/智力）
     /// 全零 = 未注入 → 回退引擎训练值 `value.status_pt × mult`。
     /// 报文值是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/教え/発表会）。
@@ -86,8 +199,6 @@ pub struct MatsuriGame {
     pub check_friend_pct: f64,
     /// 発表会累计的**ヒント発生率**（type 2，%）：引擎无提示/技能模型 ⇒ 只记录。
     pub check_hint_pct: i32,
-    /// 転成（融合）给的训练效果加成：与発表会 buff 分开，免得被累计值覆盖。
-    pub fusion_gain_pct: f64,
     /// 已用友人出行次数（官方：全剧本约 5 次）
     pub outing_count: i32,
     /// 装配时的起点回合（0 基，来自面板 turn−1）
@@ -115,6 +226,9 @@ pub struct MatsuriGame {
     /// 「練習ベタ」状态：失败后获得，训练失败率 +22 个百分点（2026-10-31 真机：同体力 5 时
     /// 带上手○ 52% / 带ベタ 97%），保健室解除。
     pub practice_bad: bool,
+    /// 「助力の支え」剩余次数（0..3）：排练成功时获得，3 次内的训练（含友情训练与排练）
+    /// 训练效果 +5%；再次获得时剩余次数重置回 3（memo §4.2 / master.mdb type 20）。
+    pub assist_support: i32,
 }
 
 impl Deref for MatsuriGame {
@@ -152,19 +266,19 @@ impl MatsuriGame {
             )?,
             act_gauge: [0; 5],
             act_level: [1; 5],
-            advice_id: [0; 5],
-            advice_level: [1; 5],
+            advice_base: [0; 5],
+            advice_fusion: [0; 5],
             train_stat_anchor: [[0; 5]; 5],
             gain_pct: 0.0,
             check_friend_pct: 0.0,
             check_hint_pct: 0,
-            fusion_gain_pct: 0.0,
             outing_count: 0,
             start_turn: 0,
             initial_shining: [0; 5],
             initial_youqing: [0.0; 5],
             race_bonus: 0.0,
             practice_bad: false,
+            assist_support: 0,
             persons: Vec::new(),
             stage: Stage::Begin,
             strategy: None,
@@ -315,11 +429,18 @@ impl MatsuriGame {
         // 不屈の教え（205）：体力达标时失败率 −100%（2026-10-31 截图）
         let fail_rate = {
             let vital = self.uma().vital;
-            let drop = self.advice_fail_drop(vital);
+            let drop = self.advice_fail_drop(train, vital, None);
             (fail_rate as f64 * (100.0 - drop) / 100.0).max(0.0) as f32
         };
         let roll = rand::Rng::random::<f32>(&mut _rng) * 100.0;
         let failed = roll < fail_rate;
+        // 「追加の稽古」（研鑽の教え type 8）：该演目的担当参与了本次训练才可能发生，
+        // 且**只在训练成功时结算**（memo §4.4）；发生率不按人数加算。
+        let acts = self.participating_acts(train, None);
+        let extra_keiko = {
+            let rate = self.extra_keiko_rate(&acts);
+            rate > 0 && rand::Rng::random::<f32>(&mut _rng) * 100.0 < rate as f32
+        };
         // 教え + 発表会加成
         let has_shining = self
             .base
@@ -330,8 +451,15 @@ impl MatsuriGame {
                     .any(|&pidx| pidx >= 0 && self.is_shining_at(pidx as usize, train))
             })
             .unwrap_or(false);
-        let (mult, vital_delta, vital_pct) = self.advice_mods(train, has_shining);
-        let vital_delta = vital_delta + (value.vital as f64 * vital_pct / 100.0) as i32;
+        // 分乘区（memo §3.3）：主属性吃「獲得量 + 訓練効果」，副属性吃「副属性獲得量 + 訓練効果」，
+        // 技能Pt 只吃「訓練効果 + 友情」（獲得量区不含技能Pt —— 兼修の教え明写「スキルPtは対象外」）。
+        let mods = self.advice_mods_train(train, has_shining);
+        // 「助力の支え」：3 次内的训练效果 +5%（memo §4.2），本次训练消耗 1 次
+        let assist_bonus = if self.assist_support > 0 { 5.0 } else { 0.0 };
+        let effect_mult = 1.0 + (mods.effect_pct + assist_bonus) / 100.0;
+        let main_mult = (1.0 + mods.main_pct / 100.0) * effect_mult;
+        let sub_mult = (1.0 + mods.sub_pct / 100.0) * effect_mult;
+        let pt_mult = effect_mult;
         // 报文 `stat_gains` 是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/
         // 教え/発表会），直接用可绕过引擎训练值的缺口；未注入时才回退引擎训练值。
         let stat_anchor = self.train_stat_anchor[train];
@@ -347,11 +475,11 @@ impl MatsuriGame {
             ]
         } else {
             [
-                (value.status_pt[0] as f64 * mult) as i32,
-                (value.status_pt[1] as f64 * mult) as i32,
-                (value.status_pt[2] as f64 * mult) as i32,
-                (value.status_pt[3] as f64 * mult) as i32,
-                (value.status_pt[4] as f64 * mult) as i32,
+                (value.status_pt[0] as f64 * stat_mult(train, 0, main_mult, sub_mult)) as i32,
+                (value.status_pt[1] as f64 * stat_mult(train, 1, main_mult, sub_mult)) as i32,
+                (value.status_pt[2] as f64 * stat_mult(train, 2, main_mult, sub_mult)) as i32,
+                (value.status_pt[3] as f64 * stat_mult(train, 3, main_mult, sub_mult)) as i32,
+                (value.status_pt[4] as f64 * stat_mult(train, 4, main_mult, sub_mult)) as i32,
             ]
         };
         // 彩圈增量：羁绊 ≥80 且得意的训练位，**按该卡真实友情加成%**结算
@@ -374,12 +502,13 @@ impl MatsuriGame {
         } else {
             1.0
         };
+        let friend_mult = shining_mult * (1.0 + mods.friend_pct / 100.0);
         let stat = [
-            (stat[0] as f64 * shining_mult) as i32,
-            (stat[1] as f64 * shining_mult) as i32,
-            (stat[2] as f64 * shining_mult) as i32,
-            (stat[3] as f64 * shining_mult) as i32,
-            (stat[4] as f64 * shining_mult) as i32,
+            (stat[0] as f64 * friend_mult) as i32,
+            (stat[1] as f64 * friend_mult) as i32,
+            (stat[2] as f64 * friend_mult) as i32,
+            (stat[3] as f64 * friend_mult) as i32,
+            (stat[4] as f64 * friend_mult) as i32,
         ];
         // 接近上限衰减：拟合曲线 `cap_decay` 已置 0 停用（2026-11-01 步骤 3），
         // 接近上限的打折改由下面那条有报文依据的 1200 软上限承担
@@ -413,9 +542,10 @@ impl MatsuriGame {
                 stat[2],
                 stat[3],
                 stat[4],
-                (value.status_pt[5] as f64 * mult) as i32,
+                // 技能Pt：吃「訓練効果」与「友情」两区，**不吃獲得量区**
+                (value.status_pt[5] as f64 * pt_mult * friend_mult) as i32,
             ],
-            vital: value.vital + vital_delta,
+            vital: value.vital,
             ..Default::default()
         };
         if failed {
@@ -440,10 +570,17 @@ impl MatsuriGame {
             self.practice_bad = true;
         } else {
             self.uma_mut().add_value(&scaled);
+            if extra_keiko {
+                let upper = rand::Rng::random::<f32>(&mut _rng) < 0.5;
+                self.apply_extra_keiko(train, upper);
+            }
+        }
+        if self.assist_support > 0 {
+            self.assist_support -= 1;
         }
         self.base.train_level_count[train] += 1;
         // 羁绊成长：训练位上每个人头羁绊 +friend_gain；縛の教え（effect 16）另给全编成卡 +3（不叠加）
-        let bond_bonus = self.advice_value(16) as i32;
+        let bond_bonus = self.advice_value(16, train) as i32;
         if self.data.friend_gain_per_train > 0 || bond_bonus > 0 {
             let gain = self.data.friend_gain_per_train;
             let dist = self
@@ -533,61 +670,243 @@ impl MatsuriGame {
         }
     }
 
-    /// 某个演目上的教え修正：(收益倍率, 体力增减)
-    fn advice_mods(&self, act: usize, has_shining: bool) -> (f64, i32, f64) {
-        let aid = self.advice_id.get(act).copied().unwrap_or(0);
-        let level = self
-            .advice_level
-            .get(act)
-            .copied()
-            .unwrap_or(1)
-            .clamp(1, 10);
-        let mut gain = 0.0;
-        let vital = 0;
-        let mut vital_pct = 0.0;
-        if aid > 0 {
+    /// 某演目槽上的教诲效果行（已按「融合 ⇒ 固定档」解析）
+    ///
+    /// 融合后基础教诲的等级效果整条换成 `fusion_effects` 的**固定档**（与演目 Lv 无关，
+    /// memo §4.5），所绑定的新教诲效果再叠加其上；未融合的取该教诲在
+    /// **绑定演目当前 Lv** 的行（memo §4.3 规则 1：按绑定的演目取 Lv）。
+    fn slot_advice_rows(&self, slot: usize) -> Vec<AdviceRow> {
+        let base = self.advice_base.get(slot).copied().unwrap_or(0);
+        if base <= 0 {
+            return Vec::new();
+        }
+        let level = self.act_level.get(slot).copied().unwrap_or(1).clamp(1, 10);
+        let fusion = self.advice_fusion.get(slot).copied().unwrap_or(0);
+        let mut rows = Vec::new();
+        if fusion > 0 {
+            for e in self
+                .data
+                .fusion_effects
+                .iter()
+                .filter(|e| e.advice_id == base)
+            {
+                rows.push(AdviceRow {
+                    advice_id: base,
+                    effect_type: e.effect_type,
+                    value: e.value,
+                    condition_type: e.condition_type,
+                    condition_value: e.condition_value,
+                    fused: true,
+                });
+            }
             for e in self
                 .data
                 .advice_effects
                 .iter()
-                .filter(|e| e.advice_id == aid && e.level == level)
+                .filter(|e| e.advice_id == fusion && e.level == level)
             {
-                match e.effect_type {
-                    // 13 主属性% / 21 副属性%：直接加训练效果
-                    13 | 21 => gain += e.value as f64 / 100.0,
-                    // 203「助力の教え」：**友情非発生時**才给训练效果（助力 20~30%），
-                    // 2026-10-31 截图：`友情非発生時にトレーニング効果アップ 20%`。
-                    // 原来无条件加，会在彩圈回合系统性高估。
+                rows.push(AdviceRow {
+                    advice_id: fusion,
+                    effect_type: e.effect_type,
+                    value: e.value,
+                    condition_type: e.condition_type,
+                    condition_value: e.condition_value,
+                    fused: false,
+                });
+            }
+        } else {
+            for e in self
+                .data
+                .advice_effects
+                .iter()
+                .filter(|e| e.advice_id == base && e.level == level)
+            {
+                rows.push(AdviceRow {
+                    advice_id: base,
+                    effect_type: e.effect_type,
+                    value: e.value,
+                    condition_type: e.condition_type,
+                    condition_value: e.condition_value,
+                    fused: false,
+                });
+            }
+        }
+        rows
+    }
+
+    /// 普通训练侧的教诲效果（训练域）
+    ///
+    /// 生效口径（memo §4.3）：教诲只在该演目的**担当参与了该训练位**时生效，
+    /// 且**按参与人数叠加**。排练域的效果（絆的主属性、体力消费等）在普通训练里不吃。
+    fn advice_mods_train(&self, slot: usize, has_shining: bool) -> AdviceMods {
+        let mut mods = AdviceMods::default();
+        for act in 0..5 {
+            let members = self.slot_act_members(slot, act);
+            if members <= 0 {
+                continue;
+            }
+            for row in self.slot_advice_rows(act) {
+                let (train_scope, _) = advice_scope(&row);
+                if !train_scope {
+                    continue;
+                }
+                let value = row.value as f64 * members as f64;
+                match row.effect_type {
+                    // 13 主属性获得量 %（特化）
+                    13 => mods.main_pct += value,
+                    // 21 副属性获得量 %（兼修；**技能Pt 対象外**）
+                    21 => mods.sub_pct += value,
+                    // 203 训练效果 %：条件 3 = 「友情非発生時」（助力），无条件的直接生效
                     203 => {
-                        if !has_shining {
-                            gain += e.value as f64 / 100.0;
+                        if row.condition_type != 3 || !has_shining {
+                            mods.effect_pct += value;
                         }
                     }
-                    // 202 友情ボーナス%（協力の教え 1~10%）。`mechanism.md:129`
-                    // 「友情合计（**仅友情训练**）：…協力教え…」→ 只在彩圈回合生效；
-                    // 原来无条件加，会在非彩圈回合虚高。
-                    202 => {
-                        if has_shining {
-                            gain += e.value as f64 / 100.0;
-                        }
-                    }
-                    3 => vital_pct += e.value as f64,
+                    // 202 友情ボーナス %（協力）：只在友情训练（彩圈）时进友情区
+                    202 if has_shining => mods.friend_pct += value,
                     _ => {}
                 }
             }
         }
-        // 発表会给的**友情ボーナス**（type 202，累计总量）：官方口径是「作用于全部友情训练
-        // （不只排练）」⇒ 只看是否彩圈，与该位挂没挂教え无关。
+        // 発表会の永久 buff：得意率（近似：当训练效果%用）与友情ボーナス（仅友情训练）
+        mods.effect_pct += self.gain_pct;
         if has_shining {
-            gain += self.check_friend_pct;
+            mods.friend_pct += self.check_friend_pct;
         }
-        // 発表会の得意率（近似：训练效果%）+ 転成加成：永久 buff，与是否挂教え无关。
-        // 原来 `aid <= 0` 直接 return 1.0，把这些永久 buff 整段吞掉了。
-        (
-            1.0 + gain + self.gain_pct + self.fusion_gain_pct,
-            vital,
-            vital_pct,
-        )
+        mods
+    }
+
+    /// 演目稽古侧的教诲效果（排练域）
+    ///
+    /// 排练 = 该演目自己的稽古，绑定的教诲必然生效，人数按该演目的参加人数叠加。
+    fn advice_mods_keiko(&self, act: usize) -> AdviceMods {
+        let mut mods = AdviceMods::default();
+        let members = self.act_roster(act).max(1);
+        for row in self.slot_advice_rows(act) {
+            let (_, keiko_scope) = advice_scope(&row);
+            if !keiko_scope {
+                continue;
+            }
+            let value = row.value as f64 * members as f64;
+            match row.effect_type {
+                // 13 主属性获得量 %（絆 / 特化）
+                13 => mods.main_pct += value,
+                // 21 副属性获得量 %（兼修；技能Pt 対象外）
+                21 => mods.sub_pct += value,
+                // 203 排练效果 %（不屈 Lv8+ / 兼修）
+                203 => mods.effect_pct += value,
+                // 202 排练友情ボーナス %（転成 201）
+                202 => mods.friend_pct += value,
+                // 3 体力消费下降 %（体力 / 転成 501）
+                3 => mods.vital_pct += value,
+                _ => {}
+            }
+        }
+        mods
+    }
+
+    /// 本次行动里「参与了」的演目
+    ///
+    /// 普通训练 = 该训练位上有担当的演目；排练 = 该演目自己（排练的参加者就是它的担当）。
+    fn participating_acts(&self, slot: usize, keiko_act: Option<usize>) -> Vec<usize> {
+        match keiko_act {
+            Some(act) => vec![act],
+            None => (0..5)
+                .filter(|&a| self.slot_act_members(slot, a) > 0)
+                .collect(),
+        }
+    }
+
+    /// 这些演目上「追加の稽古」的发生率 %（master.mdb type 8 = 研鑽の教え）
+    ///
+    /// 发生率取教诲**绑定的演目的 Lv** 对应的值，**不按人数加算**
+    /// （一手 memo：`確率は人数分加算しない`）；多个演目同时挂着研鑽时取最大。
+    fn extra_keiko_rate(&self, acts: &[usize]) -> i32 {
+        let mut rate = 0;
+        for &act in acts {
+            for row in self.slot_advice_rows(act) {
+                if row.effect_type == 8 {
+                    rate = rate.max(row.value);
+                }
+            }
+        }
+        rate
+    }
+
+    /// 这些演目上能否拿到「助力の支え」（master.mdb type 20 = 助力の教え）
+    fn can_obtain_assist_support(&self, acts: &[usize]) -> bool {
+        acts.iter().any(|&act| {
+            self.slot_advice_rows(act)
+                .iter()
+                .any(|row| row.effect_type == 20)
+        })
+    }
+
+    /// 「追加の稽古」结算（memo §4.4 的上 / 下两档）
+    ///
+    /// 上：理事长羁绊 +5、体力 -5、主属性 +20、技能Pt +20、**演目Lv 最低的演目**槽 +1；
+    /// 下：体力 +5、主属性 +5。上/下 权重 memo 未给（U40），先按 50/50。
+    /// 「随机解除一个 debuff」引擎没有异常状态系统 ⇒ 不实现。
+    fn apply_extra_keiko(&mut self, main_stat: usize, upper: bool) {
+        if upper {
+            if let Some(idx) = self
+                .persons
+                .iter()
+                .position(|p| p.person_type == PersonType::Yayoi)
+            {
+                let Self { base, persons, .. } = self;
+                base.add_friendship(persons, idx, 5);
+            }
+            let act = (0..5).min_by_key(|&i| self.act_level[i]).unwrap_or(0);
+            self.act_gauge[act] = (self.act_gauge[act] + 1).min(ACT_GAUGE_MAX);
+            let uma = self.uma_mut();
+            uma.vital = (uma.vital - 5).max(0);
+            let limit = uma.five_status_limit[main_stat];
+            uma.five_status[main_stat] = (uma.five_status[main_stat] + 20).min(limit);
+            uma.skill_pt += 20;
+        } else {
+            let uma = self.uma_mut();
+            let max_vital = uma.max_vital;
+            uma.vital = (uma.vital + 5).min(max_vital);
+            let limit = uma.five_status_limit[main_stat];
+            uma.five_status[main_stat] = (uma.five_status[main_stat] + 5).min(limit);
+        }
+    }
+
+    /// 某演目的担当人数（支援卡 + 编组外神驹 + 团队卡；不含理事长 / 记者 / 友人）
+    ///
+    /// `train_type = -1` = 没有演目归属（剧本友人），不算任何演目的担当。
+    pub fn act_roster(&self, act: usize) -> i32 {
+        self.persons
+            .iter()
+            .filter(|p| {
+                p.train_type >= 0
+                    && p.train_type as usize == act
+                    && matches!(
+                        p.person_type,
+                        PersonType::Card | PersonType::Npc | PersonType::TeamCard
+                    )
+            })
+            .count() as i32
+    }
+
+    /// 某训练位上「属于该演目的担当」的人数
+    pub fn slot_act_members(&self, slot: usize, act: usize) -> i32 {
+        let Some(dist) = self.base.distribution.get(slot) else {
+            return 0;
+        };
+        dist.iter()
+            .filter(|&&p| p >= 0)
+            .filter_map(|&p| self.persons.get(p as usize))
+            .filter(|p| {
+                p.train_type >= 0
+                    && p.train_type as usize == act
+                    && matches!(
+                        p.person_type,
+                        PersonType::Card | PersonType::Npc | PersonType::TeamCard
+                    )
+            })
+            .count() as i32
     }
 
     /// 编成内支援卡（`card_id` 有值）的 persons 下标，用于「全编成卡羁绊 +N」类效果
@@ -601,56 +920,51 @@ impl MatsuriGame {
     }
 
     /// 教え效果按类型取「不叠加」的最大值（同一类型可能 5 个演目都有；官方文案「効果は重複しない」）
-    fn advice_value(&self, effect_type: i32) -> f64 {
+    ///
+    /// 只统计**训练域**且该演目的担当参与了该训练位的效果。
+    fn advice_value(&self, effect_type: i32, slot: usize) -> f64 {
         let mut best = 0.0f64;
         for act in 0..5 {
-            let aid = self.advice_id.get(act).copied().unwrap_or(0);
-            if aid <= 0 {
+            if self.slot_act_members(slot, act) <= 0 {
                 continue;
             }
-            let level = self
-                .advice_level
-                .get(act)
-                .copied()
-                .unwrap_or(1)
-                .clamp(1, 10);
-            for e in
-                self.data.advice_effects.iter().filter(|e| {
-                    e.advice_id == aid && e.level == level && e.effect_type == effect_type
-                })
-            {
-                best = best.max(e.value as f64);
+            for row in self.slot_advice_rows(act) {
+                let (train_scope, _) = advice_scope(&row);
+                if train_scope && row.effect_type == effect_type {
+                    best = best.max(row.value as f64);
+                }
             }
         }
         best
     }
 
-    /// 不屈の教え（effect 205）：体力 ≥ 阈值（Lv1 45 … Lv6 20，即 `50 - 5*level`）时失败率 −100%
-    fn advice_fail_drop(&self, vital: i32) -> f64 {
+    /// 不屈の教え（effect 205）：体力 ≥ 阈值时失败率 −100%
+    ///
+    /// 阈值取表里的 `condition_value`（Lv1 45 … Lv9 5，Lv10 = 0 = 无条件）。
+    /// 训练侧按「该演目的担当参与了该训练位」判定（memo §4.3）；
+    /// 排练侧按该演目自己（`keiko_act`）。
+    fn advice_fail_drop(&self, slot: usize, vital: i32, keiko_act: Option<usize>) -> f64 {
         let mut drop = 0.0f64;
         for act in 0..5 {
-            let aid = self.advice_id.get(act).copied().unwrap_or(0);
-            if aid <= 0 {
+            let active = match keiko_act {
+                Some(a) => a == act,
+                None => self.slot_act_members(slot, act) > 0,
+            };
+            if !active {
                 continue;
             }
-            let level = self
-                .advice_level
-                .get(act)
-                .copied()
-                .unwrap_or(1)
-                .clamp(1, 10);
-            let has = self
-                .data
-                .advice_effects
-                .iter()
-                .any(|e| e.advice_id == aid && e.level == level && e.effect_type == 205);
-            if has && vital >= 50 - 5 * level {
-                let v = self
-                    .data
-                    .advice_effects
-                    .iter()
-                    .find(|e| e.advice_id == aid && e.level == level && e.effect_type == 205);
-                drop = drop.max(v.map(|e| e.value as f64).unwrap_or(100.0));
+            for row in self.slot_advice_rows(act) {
+                if row.effect_type != 205 {
+                    continue;
+                }
+                let threshold = if row.condition_type == 2 {
+                    row.condition_value
+                } else {
+                    0
+                };
+                if vital >= threshold {
+                    drop = drop.max(row.value as f64);
+                }
             }
         }
         drop
@@ -788,6 +1102,15 @@ impl MatsuriGame {
         let person_count = self.count_training_persons(idx);
         let basic_motivation = ((self.uma().motivation - 3) * 10) as f32;
         let growth = self.uma().five_status_bonus;
+        // 排练域的教诲效果（memo §4.2：絆的主属性、不屈/兼修的排练效果、体力消费、
+        // 転成 201 的排练友情ボーナス）。分乘区口径同普通训练。
+        let mods = self.advice_mods_keiko(idx);
+        // 「助力の支え」：3 次内的训练效果 +5%（memo §4.2），本次排练消耗 1 次
+        let assist_bonus = if self.assist_support > 0 { 5.0 } else { 0.0 };
+        let effect_mult = 1.0 + (mods.effect_pct + assist_bonus) / 100.0;
+        let main_mult = (1.0 + mods.main_pct / 100.0) * effect_mult;
+        let sub_mult = (1.0 + mods.sub_pct / 100.0) * effect_mult;
+        let pt_mult = effect_mult;
         let keiko_chain = |base: i32, i: usize| -> i32 {
             if base <= 0 {
                 return 0;
@@ -800,7 +1123,8 @@ impl MatsuriGame {
                     0
                 };
             (with_bonus as f32
-                * (1.0 + 0.01 * (buffs.youqing + effect.friend_pct as f32))
+                * (1.0
+                    + 0.01 * (buffs.youqing + effect.friend_pct as f32 + mods.friend_pct as f32))
                 * (1.0 + 0.01 * basic_motivation * (1.0 + 0.01 * buffs.ganjing as f32))
                 * (1.0 + 0.01 * buffs.xunlian as f32)
                 * (1.0 + 0.05 * person_count as f32)
@@ -825,36 +1149,41 @@ impl MatsuriGame {
         // 不屈の教え（205）：体力达标时失败率 −100%（2026-10-31 截图）
         let fail_rate = {
             let vital = self.uma().vital;
-            let drop = self.advice_fail_drop(vital);
+            let drop = self.advice_fail_drop(idx, vital, Some(idx));
             (fail_rate as f64 * (100.0 - drop) / 100.0).max(0.0) as f32
         };
         let roll = rand::Rng::random::<f32>(&mut _rng) * 100.0;
         let failed = roll < fail_rate;
-        let (mult, vital_delta, vital_pct) = self.advice_mods(idx, false);
-        let vital_delta = vital_delta + (value.vital as f64 * vital_pct / 100.0) as i32;
+        // 「追加の稽古」：排练也触发，同样只在该演目的担当在场且排练成功时结算
+        let acts = self.participating_acts(idx, Some(idx));
+        let extra_keiko = {
+            let rate = self.extra_keiko_rate(&acts);
+            rate > 0 && rand::Rng::random::<f32>(&mut _rng) * 100.0 < rate as f32
+        };
+        let vital_delta = (value.vital as f64 * mods.vital_pct / 100.0) as i32;
         // 接近上限衰减：拟合曲线 `cap_decay` 已置 0 停用（2026-11-01 步骤 3）；
         // 打折改由下面那条 1200 软上限承担（PT 不打折）
         let limits = self.uma().five_status_limit;
         let cur = self.uma().five_status;
         let gains = [
             (value.status_pt[0] as f64
-                * mult
+                * stat_mult(idx, 0, main_mult, sub_mult)
                 * self.keiko_growth(0)
                 * self.cap_decay_factor(cur[0], limits[0])) as i32,
             (value.status_pt[1] as f64
-                * mult
+                * stat_mult(idx, 1, main_mult, sub_mult)
                 * self.keiko_growth(1)
                 * self.cap_decay_factor(cur[1], limits[1])) as i32,
             (value.status_pt[2] as f64
-                * mult
+                * stat_mult(idx, 2, main_mult, sub_mult)
                 * self.keiko_growth(2)
                 * self.cap_decay_factor(cur[2], limits[2])) as i32,
             (value.status_pt[3] as f64
-                * mult
+                * stat_mult(idx, 3, main_mult, sub_mult)
                 * self.keiko_growth(3)
                 * self.cap_decay_factor(cur[3], limits[3])) as i32,
             (value.status_pt[4] as f64
-                * mult
+                * stat_mult(idx, 4, main_mult, sub_mult)
                 * self.keiko_growth(4)
                 * self.cap_decay_factor(cur[4], limits[4])) as i32,
         ];
@@ -873,7 +1202,8 @@ impl MatsuriGame {
                 gains[2],
                 gains[3],
                 gains[4],
-                (value.status_pt[5] as f64 * mult) as i32,
+                // 技能Pt：吃「訓練効果」区，**不吃獲得量区**
+                (value.status_pt[5] as f64 * pt_mult) as i32,
             ],
             vital: value.vital + vital_delta,
             ..Default::default()
@@ -898,8 +1228,19 @@ impl MatsuriGame {
             self.practice_bad = true;
         } else {
             self.uma_mut().add_value(&scaled);
+            if extra_keiko {
+                let upper = rand::Rng::random::<f32>(&mut _rng) < 0.5;
+                self.apply_extra_keiko(idx, upper);
+            }
+        }
+        if self.assist_support > 0 {
+            self.assist_support -= 1;
         }
         if !failed {
+            // 「助力の支え」：排练成功时获得（剩余次数重置为 3）
+            if self.can_obtain_assist_support(&acts) {
+                self.assist_support = 3;
+            }
             // 合宿（level_up=false）：训练=稽古但不升 Lv（官方：合宿结束全演目 +1）
             if level_up {
                 // 真机口径（2026-10-31，报文 pre/post 对照 5 段 session）：
@@ -1024,7 +1365,7 @@ impl MatsuriGame {
                 // 人头分配 + 提示（hint）：走回合固定流（seed 可复现）
                 self.distribute_all(&mut streams.turn_fixed)?;
                 self.distribute_hint(&mut streams.turn_fixed)?;
-                // 伝受：按回合把教え分配到演目
+                // 伝受：turn 2 把 5 个基础教诲分给 5 个演目（memo §4.1：初始必须全部分配）
                 if let Some(idx) = self
                     .data
                     .advice_grant_turns
@@ -1034,15 +1375,34 @@ impl MatsuriGame {
                 {
                     for (slot, aid) in list.iter().enumerate() {
                         if slot < 5 {
-                            self.advice_id[slot] = *aid;
-                            self.advice_level[slot] = self.act_level[slot].clamp(1, 10);
+                            self.advice_base[slot] = *aid;
+                            self.advice_fusion[slot] = 0;
                         }
                     }
                 }
-                // 転成：第 2 次伝受时把两个初始教え当材料，吃融合效果
-                // （与発表会的累计 buff 分开，免得被「设值」覆盖）
-                if self.turn == 23 {
-                    self.fusion_gain_pct += 0.25;
+                // 転成（融合）：turn 23 / 47 把基础教诲与新教诲配对融合（memo §4.1/§4.5）
+                // —— 融合后基础教诲的等级效果换成 `fusion_effects` 的固定档，
+                // 所绑定的新教诲效果叠加其上（`slot_advice_rows` 负责解析）。
+                let turn = self.turn;
+                let grants: Vec<i32> = self
+                    .data
+                    .fusion_grants
+                    .iter()
+                    .filter(|g| g.turn == turn)
+                    .map(|g| g.fusion_id)
+                    .collect();
+                if !grants.is_empty() {
+                    // 可融合的槽位 = 挂着**基础教诲**且还没被融合过的槽（按槽位顺序）
+                    let slots: Vec<usize> = (0..5)
+                        .filter(|&s| {
+                            is_base_advice(self.advice_base[s]) && self.advice_fusion[s] == 0
+                        })
+                        .collect();
+                    for (i, fusion_id) in grants.iter().enumerate() {
+                        if let Some(&slot) = slots.get(i) {
+                            self.advice_fusion[slot] = *fusion_id;
+                        }
+                    }
                 }
                 // 合宿开始：体力 +10、干劲 +1（2026-10-31 真机「1年目、駿大祭合宿開始！」）
                 if matches!(self.turn, 12 | 36 | 60) {
@@ -1245,5 +1605,234 @@ mod tests {
         assert_eq!(race_reward_two_stage(40, 1.5, 2.0), 120);
         // 无加成时保持基准值
         assert_eq!(race_reward_two_stage(72, 1.0, 1.0), 72);
+    }
+
+    /// 造一局：把每个演目的担当按 `[(演目, 人数)]` 放到训练位 0
+    fn game_with_roster(roster: &[(i32, usize)]) -> MatsuriGame {
+        let _ = Data::init(crate::testing::data_dir());
+        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
+        let mut game =
+            MatsuriGame::newgame(106301, &[], InheritInfo::default(), &[], data).unwrap();
+        let mut dist = Vec::new();
+        for (act, count) in roster {
+            for _ in 0..*count {
+                let idx = game.persons.len() as i32;
+                game.add_person(BasePerson {
+                    person_index: idx,
+                    person_type: PersonType::Npc,
+                    train_type: *act,
+                    chara_id: 9001,
+                    friendship: 0,
+                    is_hint: false,
+                    card_id: None,
+                });
+                dist.push(idx);
+            }
+        }
+        game.base.distribution = vec![dist, vec![], vec![], vec![], vec![]];
+        game
+    }
+
+    #[test]
+    fn advice_scope_follows_memo_table() {
+        // 作用域表（memo §4.2 / §4.5）：训练域 / 排练域
+        let row = |id: i32, effect_type: i32| AdviceRow {
+            advice_id: id,
+            effect_type,
+            value: 0,
+            condition_type: 0,
+            condition_value: 0,
+            fused: false,
+        };
+        assert_eq!(
+            advice_scope(&row(101, 13)),
+            (false, true),
+            "絆的主属性只在排练"
+        );
+        assert_eq!(
+            advice_scope(&row(101, 16)),
+            (true, false),
+            "絆的羁绊只在训练"
+        );
+        assert_eq!(
+            advice_scope(&row(401, 203)),
+            (true, false),
+            "助力的训练效果在训练域"
+        );
+        assert_eq!(
+            advice_scope(&row(901, 203)),
+            (false, true),
+            "不屈的排练效果在排练域"
+        );
+        assert_eq!(advice_scope(&row(601, 13)), (true, true), "特化两域都吃");
+        assert_eq!(advice_scope(&row(1001, 21)), (true, true), "兼修两域都吃");
+        assert_eq!(
+            advice_scope(&row(501, 3)),
+            (false, true),
+            "体力消费只在排练"
+        );
+        // 转成固定档按被融合的基础教诲查域
+        let fused = AdviceRow {
+            advice_id: 101,
+            effect_type: 13,
+            value: 15,
+            condition_type: 0,
+            condition_value: 0,
+            fused: true,
+        };
+        assert_eq!(advice_scope(&fused), (false, true));
+    }
+
+    #[test]
+    fn fusion_replaces_base_effect_with_fixed_tier() {
+        // 转成（転成）：基础教诲的等级效果整条换成 `fusion_effects` 的固定档，
+        // 所绑定的新教诲效果叠加其上（memo §4.5）。
+        let mut game = game_with_roster(&[]);
+        game.advice_base[0] = 101;
+        game.act_level[0] = 3;
+        let rows = game.slot_advice_rows(0);
+        // 未融合：101 在 Lv3 = 13→7、16→3
+        assert!(
+            rows.iter()
+                .any(|r| r.effect_type == 13 && r.value == 7 && !r.fused)
+        );
+        // 融合 601（特化）：101 的 13/16 换成固定档（13→15），601 的 13/206 按 Lv3 取
+        game.advice_fusion[0] = 601;
+        let rows = game.slot_advice_rows(0);
+        assert!(
+            rows.iter()
+                .any(|r| r.effect_type == 13 && r.value == 15 && r.fused)
+        );
+        assert!(
+            rows.iter()
+                .any(|r| r.effect_type == 13 && r.value == 7 && !r.fused),
+            "601 的 13 应按绑定演目的 Lv3 取 7"
+        );
+        assert!(rows.iter().any(|r| r.effect_type == 206 && r.value == 7));
+        assert!(
+            !rows.iter().any(|r| r.effect_type == 16),
+            "融合后 101 的羁绊 +3 不再单独生效"
+        );
+    }
+
+    #[test]
+    fn advice_only_applies_when_act_member_present() {
+        // memo §4.3：教诲只在该演目的**担当参与了该训练位**时生效。
+        let mut game = game_with_roster(&[(1, 1)]); // 只有演目 2（耐力）的担当在训练位 0
+        game.advice_base[0] = 601; // 特化：主属性获得量 %（训练 + 排练）
+        game.act_level[0] = 5;
+        let mods = game.advice_mods_train(0, false);
+        assert_eq!(mods.main_pct, 0.0, "演目 1 的担当不在场上 ⇒ 特化不生效");
+        // 换成演目 1 的担当
+        let mut game = game_with_roster(&[(0, 1)]);
+        game.advice_base[0] = 601;
+        game.act_level[0] = 5;
+        let mods = game.advice_mods_train(0, false);
+        assert_eq!(mods.main_pct, 9.0, "担当在场上 ⇒ 特化 Lv5 的 +9% 生效");
+    }
+
+    #[test]
+    fn advice_stacks_by_participant_count() {
+        // memo §4.3：按担当人数分加算。
+        let mut game = game_with_roster(&[(0, 2)]); // 两个担当
+        game.advice_base[0] = 601;
+        game.act_level[0] = 5;
+        let mods = game.advice_mods_train(0, false);
+        assert_eq!(mods.main_pct, 18.0, "2 名担当 ⇒ +9% × 2");
+    }
+
+    #[test]
+    fn gain_zone_does_not_multiply_skill_pt() {
+        // memo §3.3：技能Pt = floor(下段 × (1+友情合計) × (1+訓練効果合計 + SP訓練効果))
+        // —— 獲得量区（主/副属性获得量）**不含技能Pt**（兼修の教え明写「スキルPtは対象外」）。
+        let mut game = game_with_roster(&[(0, 1)]);
+        game.advice_base[0] = 1001; // 兼修：副属性获得量 %（21）
+        game.act_level[0] = 10;
+        let mods = game.advice_mods_train(0, false);
+        assert_eq!(mods.sub_pct, 25.0, "兼修 Lv10 的副属性 +25%");
+        assert_eq!(
+            mods.effect_pct, 0.0,
+            "兼修的 21 不进訓練効果区 ⇒ 不乘技能Pt"
+        );
+    }
+
+    #[test]
+    fn train_and_keiko_domains_do_not_leak() {
+        // 絆の教え（101）：13 = 排练域的主属性获得量，16 = 训练域的羁绊 +3
+        let mut game = game_with_roster(&[(0, 1)]);
+        game.advice_base[0] = 101;
+        game.act_level[0] = 10;
+        let train = game.advice_mods_train(0, false);
+        assert_eq!(train.main_pct, 0.0, "絆的主属性不在训练域");
+        let keiko = game.advice_mods_keiko(0);
+        assert_eq!(keiko.main_pct, 15.0, "絆的主属性在排练域（Lv10 = 15%）");
+    }
+
+    #[test]
+    fn assistance_only_when_no_friendship_training() {
+        // 助力の教え（401）：条件 3 = 「友情非発生時」才有训练效果（master.mdb condition_type=3）。
+        let mut game = game_with_roster(&[(0, 1)]);
+        game.advice_base[0] = 401;
+        game.act_level[0] = 10;
+        let no_friendship = game.advice_mods_train(0, false);
+        assert_eq!(no_friendship.effect_pct, 40.0, "非友情训练 ⇒ 助力 +40%");
+        let friendship = game.advice_mods_train(0, true);
+        assert_eq!(friendship.effect_pct, 0.0, "友情训练 ⇒ 助力不生效");
+    }
+
+    #[test]
+    fn extra_keiko_rate_follows_teach_level_and_not_headcount() {
+        // 研鑽の教え（type 8）：发生率取教诲绑定演目的 Lv 值，且**不按人数加算**
+        // （一手 memo：`確率は人数分加算しない`）。
+        let mut game = game_with_roster(&[(0, 3)]); // 三个担当同属演目 1
+        game.advice_base[0] = 701;
+        game.act_level[0] = 4; // type 8 Lv4 = 27%
+        let acts = game.participating_acts(0, None);
+        assert_eq!(game.extra_keiko_rate(&acts), 27);
+        // 换成 Lv10 = 80%
+        game.act_level[0] = 10;
+        assert_eq!(game.extra_keiko_rate(&game.participating_acts(0, None)), 80);
+        // 没有人参与 ⇒ 不触发
+        let empty = game.participating_acts(1, None);
+        assert_eq!(game.extra_keiko_rate(&empty), 0);
+    }
+
+    #[test]
+    fn extra_keiko_upper_and_lower_outcomes() {
+        // memo §4.4：上 = 体力 -5 / 主属性 +20 / PT +20 / 演目槽 +1；下 = 体力 +5 / 主属性 +5
+        let mut game = game_with_roster(&[(0, 1)]);
+        game.uma_mut().vital = 50;
+        game.act_level = [5, 3, 4, 4, 4]; // 演目 2 的 Lv 最低 → 槽 +1 落在它
+        game.act_gauge[1] = 2;
+        let stat0 = game.uma().five_status[0];
+        let pt0 = game.uma().skill_pt;
+        game.apply_extra_keiko(0, true);
+        assert_eq!(game.uma().five_status[0], stat0 + 20, "上档：主属性 +20");
+        assert_eq!(game.uma().skill_pt, pt0 + 20, "上档：技能Pt +20");
+        assert_eq!(game.uma().vital, 45, "上档：体力 -5");
+        assert_eq!(game.act_gauge[1], 3, "上档：演目Lv 最低的演目槽 +1");
+        let mut game = game_with_roster(&[(0, 1)]);
+        game.uma_mut().vital = 50;
+        let stat0 = game.uma().five_status[0];
+        let pt0 = game.uma().skill_pt;
+        game.apply_extra_keiko(0, false);
+        assert_eq!(game.uma().five_status[0], stat0 + 5, "下档：主属性 +5");
+        assert_eq!(game.uma().vital, 55, "下档：体力 +5");
+        assert_eq!(game.uma().skill_pt, pt0, "下档没有技能Pt");
+    }
+
+    #[test]
+    fn assist_support_granted_by_keiko_and_consumed_by_training() {
+        // 助力の支え（type 20）：排练成功时获得（3 次），3 次内的训练效果 +5%；
+        // 再次获得时剩余次数重置回 3（memo §4.2）。
+        let mut game = game_with_roster(&[(0, 1)]);
+        game.advice_base[0] = 401; // 助力
+        game.act_level[0] = 5;
+        assert!(game.can_obtain_assist_support(&game.participating_acts(0, Some(0))));
+        game.assist_support = 3;
+        // 训练消费一次
+        let mut rng = StdRng::seed_from_u64(20261101);
+        game.do_train(0, &mut rng).unwrap();
+        assert_eq!(game.assist_support, 2, "训练消耗一次「助力の支え」");
     }
 }

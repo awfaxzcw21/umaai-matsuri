@@ -77,3 +77,33 @@ fn t30_engine_value_matches_panel_truth() {
     }
     assert_eq!(checked, 16, "16 个非零分量应逐格命中面板真值");
 }
+
+#[test]
+fn t30_advice_binding_matches_panel() {
+    // 报文给的是「每个演目当前挂的教诲」；教诲只在**该演目的担当参与了那次训练**时生效，
+    // 且按担当人数叠加（memo §4.3）。这条测试把 fixture 的教诲绑定与担当人数钉死。
+    let root = matsuri_core::testing::repo_root();
+    std::env::set_current_dir(&root).expect("切到仓根");
+    let fixture = root.join("crates/matsuri-cli/tests/data/state_t30.json");
+    let raw = std::fs::read_to_string(&fixture).expect("读 fixture");
+    let st = assemble_game(&raw).expect("装配对局");
+    let g = &st.game;
+
+    // 演目 1..5 的教诲（fixture `acts[].advice_id`）：401 助力 / 501 体力 / 601 特化 /
+    // 301 提示 / 701 研钻 —— 601 与 701 是 turn 23 融合后的新教诲。
+    assert_eq!(g.advice_base, [401, 501, 601, 301, 701], "报文给的教诲绑定");
+
+    // 担当人数：速度演目 2 张速度卡、耐力/力量/智力各 1 张、根性演目没有卡
+    assert_eq!(g.act_roster(0), 2, "速度演目的担当");
+    assert_eq!(g.act_roster(1), 1);
+    assert_eq!(g.act_roster(2), 1);
+    assert_eq!(g.act_roster(3), 0, "根性演目没有担当");
+    assert_eq!(g.act_roster(4), 1);
+
+    // 训练位上属于各演目的担当人数（嘉宾 train_type = -1，不算任何演目的担当）
+    assert_eq!(g.slot_act_members(0, 0), 2, "速度训练位上的速度担当");
+    assert_eq!(g.slot_act_members(1, 1), 1);
+    assert_eq!(g.slot_act_members(2, 2), 1);
+    assert_eq!(g.slot_act_members(2, 4), 1);
+    assert_eq!(g.slot_act_members(3, 3), 0);
+}

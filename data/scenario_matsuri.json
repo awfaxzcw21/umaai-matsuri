@@ -239,611 +239,180 @@
     ]
   ],
   "advice_effects": [
-    {
-      "advice_id": 101,
-      "level": 1,
-      "effect_type": 13,
-      "value": 3
-    },
-    {
-      "advice_id": 101,
-      "level": 2,
-      "effect_type": 13,
-      "value": 5
-    },
-    {
-      "advice_id": 101,
-      "level": 3,
-      "effect_type": 13,
-      "value": 7
-    },
-    {
-      "advice_id": 101,
-      "level": 4,
-      "effect_type": 13,
-      "value": 9
-    },
-    {
-      "advice_id": 101,
-      "level": 5,
-      "effect_type": 13,
-      "value": 10
-    },
-    {
-      "advice_id": 101,
-      "level": 6,
-      "effect_type": 13,
-      "value": 11
-    },
-    {
-      "advice_id": 101,
-      "level": 7,
-      "effect_type": 13,
-      "value": 12
-    },
-    {
-      "advice_id": 101,
-      "level": 8,
-      "effect_type": 13,
-      "value": 13
-    },
-    {
-      "advice_id": 101,
-      "level": 9,
-      "effect_type": 13,
-      "value": 14
-    },
-    {
-      "advice_id": 101,
-      "level": 10,
-      "effect_type": 13,
-      "value": 15
-    },
-    {
-      "advice_id": 201,
-      "level": 1,
-      "effect_type": 4,
-      "value": 10
-    },
-    {
-      "advice_id": 201,
-      "level": 2,
-      "effect_type": 4,
-      "value": 13
-    },
-    {
-      "advice_id": 201,
-      "level": 3,
-      "effect_type": 4,
-      "value": 16
-    },
-    {
-      "advice_id": 201,
-      "level": 4,
-      "effect_type": 4,
-      "value": 20
-    },
-    {
-      "advice_id": 201,
-      "level": 5,
-      "effect_type": 4,
-      "value": 25
-    },
-    {
-      "advice_id": 201,
-      "level": 6,
-      "effect_type": 4,
-      "value": 30
-    },
-    {
-      "advice_id": 201,
-      "level": 7,
-      "effect_type": 4,
-      "value": 35
-    },
-    {
-      "advice_id": 201,
-      "level": 8,
-      "effect_type": 4,
-      "value": 40
-    },
-    {
-      "advice_id": 201,
-      "level": 9,
-      "effect_type": 4,
-      "value": 45
-    },
-    {
-      "advice_id": 201,
-      "level": 10,
-      "effect_type": 4,
-      "value": 50
-    },
-    {
-      "advice_id": 301,
-      "level": 1,
-      "effect_type": 2,
-      "value": 30
-    },
-    {
-      "advice_id": 301,
-      "level": 2,
-      "effect_type": 2,
-      "value": 33
-    },
-    {
-      "advice_id": 301,
-      "level": 3,
-      "effect_type": 2,
-      "value": 36
-    },
-    {
-      "advice_id": 301,
-      "level": 4,
-      "effect_type": 2,
-      "value": 40
-    },
-    {
-      "advice_id": 301,
-      "level": 5,
-      "effect_type": 2,
-      "value": 45
-    },
-    {
-      "advice_id": 301,
-      "level": 6,
-      "effect_type": 2,
-      "value": 50
-    },
-    {
-      "advice_id": 301,
-      "level": 7,
-      "effect_type": 2,
-      "value": 55
-    },
-    {
-      "advice_id": 301,
-      "level": 8,
-      "effect_type": 2,
-      "value": 60
-    },
-    {
-      "advice_id": 301,
-      "level": 9,
-      "effect_type": 2,
-      "value": 70
-    },
-    {
-      "advice_id": 301,
-      "level": 10,
-      "effect_type": 2,
-      "value": 80
-    },
-    {
-      "advice_id": 401,
-      "level": 1,
-      "effect_type": 203,
-      "value": 20
-    },
-    {
-      "advice_id": 401,
-      "level": 2,
-      "effect_type": 203,
-      "value": 22
-    },
-    {
-      "advice_id": 401,
-      "level": 3,
-      "effect_type": 203,
-      "value": 24
-    },
-    {
-      "advice_id": 401,
-      "level": 4,
-      "effect_type": 203,
-      "value": 26
-    },
-    {
-      "advice_id": 401,
-      "level": 5,
-      "effect_type": 203,
-      "value": 28
-    },
-    {
-      "advice_id": 401,
-      "level": 6,
-      "effect_type": 203,
-      "value": 30
-    },
-    {
-      "advice_id": 401,
-      "level": 7,
-      "effect_type": 203,
-      "value": 32
-    },
-    {
-      "advice_id": 401,
-      "level": 8,
-      "effect_type": 203,
-      "value": 34
-    },
-    {
-      "advice_id": 401,
-      "level": 9,
-      "effect_type": 203,
-      "value": 37
-    },
-    {
-      "advice_id": 401,
-      "level": 10,
-      "effect_type": 203,
-      "value": 40
-    },
-    {
-      "advice_id": 501,
-      "level": 1,
-      "effect_type": 3,
-      "value": -1
-    },
-    {
-      "advice_id": 501,
-      "level": 2,
-      "effect_type": 3,
-      "value": -2
-    },
-    {
-      "advice_id": 501,
-      "level": 3,
-      "effect_type": 3,
-      "value": -3
-    },
-    {
-      "advice_id": 501,
-      "level": 4,
-      "effect_type": 3,
-      "value": -4
-    },
-    {
-      "advice_id": 501,
-      "level": 5,
-      "effect_type": 3,
-      "value": -5
-    },
-    {
-      "advice_id": 501,
-      "level": 6,
-      "effect_type": 3,
-      "value": -6
-    },
-    {
-      "advice_id": 501,
-      "level": 7,
-      "effect_type": 3,
-      "value": -8
-    },
-    {
-      "advice_id": 501,
-      "level": 8,
-      "effect_type": 3,
-      "value": -10
-    },
-    {
-      "advice_id": 501,
-      "level": 9,
-      "effect_type": 3,
-      "value": -12
-    },
-    {
-      "advice_id": 501,
-      "level": 10,
-      "effect_type": 3,
-      "value": -15
-    },
-    {
-      "advice_id": 601,
-      "level": 1,
-      "effect_type": 13,
-      "value": 5
-    },
-    {
-      "advice_id": 601,
-      "level": 2,
-      "effect_type": 13,
-      "value": 6
-    },
-    {
-      "advice_id": 601,
-      "level": 3,
-      "effect_type": 13,
-      "value": 7
-    },
-    {
-      "advice_id": 601,
-      "level": 4,
-      "effect_type": 13,
-      "value": 8
-    },
-    {
-      "advice_id": 601,
-      "level": 5,
-      "effect_type": 13,
-      "value": 9
-    },
-    {
-      "advice_id": 601,
-      "level": 6,
-      "effect_type": 13,
-      "value": 10
-    },
-    {
-      "advice_id": 601,
-      "level": 7,
-      "effect_type": 13,
-      "value": 13
-    },
-    {
-      "advice_id": 601,
-      "level": 8,
-      "effect_type": 13,
-      "value": 16
-    },
-    {
-      "advice_id": 601,
-      "level": 9,
-      "effect_type": 13,
-      "value": 20
-    },
-    {
-      "advice_id": 601,
-      "level": 10,
-      "effect_type": 13,
-      "value": 25
-    },
-    {
-      "advice_id": 701,
-      "level": 1,
-      "effect_type": 8,
-      "value": 20
-    },
-    {
-      "advice_id": 701,
-      "level": 2,
-      "effect_type": 8,
-      "value": 22
-    },
-    {
-      "advice_id": 701,
-      "level": 3,
-      "effect_type": 8,
-      "value": 24
-    },
-    {
-      "advice_id": 701,
-      "level": 4,
-      "effect_type": 8,
-      "value": 27
-    },
-    {
-      "advice_id": 701,
-      "level": 5,
-      "effect_type": 8,
-      "value": 30
-    },
-    {
-      "advice_id": 701,
-      "level": 6,
-      "effect_type": 8,
-      "value": 35
-    },
-    {
-      "advice_id": 701,
-      "level": 7,
-      "effect_type": 8,
-      "value": 40
-    },
-    {
-      "advice_id": 701,
-      "level": 8,
-      "effect_type": 8,
-      "value": 50
-    },
-    {
-      "advice_id": 701,
-      "level": 9,
-      "effect_type": 8,
-      "value": 65
-    },
-    {
-      "advice_id": 701,
-      "level": 10,
-      "effect_type": 8,
-      "value": 80
-    },
-    {
-      "advice_id": 801,
-      "level": 1,
-      "effect_type": 202,
-      "value": 1
-    },
-    {
-      "advice_id": 801,
-      "level": 2,
-      "effect_type": 202,
-      "value": 2
-    },
-    {
-      "advice_id": 801,
-      "level": 3,
-      "effect_type": 202,
-      "value": 3
-    },
-    {
-      "advice_id": 801,
-      "level": 4,
-      "effect_type": 202,
-      "value": 4
-    },
-    {
-      "advice_id": 801,
-      "level": 5,
-      "effect_type": 202,
-      "value": 5
-    },
-    {
-      "advice_id": 801,
-      "level": 6,
-      "effect_type": 202,
-      "value": 6
-    },
-    {
-      "advice_id": 801,
-      "level": 7,
-      "effect_type": 202,
-      "value": 7
-    },
-    {
-      "advice_id": 801,
-      "level": 8,
-      "effect_type": 202,
-      "value": 8
-    },
-    {
-      "advice_id": 801,
-      "level": 9,
-      "effect_type": 202,
-      "value": 9
-    },
-    {
-      "advice_id": 801,
-      "level": 10,
-      "effect_type": 202,
-      "value": 10
-    },
-    {
-      "advice_id": 901,
-      "level": 1,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 2,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 3,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 4,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 5,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 6,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 7,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 8,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 9,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 901,
-      "level": 10,
-      "effect_type": 205,
-      "value": 100
-    },
-    {
-      "advice_id": 1001,
-      "level": 1,
-      "effect_type": 21,
-      "value": 1
-    },
-    {
-      "advice_id": 1001,
-      "level": 2,
-      "effect_type": 21,
-      "value": 2
-    },
-    {
-      "advice_id": 1001,
-      "level": 3,
-      "effect_type": 21,
-      "value": 3
-    },
-    {
-      "advice_id": 1001,
-      "level": 4,
-      "effect_type": 21,
-      "value": 4
-    },
-    {
-      "advice_id": 1001,
-      "level": 5,
-      "effect_type": 21,
-      "value": 5
-    },
-    {
-      "advice_id": 1001,
-      "level": 6,
-      "effect_type": 21,
-      "value": 8
-    },
-    {
-      "advice_id": 1001,
-      "level": 7,
-      "effect_type": 21,
-      "value": 11
-    },
-    {
-      "advice_id": 1001,
-      "level": 8,
-      "effect_type": 21,
-      "value": 15
-    },
-    {
-      "advice_id": 1001,
-      "level": 9,
-      "effect_type": 21,
-      "value": 20
-    },
-    {
-      "advice_id": 1001,
-      "level": 10,
-      "effect_type": 21,
-      "value": 25
-    }
+    {"advice_id": 101, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 3},
+    {"advice_id": 101, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
+    {"advice_id": 101, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 5},
+    {"advice_id": 101, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
+    {"advice_id": 101, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 7},
+    {"advice_id": 101, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
+    {"advice_id": 101, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 9},
+    {"advice_id": 101, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
+    {"advice_id": 101, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 10},
+    {"advice_id": 101, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
+    {"advice_id": 101, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 11},
+    {"advice_id": 101, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
+    {"advice_id": 101, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 12},
+    {"advice_id": 101, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
+    {"advice_id": 101, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 13},
+    {"advice_id": 101, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
+    {"advice_id": 101, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 14},
+    {"advice_id": 101, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
+    {"advice_id": 101, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 15},
+    {"advice_id": 101, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
+    {"advice_id": 201, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 10},
+    {"advice_id": 201, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 13},
+    {"advice_id": 201, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 16},
+    {"advice_id": 201, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 20},
+    {"advice_id": 201, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 25},
+    {"advice_id": 201, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 30},
+    {"advice_id": 201, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 35},
+    {"advice_id": 201, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 40},
+    {"advice_id": 201, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 45},
+    {"advice_id": 201, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 50},
+    {"advice_id": 301, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 30},
+    {"advice_id": 301, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 33},
+    {"advice_id": 301, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 36},
+    {"advice_id": 301, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 40},
+    {"advice_id": 301, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 45},
+    {"advice_id": 301, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 50},
+    {"advice_id": 301, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 55},
+    {"advice_id": 301, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 60},
+    {"advice_id": 301, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 70},
+    {"advice_id": 301, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 80},
+    {"advice_id": 401, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 401, "level": 1, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 20},
+    {"advice_id": 401, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 401, "level": 2, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 22},
+    {"advice_id": 401, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 401, "level": 3, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 24},
+    {"advice_id": 401, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 401, "level": 4, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 26},
+    {"advice_id": 401, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 401, "level": 5, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 28},
+    {"advice_id": 401, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 401, "level": 6, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 30},
+    {"advice_id": 401, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 401, "level": 7, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 32},
+    {"advice_id": 401, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 401, "level": 8, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 34},
+    {"advice_id": 401, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 401, "level": 9, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 37},
+    {"advice_id": 401, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 401, "level": 10, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 40},
+    {"advice_id": 501, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -1},
+    {"advice_id": 501, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -2},
+    {"advice_id": 501, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -3},
+    {"advice_id": 501, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -4},
+    {"advice_id": 501, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -5},
+    {"advice_id": 501, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -6},
+    {"advice_id": 501, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -8},
+    {"advice_id": 501, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -10},
+    {"advice_id": 501, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -12},
+    {"advice_id": 501, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -15},
+    {"advice_id": 601, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 5},
+    {"advice_id": 601, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 5},
+    {"advice_id": 601, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 6},
+    {"advice_id": 601, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 6},
+    {"advice_id": 601, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 7},
+    {"advice_id": 601, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 7},
+    {"advice_id": 601, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 8},
+    {"advice_id": 601, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 8},
+    {"advice_id": 601, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 9},
+    {"advice_id": 601, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 9},
+    {"advice_id": 601, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 10},
+    {"advice_id": 601, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 10},
+    {"advice_id": 601, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 13},
+    {"advice_id": 601, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 13},
+    {"advice_id": 601, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 16},
+    {"advice_id": 601, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 16},
+    {"advice_id": 601, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 20},
+    {"advice_id": 601, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 20},
+    {"advice_id": 601, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 25},
+    {"advice_id": 601, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 25},
+    {"advice_id": 701, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 20},
+    {"advice_id": 701, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 22},
+    {"advice_id": 701, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 24},
+    {"advice_id": 701, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 27},
+    {"advice_id": 701, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 30},
+    {"advice_id": 701, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 35},
+    {"advice_id": 701, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 40},
+    {"advice_id": 701, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 50},
+    {"advice_id": 701, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 65},
+    {"advice_id": 701, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 80},
+    {"advice_id": 801, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
+    {"advice_id": 801, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 1},
+    {"advice_id": 801, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
+    {"advice_id": 801, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 2},
+    {"advice_id": 801, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
+    {"advice_id": 801, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 3},
+    {"advice_id": 801, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
+    {"advice_id": 801, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 4},
+    {"advice_id": 801, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
+    {"advice_id": 801, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 5},
+    {"advice_id": 801, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
+    {"advice_id": 801, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 6},
+    {"advice_id": 801, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
+    {"advice_id": 801, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 7},
+    {"advice_id": 801, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
+    {"advice_id": 801, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 8},
+    {"advice_id": 801, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
+    {"advice_id": 801, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 9},
+    {"advice_id": 801, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
+    {"advice_id": 801, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 10},
+    {"advice_id": 901, "level": 1, "condition_type": 2, "condition_value": 45, "effect_type": 205, "value": 100},
+    {"advice_id": 901, "level": 2, "condition_type": 2, "condition_value": 40, "effect_type": 205, "value": 100},
+    {"advice_id": 901, "level": 3, "condition_type": 2, "condition_value": 35, "effect_type": 205, "value": 100},
+    {"advice_id": 901, "level": 4, "condition_type": 2, "condition_value": 30, "effect_type": 205, "value": 100},
+    {"advice_id": 901, "level": 5, "condition_type": 2, "condition_value": 25, "effect_type": 205, "value": 100},
+    {"advice_id": 901, "level": 6, "condition_type": 2, "condition_value": 20, "effect_type": 205, "value": 100},
+    {"advice_id": 901, "level": 7, "condition_type": 2, "condition_value": 15, "effect_type": 205, "value": 100},
+    {"advice_id": 901, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 1},
+    {"advice_id": 901, "level": 8, "condition_type": 2, "condition_value": 10, "effect_type": 205, "value": 100},
+    {"advice_id": 901, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 3},
+    {"advice_id": 901, "level": 9, "condition_type": 2, "condition_value": 5, "effect_type": 205, "value": 100},
+    {"advice_id": 901, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 5},
+    {"advice_id": 901, "level": 10, "condition_type": 2, "condition_value": 0, "effect_type": 205, "value": 100},
+    {"advice_id": 1001, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 1},
+    {"advice_id": 1001, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 1},
+    {"advice_id": 1001, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 2},
+    {"advice_id": 1001, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 2},
+    {"advice_id": 1001, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 3},
+    {"advice_id": 1001, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 3},
+    {"advice_id": 1001, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 4},
+    {"advice_id": 1001, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 4},
+    {"advice_id": 1001, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 5},
+    {"advice_id": 1001, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 5},
+    {"advice_id": 1001, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 8},
+    {"advice_id": 1001, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 7},
+    {"advice_id": 1001, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 11},
+    {"advice_id": 1001, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 9},
+    {"advice_id": 1001, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 15},
+    {"advice_id": 1001, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 11},
+    {"advice_id": 1001, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 20},
+    {"advice_id": 1001, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 13},
+    {"advice_id": 1001, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 25},
+    {"advice_id": 1001, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 15}
+  ],
+  "fusion_effects": [
+    {"advice_id": 101, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 15},
+    {"advice_id": 101, "condition_type": 0, "condition_value": 0, "effect_type": 17, "value": 1},
+    {"advice_id": 201, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 50},
+    {"advice_id": 201, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 10},
+    {"advice_id": 301, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 80},
+    {"advice_id": 301, "condition_type": 0, "condition_value": 0, "effect_type": 19, "value": 1},
+    {"advice_id": 401, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 20},
+    {"advice_id": 401, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
+    {"advice_id": 501, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -15}
+  ],
+  "fusion_grants": [
+    {"turn": 23, "fusion_id": 601},
+    {"turn": 23, "fusion_id": 701},
+    {"turn": 47, "fusion_id": 801},
+    {"turn": 47, "fusion_id": 901},
+    {"turn": 47, "fusion_id": 1001}
   ],
   "advice_grant_turns": [
-    2,
-    23,
-    47
+    2
   ],
   "advice_grant_order": [
     [
@@ -852,15 +421,6 @@
       301,
       401,
       501
-    ],
-    [
-      601,
-      701
-    ],
-    [
-      801,
-      901,
-      1001
     ]
   ],
   "check_points": [

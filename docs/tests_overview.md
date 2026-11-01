@@ -43,6 +43,19 @@
 | `training_applies_soft_cap_above_1200`（`core/src/game/mod.rs`） | 训练通道的 1200 软上限接线：同一训练，赛前 500 时增量不打折、赛前 1300 时按「超出 1200 的部分减半」结算（断开 `soft_cap_gain` 会让本测失败） | `mechanism.md` § 赛后奖励（1200 软上限） |
 | `check_point_buffs_are_cumulative_totals`（`core/src/game/mod.rs`） | 発表会的永久 buff 是**累计总量**：再结算一次「成功」档必须覆盖（0.20/0%/20%）而不是累加（0.60/10%/…） | `mechanism.md` §5.2 |
 | `real_asset_check_point_buffs_match_master_mdb`（`core/src/data.rs`） | 配置里 3 场发表会的 得意率/友情ボーナス/ヒント発生率 六档，逐格等于 master.mdb `single_mode_15_check_point_effect` | `mechanism.md` §5.2 |
+| `real_asset_advice_effects_match_master_mdb`（`core/src/data.rs`） | 配置里 153 行教诲效果（教诲 id / Lv / 条件类型 / 条件值 / 效果类型 / 效果值）逐格等于 master.mdb `single_mode_15_advice_effect` | `mechanism.md` §3.3 |
+| `real_asset_fusion_effects_match_master_mdb`（`core/src/data.rs`） | 配置里 9 行转成固定档逐格等于 master.mdb `single_mode_15_fusion_effect` | `mechanism.md` §3.3 |
+| `advice_scope_follows_memo_table`（`core/src/game/mod.rs`） | 教诲效果的三个作用域（训练域 / 排练域 / 全局域）逐条等于 memo §4.2 / §4.5 的口径 | `mechanism.md` §3.3 |
+| `fusion_replaces_base_effect_with_fixed_tier`（`core/src/game/mod.rs`） | 融合后基础教诲的等级效果整条换成固定档（13→15），新教诲效果按绑定演目的 Lv 叠加，原教诲的羁绊效果不再单独生效 | `mechanism.md` §3.3 |
+| `advice_only_applies_when_act_member_present`（`core/src/game/mod.rs`） | 教诲只在该演目的担当参与了该训练位时生效 | `mechanism.md` §3.3 |
+| `advice_stacks_by_participant_count`（`core/src/game/mod.rs`） | 教诲效果按参与担当人数叠加（2 名担当 ⇒ 2 倍） | `mechanism.md` §3.3 |
+| `gain_zone_does_not_multiply_skill_pt`（`core/src/game/mod.rs`） | 獲得量区（主/副属性获得量）**不乘技能Pt**（兼修の教え「スキルPtは対象外」） | `mechanism.md` §3.3 |
+| `train_and_keiko_domains_do_not_leak`（`core/src/game/mod.rs`） | 排练域效果不外泄到普通训练、训练域效果不外泄到排练 | `mechanism.md` §3.3 |
+| `assistance_only_when_no_friendship_training`（`core/src/game/mod.rs`） | 助力（条件 3 = 友情非发生时）只在非友情训练生效 | `mechanism.md` §3.3 |
+| `extra_keiko_rate_follows_teach_level_and_not_headcount`（`core/src/game/mod.rs`） | 「追加の稽古」发生率取教诲绑定演目的 Lv 值，且**不按人数加算** | `mechanism.md` §3.4 |
+| `extra_keiko_upper_and_lower_outcomes`（`core/src/game/mod.rs`） | 上档：主属性 +20 / PT +20 / 体力 −5 / 演目Lv 最低的演目槽 +1；下档：主属性 +5 / 体力 +5 | `mechanism.md` §3.4 |
+| `assist_support_granted_by_keiko_and_consumed_by_training`（`core/src/game/mod.rs`） | 「助力の支え」由排练获得、训练消耗 1 次 | `mechanism.md` §3.4 |
+| `t30_advice_binding_matches_panel`（`cli/tests/state_t30.rs`） | fixture 报文给的教诲绑定 `[401, 501, 601, 301, 701]` 与各演目的担当人数（速度 2 / 根性 0 / 嘉宾 `train_type = -1` 不计担当） | `mechanism.md` §3.3 |
 
 ## 4. 冒烟与基线
 
