@@ -869,10 +869,14 @@
       "turn": 23,
       "need": 3,
       "success": {
-        "gain_pct": 20
+        "gain_pct": 20,
+        "friend_pct": 0,
+        "hint_pct": 20
       },
       "great": {
-        "gain_pct": 40
+        "gain_pct": 40,
+        "friend_pct": 5,
+        "hint_pct": 50
       },
       "all_stat": 5,
       "pt": 200,
@@ -885,10 +889,14 @@
       "turn": 47,
       "need": 5,
       "success": {
-        "gain_pct": 40
+        "gain_pct": 40,
+        "friend_pct": 5,
+        "hint_pct": 50
       },
       "great": {
-        "gain_pct": 60
+        "gain_pct": 60,
+        "friend_pct": 10,
+        "hint_pct": 100
       },
       "all_stat": 10,
       "pt": 300,
@@ -901,10 +909,14 @@
       "turn": 67,
       "need": 6,
       "success": {
-        "gain_pct": 60
+        "gain_pct": 60,
+        "friend_pct": 10,
+        "hint_pct": 100
       },
       "great": {
-        "gain_pct": 80
+        "gain_pct": 80,
+        "friend_pct": 20,
+        "hint_pct": 150
       },
       "all_stat": 15,
       "pt": 400,
@@ -934,7 +946,7 @@
     ]
   },
   "soft_cap": 1200,
-  "cap_decay": 350.0,
+  "cap_decay": 0.0,
   "cap_decay_floor": 0.15,
   "friend_gain_per_train": 4,
   "shining_boost": 0.25,

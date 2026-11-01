@@ -216,8 +216,19 @@ pub struct CheckPointDef {
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct BuffDef {
+    /// 得意率累计总量（type 4，%）。
+    ///
+    /// **不是增量**：master.mdb `single_mode_15_check_point_effect` 同一 schedule 的
+    /// 「成功 / 大成功」两档给的是**该场发表会之后**的累计值（成功档 = 上一场大成功的值）。
+    /// 引擎目前没有落位概率模型（`deyilv` 仍是占位），暂按「训练效果%」近似处理。
     #[serde(default)]
     pub gain_pct: i32,
+    /// 友情ボーナス累计总量（type 202，%）：作用于**全部友情训练**（不只演目排练）。
+    #[serde(default)]
+    pub friend_pct: i32,
+    /// ヒント発生率累计总量（type 2，%）：引擎暂无提示/技能模型 ⇒ **只记录不生效**。
+    #[serde(default)]
+    pub hint_pct: i32,
 }
 
 /// 演目等级效果（官方 intake 3.3）
@@ -373,5 +384,44 @@ mod tests {
         ];
         let data = MatsuriData::load(crate::testing::data_dir()).expect("真实剧本资产应可载入");
         assert_eq!(data.training_basic_value, expect);
+    }
+
+    #[test]
+    fn real_asset_check_point_buffs_match_master_mdb() {
+        // master.mdb `single_mode_15_check_point_effect`（20 行）：3 场发表会 × {成功, 大成功}，
+        // 每一档给的是**该场之后的累计总量**（「成功」档 = 上一场「大成功」档的值）。
+        // effect_type：4 得意率 / 202 友情ボーナス / 2 ヒント発生率（204 比赛加成在引擎里硬编码）。
+        // (schedule, 成功(得意,友情,ヒント), 大成功(得意,友情,ヒント))
+        type Buff3 = (i32, i32, i32);
+        let expect: &[(i32, Buff3, Buff3)] = &[
+            // (schedule, 成功(得意,友情,ヒント), 大成功(得意,友情,ヒント))
+            (1, (20, 0, 20), (40, 5, 50)),
+            (2, (40, 5, 50), (60, 10, 100)),
+            (3, (60, 10, 100), (80, 20, 150)),
+        ];
+        let data = MatsuriData::load(crate::testing::data_dir()).expect("真实剧本资产应可载入");
+        assert_eq!(data.check_points.len(), expect.len(), "发表会场次数");
+        for cp in &data.check_points {
+            let e = expect
+                .iter()
+                .find(|(s, _, _)| *s == cp.schedule)
+                .unwrap_or_else(|| panic!("schedule {} 不在 master 表里", cp.schedule));
+            assert_eq!(
+                (
+                    cp.success.gain_pct,
+                    cp.success.friend_pct,
+                    cp.success.hint_pct
+                ),
+                e.1,
+                "schedule {} 成功档",
+                cp.schedule
+            );
+            assert_eq!(
+                (cp.great.gain_pct, cp.great.friend_pct, cp.great.hint_pct),
+                e.2,
+                "schedule {} 大成功档",
+                cp.schedule
+            );
+        }
     }
 }

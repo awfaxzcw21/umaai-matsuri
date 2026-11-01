@@ -26,7 +26,7 @@ use umasim::game::{Game, InheritInfo, PersonType, Trainer, TrainingValueSource};
 pub use action::Action;
 pub use stage::Stage;
 
-use crate::data::{ActLevelEffect, MatsuriData, RaceRewardDef};
+use crate::data::{ActLevelEffect, CheckPointDef, MatsuriData, RaceRewardDef};
 
 /// 演目槽上限（真机 `NeedActGauge = 5`，见 `docs/mechanism.md` §2）
 pub const ACT_GAUGE_MAX: i32 = 5;
@@ -79,8 +79,15 @@ pub struct MatsuriGame {
     /// 全零 = 未注入 → 回退引擎训练值 `value.status_pt × mult`。
     /// 报文值是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/教え/発表会）。
     pub train_stat_anchor: [[i32; 5]; 5],
-    /// 発表会累计的永久收益加成（0.2 = +20%）
+    /// 発表会累计的**得意率**（type 4）：master.mdb 给的是累计总量 ⇒ 设值不累加。
+    /// 引擎没有落位概率模型，暂按「训练效果%」近似（近似，不是结论）。
     pub gain_pct: f64,
+    /// 発表会累计的**友情ボーナス**（type 202，%）：作用于全部友情训练。
+    pub check_friend_pct: f64,
+    /// 発表会累计的**ヒント発生率**（type 2，%）：引擎无提示/技能模型 ⇒ 只记录。
+    pub check_hint_pct: i32,
+    /// 転成（融合）给的训练效果加成：与発表会 buff 分开，免得被累计值覆盖。
+    pub fusion_gain_pct: f64,
     /// 已用友人出行次数（官方：全剧本约 5 次）
     pub outing_count: i32,
     /// 装配时的起点回合（0 基，来自面板 turn−1）
@@ -149,6 +156,9 @@ impl MatsuriGame {
             advice_level: [1; 5],
             train_stat_anchor: [[0; 5]; 5],
             gain_pct: 0.0,
+            check_friend_pct: 0.0,
+            check_hint_pct: 0,
+            fusion_gain_pct: 0.0,
             outing_count: 0,
             start_turn: 0,
             initial_shining: [0; 5],
@@ -213,6 +223,11 @@ impl MatsuriGame {
     /// 真实训练收益随属性逼近上限而递减；这里用饱和式 `remain/(remain+K)` 近似：
     /// 剩余空间越大越接近 1.0，越贴上限越趋近 `cap_decay_floor`。
     /// `cap_decay <= 0`（未配置）时恒返回 1.0，保持原有行为。
+    ///
+    /// **已停用（2026-11-01 步骤 3）**：`cap_decay` 是**没有报文依据的拟合参数**，
+    /// 与有报文依据的 1200 软上限（`soft_cap_gain`）是同一现象的两种建模，两者并用会压低五维过头。
+    /// 配置里 `cap_decay` 已置 0 ⇒ 本函数恒返回 1.0。字段与路径留着（便于 A/B），
+    /// 其它机制落地后再决定是否删。
     fn cap_decay_factor(&self, cur: i32, limit: i32) -> f64 {
         if self.data.cap_decay <= 0.0 || limit <= 0 {
             return 1.0;
@@ -320,7 +335,8 @@ impl MatsuriGame {
         // 报文 `stat_gains` 是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/
         // 教え/発表会），直接用可绕过引擎训练值的缺口；未注入时才回退引擎训练值。
         let stat_anchor = self.train_stat_anchor[train];
-        let stat = if stat_anchor.iter().any(|&x| x > 0) {
+        let anchored = stat_anchor.iter().any(|&x| x > 0);
+        let stat = if anchored {
             let k = self.data.stat_anchor_scale;
             [
                 (stat_anchor[0] as f64 * k) as i32,
@@ -365,7 +381,8 @@ impl MatsuriGame {
             (stat[3] as f64 * shining_mult) as i32,
             (stat[4] as f64 * shining_mult) as i32,
         ];
-        // 接近上限衰减：真实训练收益随属性逼近上限递减，引擎静态表无此机制
+        // 接近上限衰减：拟合曲线 `cap_decay` 已置 0 停用（2026-11-01 步骤 3），
+        // 接近上限的打折改由下面那条有报文依据的 1200 软上限承担
         let limits = self.uma().five_status_limit;
         let cur = self.uma().five_status;
         let stat = [
@@ -375,6 +392,20 @@ impl MatsuriGame {
             (stat[3] as f64 * self.cap_decay_factor(cur[3], limits[3])) as i32,
             (stat[4] as f64 * self.cap_decay_factor(cur[4], limits[4])) as i32,
         ];
+        // 1200 软上限：训练增量同样按「超出 1200 的部分减半」
+        // （2026-11-01 步骤 3 报文实证：同一训练同一格，名义 10 时 pre=1195 得 7、pre=1300 得 5）。
+        // 锚点分支跳过：锚点是真机**实得**值，已含这条打折，再折算会重复扣减。
+        let stat = if anchored {
+            stat
+        } else {
+            [
+                self.soft_cap_gain(cur[0], stat[0]),
+                self.soft_cap_gain(cur[1], stat[1]),
+                self.soft_cap_gain(cur[2], stat[2]),
+                self.soft_cap_gain(cur[3], stat[3]),
+                self.soft_cap_gain(cur[4], stat[4]),
+            ]
+        };
         let scaled = ActionValue {
             status_pt: [
                 stat[0],
@@ -454,12 +485,57 @@ impl MatsuriGame {
         Ok(())
     }
 
+    /// 発表会结算：永久 buff + 达标实数奖励
+    ///
+    /// **永久 buff 是累计总量，不是增量**（master.mdb `single_mode_15_check_point_effect`：
+    /// 同一 schedule 的「成功」档 = 上一场「大成功」档的值，如 schedule 2 成功 = 5/40/50
+    /// 与 schedule 1 大成功同值）⇒ 设值不累加。
+    /// effect_type：4 得意率 / 202 友情ボーナス / 2 ヒント発生率 / 204 比赛加成。
+    fn apply_check_point(&mut self, cp: &CheckPointDef, great: bool) {
+        let buff = if great {
+            cp.great.clone()
+        } else {
+            cp.success.clone()
+        };
+        self.gain_pct = buff.gain_pct as f64 / 100.0;
+        self.check_friend_pct = buff.friend_pct as f64 / 100.0;
+        self.check_hint_pct = buff.hint_pct;
+        // 午式駿大祭（第 3 场，cp.schedule == 3）：成功 +30% / 大成功 +100% レースボーナス
+        if cp.schedule == 3 {
+            self.race_bonus = if great { 1.00 } else { 0.30 };
+        }
+        // 达标实数奖励（官方 Wiki 文案，见 docs/plan/intake.md）
+        // t24 = 全能力+5 / PT+200 / トレLv+1
+        // t48 = 全能力+10 / PT+300 / トレLv+1
+        // t68 = 全能力+15 / PT+400 / 体力+30 / やる気+1
+        if cp.all_stat > 0 {
+            let limits = self.uma().five_status_limit;
+            let uma = self.uma_mut();
+            for (st, lim) in uma.five_status.iter_mut().zip(limits.iter()) {
+                *st = (*st + cp.all_stat).min(*lim);
+            }
+        }
+        if cp.pt > 0 {
+            self.uma_mut().skill_pt += cp.pt;
+        }
+        if cp.train_lv > 0 {
+            // 训练等级 = 1 + count/4，所以每 +1 级 = count +4
+            for t in 0..5 {
+                self.base.train_level_count[t] += cp.train_lv * 4;
+            }
+        }
+        if cp.vital > 0 {
+            let uma = self.uma_mut();
+            uma.vital = (uma.vital + cp.vital).min(uma.max_vital);
+        }
+        if cp.motivation > 0 {
+            self.uma_mut().add_motivation(cp.motivation);
+        }
+    }
+
     /// 某个演目上的教え修正：(收益倍率, 体力增减)
     fn advice_mods(&self, act: usize, has_shining: bool) -> (f64, i32, f64) {
         let aid = self.advice_id.get(act).copied().unwrap_or(0);
-        if aid <= 0 {
-            return (1.0, 0, 0.0);
-        }
         let level = self
             .advice_level
             .get(act)
@@ -469,36 +545,49 @@ impl MatsuriGame {
         let mut gain = 0.0;
         let vital = 0;
         let mut vital_pct = 0.0;
-        for e in self
-            .data
-            .advice_effects
-            .iter()
-            .filter(|e| e.advice_id == aid && e.level == level)
-        {
-            match e.effect_type {
-                // 13 主属性% / 21 副属性%：直接加训练效果
-                13 | 21 => gain += e.value as f64 / 100.0,
-                // 203「助力の教え」：**友情非発生時**才给训练效果（助力 20~30%），
-                // 2026-10-31 截图：`友情非発生時にトレーニング効果アップ 20%`。
-                // 原来无条件加，会在彩圈回合系统性高估。
-                203 => {
-                    if !has_shining {
-                        gain += e.value as f64 / 100.0;
+        if aid > 0 {
+            for e in self
+                .data
+                .advice_effects
+                .iter()
+                .filter(|e| e.advice_id == aid && e.level == level)
+            {
+                match e.effect_type {
+                    // 13 主属性% / 21 副属性%：直接加训练效果
+                    13 | 21 => gain += e.value as f64 / 100.0,
+                    // 203「助力の教え」：**友情非発生時**才给训练效果（助力 20~30%），
+                    // 2026-10-31 截图：`友情非発生時にトレーニング効果アップ 20%`。
+                    // 原来无条件加，会在彩圈回合系统性高估。
+                    203 => {
+                        if !has_shining {
+                            gain += e.value as f64 / 100.0;
+                        }
                     }
-                }
-                // 202 友情ボーナス%（協力の教え 1~10%）。`mechanism.md:129`
-                // 「友情合计（**仅友情训练**）：…協力教え…」→ 只在彩圈回合生效；
-                // 原来无条件加，会在非彩圈回合虚高。
-                202 => {
-                    if has_shining {
-                        gain += e.value as f64 / 100.0;
+                    // 202 友情ボーナス%（協力の教え 1~10%）。`mechanism.md:129`
+                    // 「友情合计（**仅友情训练**）：…協力教え…」→ 只在彩圈回合生效；
+                    // 原来无条件加，会在非彩圈回合虚高。
+                    202 => {
+                        if has_shining {
+                            gain += e.value as f64 / 100.0;
+                        }
                     }
+                    3 => vital_pct += e.value as f64,
+                    _ => {}
                 }
-                3 => vital_pct += e.value as f64,
-                _ => {}
             }
         }
-        (1.0 + gain + self.gain_pct, vital, vital_pct)
+        // 発表会给的**友情ボーナス**（type 202，累计总量）：官方口径是「作用于全部友情训练
+        // （不只排练）」⇒ 只看是否彩圈，与该位挂没挂教え无关。
+        if has_shining {
+            gain += self.check_friend_pct;
+        }
+        // 発表会の得意率（近似：训练效果%）+ 転成加成：永久 buff，与是否挂教え无关。
+        // 原来 `aid <= 0` 直接 return 1.0，把这些永久 buff 整段吞掉了。
+        (
+            1.0 + gain + self.gain_pct + self.fusion_gain_pct,
+            vital,
+            vital_pct,
+        )
     }
 
     /// 编成内支援卡（`card_id` 有值）的 persons 下标，用于「全编成卡羁绊 +N」类效果
@@ -743,31 +832,47 @@ impl MatsuriGame {
         let failed = roll < fail_rate;
         let (mult, vital_delta, vital_pct) = self.advice_mods(idx, false);
         let vital_delta = vital_delta + (value.vital as f64 * vital_pct / 100.0) as i32;
-        // 接近上限衰减：稽古收益同样随属性逼近上限递减（PT 不衰减）
+        // 接近上限衰减：拟合曲线 `cap_decay` 已置 0 停用（2026-11-01 步骤 3）；
+        // 打折改由下面那条 1200 软上限承担（PT 不打折）
         let limits = self.uma().five_status_limit;
         let cur = self.uma().five_status;
+        let gains = [
+            (value.status_pt[0] as f64
+                * mult
+                * self.keiko_growth(0)
+                * self.cap_decay_factor(cur[0], limits[0])) as i32,
+            (value.status_pt[1] as f64
+                * mult
+                * self.keiko_growth(1)
+                * self.cap_decay_factor(cur[1], limits[1])) as i32,
+            (value.status_pt[2] as f64
+                * mult
+                * self.keiko_growth(2)
+                * self.cap_decay_factor(cur[2], limits[2])) as i32,
+            (value.status_pt[3] as f64
+                * mult
+                * self.keiko_growth(3)
+                * self.cap_decay_factor(cur[3], limits[3])) as i32,
+            (value.status_pt[4] as f64
+                * mult
+                * self.keiko_growth(4)
+                * self.cap_decay_factor(cur[4], limits[4])) as i32,
+        ];
+        // 1200 软上限：稽古增量同样按「超出 1200 的部分减半」（与训练同一条规则）
+        let gains = [
+            self.soft_cap_gain(cur[0], gains[0]),
+            self.soft_cap_gain(cur[1], gains[1]),
+            self.soft_cap_gain(cur[2], gains[2]),
+            self.soft_cap_gain(cur[3], gains[3]),
+            self.soft_cap_gain(cur[4], gains[4]),
+        ];
         let scaled = ActionValue {
             status_pt: [
-                (value.status_pt[0] as f64
-                    * mult
-                    * self.keiko_growth(0)
-                    * self.cap_decay_factor(cur[0], limits[0])) as i32,
-                (value.status_pt[1] as f64
-                    * mult
-                    * self.keiko_growth(1)
-                    * self.cap_decay_factor(cur[1], limits[1])) as i32,
-                (value.status_pt[2] as f64
-                    * mult
-                    * self.keiko_growth(2)
-                    * self.cap_decay_factor(cur[2], limits[2])) as i32,
-                (value.status_pt[3] as f64
-                    * mult
-                    * self.keiko_growth(3)
-                    * self.cap_decay_factor(cur[3], limits[3])) as i32,
-                (value.status_pt[4] as f64
-                    * mult
-                    * self.keiko_growth(4)
-                    * self.cap_decay_factor(cur[4], limits[4])) as i32,
+                gains[0],
+                gains[1],
+                gains[2],
+                gains[3],
+                gains[4],
                 (value.status_pt[5] as f64 * mult) as i32,
             ],
             vital: value.vital + vital_delta,
@@ -935,8 +1040,9 @@ impl MatsuriGame {
                     }
                 }
                 // 転成：第 2 次伝受时把两个初始教え当材料，吃融合效果
+                // （与発表会的累计 buff 分开，免得被「设值」覆盖）
                 if self.turn == 23 {
-                    self.gain_pct += 0.25;
+                    self.fusion_gain_pct += 0.25;
                 }
                 // 合宿开始：体力 +10、干劲 +1（2026-10-31 真机「1年目、駿大祭合宿開始！」）
                 if matches!(self.turn, 12 | 36 | 60) {
@@ -960,39 +1066,7 @@ impl MatsuriGame {
                     && self.act_level.iter().all(|lv| *lv >= cp.need)
                 {
                     let great = self.act_level.iter().all(|lv| *lv > cp.need);
-                    let buff = if great { cp.great } else { cp.success };
-                    self.gain_pct += buff.gain_pct as f64 / 100.0;
-                    // 午式駿大祭（第 3 场，cp.schedule == 3）：成功 +30% / 大成功 +100% レースボーナス
-                    if cp.schedule == 3 {
-                        self.race_bonus = if great { 1.00 } else { 0.30 };
-                    }
-                    // 达标实数奖励（官方 Wiki 文案，见 docs/plan/intake.md）
-                    // t24 = 全能力+5 / PT+200 / トレLv+1
-                    // t48 = 全能力+10 / PT+300 / トレLv+1
-                    // t68 = 全能力+15 / PT+400 / 体力+30 / やる気+1
-                    if cp.all_stat > 0 {
-                        let limits = self.uma().five_status_limit;
-                        let uma = self.uma_mut();
-                        for (st, lim) in uma.five_status.iter_mut().zip(limits.iter()) {
-                            *st = (*st + cp.all_stat).min(*lim);
-                        }
-                    }
-                    if cp.pt > 0 {
-                        self.uma_mut().skill_pt += cp.pt;
-                    }
-                    if cp.train_lv > 0 {
-                        // 训练等级 = 1 + count/4，所以每 +1 级 = count +4
-                        for t in 0..5 {
-                            self.base.train_level_count[t] += cp.train_lv * 4;
-                        }
-                    }
-                    if cp.vital > 0 {
-                        let uma = self.uma_mut();
-                        uma.vital = (uma.vital + cp.vital).min(uma.max_vital);
-                    }
-                    if cp.motivation > 0 {
-                        self.uma_mut().add_motivation(cp.motivation);
-                    }
+                    self.apply_check_point(&cp, great);
                 }
                 // 事件链留待后续（`streams.event`）
             }
@@ -1068,6 +1142,7 @@ fn soft_cap_gain(cap: i32, pre: i32, gain: i32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::SeedableRng;
 
     #[test]
     fn engine_picks_distinct_rows_per_train_level() {
@@ -1114,6 +1189,51 @@ mod tests {
         assert_eq!(soft_cap_gain(1200, 1193, 7), 7);
         // 关闭
         assert_eq!(soft_cap_gain(0, 1195, 30), 30);
+    }
+
+    #[test]
+    fn training_applies_soft_cap_above_1200() {
+        // 步骤 3：训练通道同样走 1200 软上限（报文：cid168/5101 耐力位 pre=1195 → 7、
+        // pre=1300 → 5，名义 10）。同一局同一训练，只改赛前属性值，验证增量按超额减半。
+        let _ = Data::init(crate::testing::data_dir());
+        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
+        let run = |pre: i32, seed: u64| -> i32 {
+            let mut game =
+                MatsuriGame::newgame(106301, &[], InheritInfo::default(), &[], data.clone())
+                    .unwrap();
+            game.uma_mut().five_status = [pre, 500, 500, 500, 500];
+            let before = game.uma().five_status[0];
+            let mut rng = StdRng::seed_from_u64(seed);
+            game.do_train(0, &mut rng).unwrap();
+            game.uma().five_status[0] - before
+        };
+        // 500 起步：增量完全落在 1200 以下，不打折
+        let low = run(500, 20261101);
+        assert!(low > 0, "训练应有增量");
+        // 1300 起步：超额部分减半
+        let high = run(1300, 20261101);
+        assert_eq!(high, soft_cap_gain(1200, 1300, low));
+        assert!(high < low, "越过 1200 的增量应被打折");
+    }
+
+    #[test]
+    fn check_point_buffs_are_cumulative_totals() {
+        // master.mdb `single_mode_15_check_point_effect`：每档给的是**该场之后的累计总量**
+        // （「成功」档 = 上一场「大成功」档的值）⇒ 结算必须**覆盖**而不是累加。
+        let _ = Data::init(crate::testing::data_dir());
+        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
+        let mut game =
+            MatsuriGame::newgame(106301, &[], InheritInfo::default(), &[], data).unwrap();
+        let cp = game.data.check_points[0].clone();
+        game.apply_check_point(&cp, true);
+        assert_eq!(game.gain_pct, 0.40, "第 1 回大成功：得意率累计 40%");
+        assert_eq!(game.check_friend_pct, 0.05, "友情ボーナス累计 5%");
+        assert_eq!(game.check_hint_pct, 50, "ヒント発生率累计 50%");
+        // 再按「成功」结算一次：应是覆盖（0.20 / 0%），不是累加（0.60 / 10%）
+        game.apply_check_point(&cp, false);
+        assert_eq!(game.gain_pct, 0.20);
+        assert_eq!(game.check_friend_pct, 0.0);
+        assert_eq!(game.check_hint_pct, 20);
     }
 
     #[test]

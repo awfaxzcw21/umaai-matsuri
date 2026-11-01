@@ -120,7 +120,7 @@ Lv1 一档：
 
 ---
 
-## 五、⚠️ 与 P0-2（1200 软上限）**冲突**
+## 五、与 P0-2（1200 软上限）的关系：~~冲突~~ → **已澄清，不冲突**
 
 **memo 通篇没有「属性值越过 1200 部分减半」这个机制。**
 唯一的 1200 出现在 L407，是攻略话术「1200目標なら」（把某项练到 1200 的构建目标），不是规则。
@@ -130,8 +130,72 @@ memo 里真实存在的「上限」是**单次获得量上限**：演目Lv4+ 抬
 「属性值越过 1200 的增量减半」**不是一回事**，而且我方配置里 `sp_limit` / `base_limit`
 恰好就是前者的字段（只是没接线）。
 
-P0-2 当时是照报文推的，memo 沉默**不等于不存在**，但它是本轮证据最弱的一环，
-需要拿报文重验。详见 [`../TODO_20261101_pm.md`](../TODO_20261101_pm.md) 第 2 项。
+> **2026-11-01 晚 已用报文重验，结论：两者不是同一件事，也不是冲突——memo 讲的是「一次最多拿多少」，
+> P0-2 讲的是「属性值越过 1200 之后增量打折」。判据是同一事件、同一名义增量、只因赛前属性值
+> 不同而实得不同（赛后奖励名义增量是事件常数）：pre≥1200 一律减半、pre<1200 不打折，
+> 且 pre=1195 落在「超额部分减半」（= 5+⌊25/2⌋）而非「整条减半」。
+> **P0-2 保留**，不用改成 `sp_limit` 模型。训练/稽古通道同样有**强支持**（未钉死，待接线）。
+> 详见 [`../TODO_20261101_pm.md`](../TODO_20261101_pm.md) 步骤 3 段末与
+> [`../mechanism.md`](../mechanism.md) § 赛后奖励。
+
+---
+
+## 另一来源：Hachimi 插件包（日服巫女杯 v1.15.0.0 RC2）
+
+| 项 | 值 |
+|---|---|
+| 内容 | UmamusumeResponseAnalyzer（Hachimi）日服发行包 + 插件目录 |
+| 原文件名 | `日服巫女杯v1.15.0.0 RC2(需更新Hachimi).zip` |
+| 取得 | 2026-11-01，用户提供（`D:\Downloads\`） |
+| md5 | `ad33b1ce2d4a8a3606967d262d9842bb` |
+| 读法 | `.portable/*.br` 是 **brotli 压的 JSON**（node `zlib.brotliDecompressSync` 即可解） |
+| 临时解压 | 已删；需要时重解 zip 即可，本节已把结论摘出来 |
+
+### 定级
+
+- `.portable/*.br` = **客户端静态表的插件缓存副本**，与本仓 `master.mdb` 同源
+  ⇒ 权威性**同 `master.mdb`**（一手静态表）；
+- `Plugins/*.zip` = **第三方攻略插件**，只作参考，不是一手依据。
+
+### 与 `master.mdb` 的逐表对照（2026-11-01 实测）
+
+| `.br` 文件 | 内容 | `master.mdb` 对应 | 对照结果 |
+|---|---|---|---|
+| `skill_data.br` | 技能表 2216 行（`Grade` = `grade_value`） | `skill_data`（2223 行） | **逐格一致**；`.br` 少 7 行（`1000011`~`1000017`，rarity 1 / grade_value 0）⇒ **master.mdb 更新** |
+| `succession_relation.br` | 転成关系（`PointDictionary` 3500 + `MemberDictionary` 3251 组） | `succession_relation` 3500 行 + `succession_relation_member` 7788 行 | 主键 3500 一致；成员列表粒度不同（`.br` 按技能分组、mdb 按行） |
+| `skill_upgrade_speciality.br` | 53 条特化教え | `skill_upgrade_speciality`（53 行） | **一致**；剧本 15 的 6 条 base→skill（202551→415011 / 203501→415021 / 202721→415031 / 200511→415041 / 204051→415051 / 202751→415061）两边逐条相同 |
+| `skill_planning.br` → `Talents` | 1916 条「卡 → 技能 + 优先 Rank」 | `available_skill_set`（1916 行） | **一致**（首条 `100101 / 200512 / 0` 两边相同） |
+| `events*.br` | 16780 + 20256 + 20256 条事件 | `single_mode_event_*` | **只覆盖 URA（501xxxxx）与角色事件（400xxxxxx）**，**不含剧本 15 事件表**：`15395` / `101004` / `15390` 等全部查不到 ⇒ **P0-1「固有赛后事件逐 id 值」仍只能靠报文** |
+| `factor_*.br` / `names.br` / `talent_skill_sets.br` / `wins_saddle.br` | 因子效果 / 名字 / 技能集 / 勝鞍 | `factor_research_*` / `text_data_dict` 等 | 同源，无增量 |
+
+⇒ **`.br` 不是新数据源**：查机制基准值仍以 `master.mdb` 为准，别再去插件包里翻。
+
+### 但它多出两样 `master.mdb` 扁平表里没有的东西
+
+**① 带日文描述的条件语义**（`skill_planning.br` → `Evolutions[].Conditions`）。
+master.mdb 的 `skill_upgrade_condition` 只有扁平 id，`.br` 带可读条件文本。剧本 15 的 6 条：
+
+| 进阶层技能 | 基础技能 | 解锁条件（日文原文） |
+|---|---|---|
+| 415011 | 202551 | すべての進捗発表会と午式駿大祭を大成功で完了する |
+| 415021 | 203501 | 同上 |
+| 415031 | 202721 | 同上 |
+| 415041 | 200511 | 同上 |
+| 415051 | 204051 | ＜マイル＞のスキルを2個以上所持する ＋ ＜中距離＞のスキルを2個以上所持する ＋ 午式駿大祭を大成功で完了する |
+| 415061 | 202751 | ＜短距離＞のスキルを2個以上所持する ＋ 午式駿大祭を大成功で完了する |
+
+⇒ 这就是**特化教え（転成）的解锁条件**：引擎目前只判「本次発表会大成功」，
+**没有「历次発表会全部大成功」这个状态** ⇒ 特化教え压根判不了（步骤 5 的上游缺口）。
+
+**② 凹分求解器**：`Plugins/SkillTipsResponseAnalyzer.zip`（带 Google.OrTools / CP-SAT）。
+模型对象 `SkillOptimizationProblem{BaselineScore, EstimatedScore, ObjectiveUpperBound}` +
+`SkillChoiceGroup` / `SkillCountRequirement` / `SkillEvolutionChoice`，结果
+`{PurchaseSkillIds, LearnedSkillIds, FinalSkillIds}`，显示层给
+`StatusScore` / `PredictedTotalScore` / `ScoreToNextRank`。
+配合 `skill_data.grade_value`（**每个技能的评价点**：rarity 3→240、rarity 5→340、
+rarity 6→240/394/461/508/633/758），是把 `real_score` 里拟合系数
+**2.35（技能Pt→Σgrade）** 换成真表的路线——前提是能判定「取得了哪些技能」。
+⚠️ 插件的 i18n 资源只有 key，评分阈值不在插件里，权威规则仍在客户端。
 
 ---
 

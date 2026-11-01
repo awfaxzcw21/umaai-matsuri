@@ -40,6 +40,9 @@
 | 用例 | 守门内容 | 对应机制文档 |
 |---|---|---|
 | `t30_engine_value_matches_panel_truth` | 装配后 5 条训练命令的引擎值逐格等于面板真值（16 个非零分量）；同时钉住马娘 = 报文 `chara_id`（106301）、成长率 `[0,0,0,20,10]`、训练设施 Lv2、人数加成 = 支援卡 + 嘉宾（剧本 NPC 枠 101..115 不计） | `mechanism.md` §3.3 |
+| `training_applies_soft_cap_above_1200`（`core/src/game/mod.rs`） | 训练通道的 1200 软上限接线：同一训练，赛前 500 时增量不打折、赛前 1300 时按「超出 1200 的部分减半」结算（断开 `soft_cap_gain` 会让本测失败） | `mechanism.md` § 赛后奖励（1200 软上限） |
+| `check_point_buffs_are_cumulative_totals`（`core/src/game/mod.rs`） | 発表会的永久 buff 是**累计总量**：再结算一次「成功」档必须覆盖（0.20/0%/20%）而不是累加（0.60/10%/…） | `mechanism.md` §5.2 |
+| `real_asset_check_point_buffs_match_master_mdb`（`core/src/data.rs`） | 配置里 3 场发表会的 得意率/友情ボーナス/ヒント発生率 六档，逐格等于 master.mdb `single_mode_15_check_point_effect` | `mechanism.md` §5.2 |
 
 ## 4. 冒烟与基线
 
