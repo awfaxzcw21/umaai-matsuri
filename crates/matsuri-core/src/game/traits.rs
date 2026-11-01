@@ -101,6 +101,11 @@ impl Game for MatsuriGame {
             actions.push(Action::Outing);
         }
         actions.push(Action::Rest);
+        // 自选比赛（目標外）：只在该回合有窗口时给出（面板回合 45 / 69 ⇒ 引擎 44 / 68）。
+        // 放在**末尾**：训练位下标不能因多一个候选而位移（策略按动作下标选训练）。
+        if self.free_race_window(self.turn).is_some() {
+            actions.push(Action::Race);
+        }
         Ok(actions)
     }
 

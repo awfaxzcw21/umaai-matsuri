@@ -23,6 +23,11 @@ pub enum Action {
     Rest,
     /// 保健室（练习ベタ 时出现：体力 +20 并解除 debuff）
     Clinic,
+    /// 自选比赛（目標外比赛）：仅在自选窗口回合出现
+    ///
+    /// 2026-11-01 报文实证：窗口在面板回合 45 / 69（引擎 44 / 68），每窗口 3 场 G1。
+    /// 赛后奖励 = 1 随机项 +10 / PT +45（× 比赛加成），见 `MatsuriGame::do_free_race`。
+    Race,
 }
 
 impl Display for Action {
@@ -33,6 +38,7 @@ impl Display for Action {
             Self::Outing => write!(f, "出行"),
             Self::Rest => write!(f, "休息"),
             Self::Clinic => write!(f, "保健室"),
+            Self::Race => write!(f, "自选比赛"),
         }
     }
 }
@@ -70,6 +76,7 @@ impl ActionEnum for Action {
                 game.practice_bad = false;
                 Ok(())
             }
+            Self::Race => game.do_free_race(rng),
         }
     }
 }

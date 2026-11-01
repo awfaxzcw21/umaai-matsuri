@@ -262,7 +262,20 @@
   落点 `race_reward` 基准表（**未乘任何加成**）。加成是**二段式、各自 floor**：
   `floor(floor(base × m_卡组赛后) × m_cp204)`，`m_cp204` 来自発表会#3（成功 +30% / 大成功 +100%）。
   判据：cid168 後期目標賽 SP=216 而五维只有 14 —— 单段式 floor(5×3.0)=15 被否掉。
-  ❓目标外「1 项」是否随机待测；目标外 GII 无干净样本（`null`）。
+  ✅「目标外 1 项」= **随机一项**（两例真机分别落在耐力与智力）。
+  ❓目标外 GII 无干净样本（`null`）⇒ **未知不猜**，载入期直接报错、不回落目標賽档。
+- **自选比赛（目標外比赛）——✅ 已建模（2026-11-01 步骤 6）**：
+  报文 `race_random_program_array`（34 局全一致）给出可报名窗口 = **面板回合 45 / 69**
+  （引擎 0 基 **44 / 68**），每窗口 **3 场、全部 G1**、报名需 **12,000 粉**
+  （master.mdb `single_mode_program.need_fan_count`；`race.grade`：100=G1 / 200=G2 / 300=G3 / 400=OP）。
+  引擎侧：剧本资产 `free_races` 落窗口 → `Action::Race`（只在窗口回合出现在**候选末尾**，
+  不影响训练位下标）→ `do_free_race` 按 `race_reward.non_target[等级]` 结算
+  （**1 随机项** +10、PT +45，吃同一条二段式乘区与 1200 软上限），演目槽 +1（memo §8.2）。
+  **GIII 档在本剧本不可达**：剧本 15 的两个窗口只落在 11 月前半，池子里没有 11 月前半的 G3 program。
+  ❓**未建模**：报名门槛（引擎无粉丝系统）、体力代价（真机 −15 / −20 两例不一致）。
+  实测 34 局玩家**一次都没报名**（`reserve_race_program_id` 恒 0）⇒ 默认策略不报名，
+  门禁因此**逐位不变**（五维和 7,729.91 / 五维分 37,202.09 / PT 6,184.57）。
+  证据与口径见 [`ref/free_race_20261101.md`](ref/free_race_20261101.md)。
 - **赛后奖励的真机来源是「馬娘固有赛后イベント」**，数值随 event id 变化、不是每场常量：
   cid168（uma 1141）t31 皐月賞 event 15390 → SP+108，而 cid169/cid171（同 uma / 同场 / 同回合 /
   同 `select_index`）event 15389 → SP+180；cid179（uma 1063）event 14041 t23 阪神JF 给五维 +19，
@@ -364,6 +377,8 @@
 | 机制点 | 数据字段 | 阶段 / 动作 | 结算函数 | 测试 | 文档 |
 |---|---|---|---|---|---|
 | 合宿延长 | 排程数据（S2） | 回合边界 | `<待建>` | `<机制测试>` | §4 |
+| 目標賽赛后奖励 | `race_reward.target` / `.ura` | `Begin`（生涯赛回合） | `race_reward_def` + `race_reward_two_stage` | `two_stage_floor_not_single_stage` | §4 |
+| 自选比赛（目標外） | `free_races` + `race_reward.non_target` | `Race`（仅引擎回合 44 / 68） | `do_free_race` | `free_race_window_matches_packet_evidence`、`free_race_action_only_on_window_turns`、`free_race_pays_one_random_stat_and_pt`、`free_race_unknown_grade_is_not_target_row` | §4 |
 
 ## 5. 事件
 

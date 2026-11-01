@@ -55,6 +55,10 @@
 | `extra_keiko_rate_follows_teach_level_and_not_headcount`（`core/src/game/mod.rs`） | 「追加の稽古」发生率取教诲绑定演目的 Lv 值，且**不按人数加算** | `mechanism.md` §3.4 |
 | `extra_keiko_upper_and_lower_outcomes`（`core/src/game/mod.rs`） | 上档：主属性 +20 / PT +20 / 体力 −5 / 演目Lv 最低的演目槽 +1；下档：主属性 +5 / 体力 +5 | `mechanism.md` §3.4 |
 | `assist_support_granted_by_keiko_and_consumed_by_training`（`core/src/game/mod.rs`） | 「助力の支え」由排练获得、训练消耗 1 次 | `mechanism.md` §3.4 |
+| `free_race_window_matches_packet_evidence`（`core/src/game/mod.rs`） | 自选比赛窗口 = 引擎回合 44 / 68，各 3 场 G1（报文 34 局全一致） | `mechanism.md` §4 |
+| `free_race_action_only_on_window_turns`（`core/src/game/mod.rs`） | `Action::Race` 只在窗口回合出现，且排在候选末尾（训练位下标不位移） | `mechanism.md` §4 |
+| `free_race_pays_one_random_stat_and_pt`（`core/src/game/mod.rs`） | 目標外 GI = **1 随机项** +10 / PT +45；非生涯比赛给演目槽 +1 | `mechanism.md` §4 |
+| `free_race_unknown_grade_is_not_target_row`（`core/src/game/mod.rs`） | GII 无样本 ⇒ 返回 `None`，不回落目標賽档（未知不猜） | `mechanism.md` §4 |
 | `t30_advice_binding_matches_panel`（`cli/tests/state_t30.rs`） | fixture 报文给的教诲绑定 `[401, 501, 601, 301, 701]` 与各演目的担当人数（速度 2 / 根性 0 / 嘉宾 `train_type = -1` 不计担当） | `mechanism.md` §3.3 |
 
 ## 4. 冒烟与基线

@@ -10,7 +10,7 @@ pub mod traits;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use rand::Rng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
@@ -26,7 +26,7 @@ use umasim::game::{Game, InheritInfo, PersonType, Trainer, TrainingValueSource};
 pub use action::Action;
 pub use stage::Stage;
 
-use crate::data::{ActLevelEffect, CheckPointDef, MatsuriData, RaceRewardDef};
+use crate::data::{ActLevelEffect, CheckPointDef, FreeRaceDef, MatsuriData, RaceRewardDef};
 
 /// 演目槽上限（真机 `NeedActGauge = 5`，见 `docs/mechanism.md` §2）
 pub const ACT_GAUGE_MAX: i32 = 5;
@@ -367,6 +367,63 @@ impl MatsuriGame {
             .get(idx)
             .copied()
             .unwrap_or(self.data.race_reward.target)
+    }
+
+    /// 该回合的自选比赛窗口（`None` = 这回合不能报名）
+    fn free_race_window(&self, turn: i32) -> Option<&FreeRaceDef> {
+        self.data.free_races.iter().find(|fr| fr.turn == turn)
+    }
+
+    /// 自选比赛（目標外）的赛后奖励基准档：按等级取 `race_reward.non_target`
+    ///
+    /// 等级语义与引擎 `race_grades` 一致（1 = G1 … 4 = OP）。
+    /// 档位是 `null`（GII 无样本）时返回 `None` —— **未知不猜**，不回落目標賽档。
+    fn free_race_reward(&self, grade: i32) -> Option<RaceRewardDef> {
+        self.data
+            .race_reward
+            .non_target
+            .get((grade - 1).max(0) as usize)
+            .copied()
+            .flatten()
+    }
+
+    /// 自选比赛（目標外比赛）结算
+    ///
+    /// 2026-11-01 报文 + master.mdb 实证：窗口在面板回合 45 / 69（引擎 44 / 68），
+    /// 每窗口 3 场、全部 G1、需 12,000 粉；奖励 = **1 随机项** +10 / PT +45，
+    /// 与目標賽一样吃二段式乘区（支援卡「赛后」× 発表会 cp204），各自 floor。
+    ///
+    /// **未建模**：体力代价（真机 −15 / −20 两例）与报名门槛（12,000 粉）——
+    /// 引擎没有粉丝系统，连目標賽的体力代价也没建模，不在这里造数值。
+    pub(crate) fn do_free_race(&mut self, rng: &mut impl Rng) -> Result<()> {
+        let turn = self.base.turn;
+        let Some(window) = self.free_race_window(turn).copied() else {
+            return Err(anyhow!("回合 {turn} 没有自选比赛窗口"));
+        };
+        let Some(reward) = self.free_race_reward(window.grade) else {
+            return Err(anyhow!(
+                "自选比赛等级 {} 的奖励未配置（未知不猜）",
+                window.grade
+            ));
+        };
+        let m_card = (100 + self.base.uma.race_bonus) as f64 / 100.0;
+        let m_cp = 1.0 + self.race_bonus;
+        let stat_gain = race_reward_two_stage(reward.stat, m_card, m_cp);
+        let pt = race_reward_two_stage(reward.pt, m_card, m_cp);
+        // 「1 ステ」= 随机一项：两个真机样本分别落在耐力与智力 ⇒ 随机，不固定
+        let idx = rng.random_range(0..5usize);
+        let pre = self.uma().five_status[idx];
+        let gain = self.soft_cap_gain(pre, stat_gain);
+        let mut status_pt = [0i32; 6];
+        status_pt[idx] = gain;
+        status_pt[5] = pt;
+        self.uma_mut().add_value(&ActionValue {
+            status_pt,
+            ..Default::default()
+        });
+        // 演目槽：非生涯比赛 +1（memo §8.2；落点 Lv 低 → 槽低 → 属性序）
+        self.push_act_gauge(1);
+        Ok(())
     }
 
     /// 属性软上限：增量中**超出 `soft_cap` 的部分**减半（向下取整）
@@ -1834,5 +1891,91 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(20261101);
         game.do_train(0, &mut rng).unwrap();
         assert_eq!(game.assist_support, 2, "训练消耗一次「助力の支え」");
+    }
+
+    #[test]
+    fn free_race_window_matches_packet_evidence() {
+        // 2026-11-01 报文（34 局 `race_random_program_array` 全一致）：可报名窗口在
+        // 面板回合 45 / 69（引擎 0 基 44 / 68），每窗口 3 场、全部 G1。
+        let _ = Data::init(crate::testing::data_dir());
+        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
+        let windows: Vec<(i32, i32, i32)> = data
+            .free_races
+            .iter()
+            .map(|fr| (fr.turn, fr.count, fr.grade))
+            .collect();
+        assert_eq!(
+            windows,
+            vec![(44, 3, 1), (68, 3, 1)],
+            "自选比赛窗口应是引擎回合 44 / 68，各 3 场 G1"
+        );
+    }
+
+    #[test]
+    fn free_race_action_only_on_window_turns() {
+        let mut game = game_with_roster(&[(0, 1)]);
+        for (turn, expected) in [
+            (43, false),
+            (44, true),
+            (45, false),
+            (67, false),
+            (68, true),
+        ] {
+            game.turn = turn;
+            let actions = game.list_actions().unwrap();
+            let has = actions.contains(&Action::Race);
+            assert_eq!(has, expected, "回合 {turn} 的自选比赛动作应为 {expected}");
+            if has {
+                assert_eq!(
+                    actions.last(),
+                    Some(&Action::Race),
+                    "自选比赛必须排在候选末尾（训练位下标不能位移）"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn free_race_pays_one_random_stat_and_pt() {
+        // memo §8.1：目標外 GI = 1 ステ +10 / PT +45（未乘加成；乘区与目標賽同口径）
+        let mut game = game_with_roster(&[(0, 1)]);
+        game.turn = 44;
+        let before = game.uma().five_status;
+        let pt_before = game.uma().skill_pt;
+        let mut rng = StdRng::seed_from_u64(20261101);
+        game.do_free_race(&mut rng).unwrap();
+        let after = game.uma().five_status;
+        let gains: Vec<i32> = (0..5).map(|i| after[i] - before[i]).collect();
+        let hit: Vec<i32> = gains.iter().copied().filter(|g| *g > 0).collect();
+        assert_eq!(hit.len(), 1, "「1 ステ」= 只加一项，实际增益 {gains:?}");
+        assert_eq!(hit[0], 10, "G1 目标外 = 随机一项 +10");
+        assert_eq!(game.uma().skill_pt - pt_before, 45, "G1 目标外 = PT +45");
+        // 演目槽：非生涯比赛 +1（memo §8.2）
+        let gauge_before = game.act_gauge.iter().sum::<i32>();
+        game.turn = 68;
+        let mut rng2 = StdRng::seed_from_u64(20261101);
+        game.do_free_race(&mut rng2).unwrap();
+        assert_eq!(
+            game.act_gauge.iter().sum::<i32>() - gauge_before,
+            1,
+            "非生涯比赛给演目槽 +1"
+        );
+    }
+
+    #[test]
+    fn free_race_unknown_grade_is_not_target_row() {
+        // GII 没有样本（`non_target[1] = null`）⇒ 未知不猜：不回落目標賽档。
+        let game = game_with_roster(&[(0, 1)]);
+        assert!(game.free_race_reward(1).is_some(), "G1 有真值");
+        assert!(game.free_race_reward(3).is_some(), "GIII 有真值");
+        assert!(
+            game.free_race_reward(2).is_none(),
+            "GII 无样本 ⇒ 返回 None，不猜"
+        );
+        assert_ne!(
+            game.free_race_reward(1).unwrap().stat,
+            game.data.race_reward.target.stat,
+            "目標外的五维增量不是「各 +5」"
+        );
     }
 }

@@ -163,6 +163,10 @@ impl MatsuriRolloutTrainer {
         //    自然把五个属性都拉起来、不再死堆已高的属性。
         //    （旧「练等级最低演目」会把演目等级摊平，但五维仍偏——实测速度溢出、
         //    耐力偏低；発表会达标仍由上方规则 3 在截止前 15 回合兜底。）
+        //
+        // **自选比赛（`Action::Race`）不选**：报名门槛是 12,000 粉（引擎没有粉丝系统），
+        // 体力代价也未建模（真机 −15 / −20）；实测 34 局玩家一次都没报名，
+        // 这里按同一行为默认不报名，机制本身留了口子给别的策略用。
         let best = (0..5usize).min_by_key(|i| {
             let cur = game.uma().five_status[*i] as i64;
             let lim = game.uma().five_status_limit[*i].max(1) as i64;

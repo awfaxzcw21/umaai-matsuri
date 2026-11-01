@@ -88,6 +88,12 @@ pub struct MatsuriData {
     /// 实测值反推的拟合常量，不是机制）。
     #[serde(default)]
     pub race_reward: RaceRewardTable,
+    /// 自选比赛（目標外比赛）窗口：哪个回合能报名、几场、什么等级
+    ///
+    /// 2026-11-01 报文实证：面板回合 45 / 69 各 3 场、全部 G1、需 12,000 粉。
+    /// 空表 = 不建模自选比赛（引擎不会给出「报名自选比赛」这个动作）。
+    #[serde(default)]
+    pub free_races: Vec<FreeRaceDef>,
     /// 属性软上限（报文 `chara_info.default_max_*`，各局恒 1200）
     ///
     /// 增量中**落在该值以上的部分减半**（向下取整），不是「超过就整条减半」：
@@ -181,9 +187,29 @@ pub struct RaceRewardTable {
     /// URA 予選 / 準決勝 / 決勝：五维各 +10 / PT +40 / +60 / +80
     #[serde(default)]
     pub ura: Vec<RaceRewardDef>,
-    /// 目標外 GI / GII / GIII（**本轮不建模**，只留表位；`null` = 无干净样本，未定）
+    /// 目標外 GI / GII / GIII（`null` = 无干净样本，未定）
+    ///
+    /// GII 留 `null`：memo 只列了 GI（1 ステ +10 / PT +45）与 GIII（1 ステ +8 / PT +35），
+    /// GII 没有样本 —— 「未知」不是「与目標賽同」。
     #[serde(default)]
     pub non_target: Vec<Option<RaceRewardDef>>,
+}
+
+/// 自选比赛（目標外比赛）窗口
+///
+/// 2026-11-01 报文实证（34 局 `race_random_program_array` 全一致）：可报名窗口在
+/// **面板回合 45 / 69**（引擎 0 基回合 = 面板 − 1 ⇒ 44 / 68），每窗口 3 场，
+/// 全部 G1（master.mdb `race.grade = 100`），报名需 12,000 粉。
+/// 剧本 15 的窗口只落在 11 月前半 ⇒ 池子里没有 GIII ⇒ GIII 档在本剧本**不可达**。
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FreeRaceDef {
+    /// 引擎回合（0 基；= 面板回合 − 1）
+    pub turn: i32,
+    /// 本窗口可报名的场数（真机恒 3）
+    pub count: i32,
+    /// 比赛等级（1 = G1 … 4 = OP，与引擎 `race_grades` 同口径）
+    pub grade: i32,
 }
 
 /// 教え效果
@@ -335,6 +361,27 @@ impl MatsuriData {
             "race_reward.non_target 最多 3 档（GI/GII/GIII），实际 {}",
             self.race_reward.non_target.len()
         );
+        for fr in &self.free_races {
+            ensure!(fr.turn >= 0, "free_races 的回合不能为负: {}", fr.turn);
+            ensure!(fr.count > 0, "free_races[turn={}] 的场数必须 > 0", fr.turn);
+            ensure!(
+                (1..=4).contains(&fr.grade),
+                "free_races[turn={}] 的等级必须在 1..=4（1=G1），实际 {}",
+                fr.turn,
+                fr.grade
+            );
+            // 等级 → `non_target` 表位（1=G1 ⇒ 下标 0）：档位是 `null` = 未知，
+            // 未知不许猜成 0 奖励 —— 直接在载入期报错。
+            ensure!(
+                self.race_reward
+                    .non_target
+                    .get((fr.grade - 1) as usize)
+                    .is_some_and(|row| row.is_some()),
+                "free_races[turn={}] 用到等级 {}，但 race_reward.non_target 里没有该档的奖励",
+                fr.turn,
+                fr.grade
+            );
+        }
         Ok(())
     }
 }

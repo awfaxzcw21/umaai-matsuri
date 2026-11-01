@@ -26,6 +26,7 @@ fn label_of(a: &Action) -> String {
         Action::Outing => "出行".to_string(),
         Action::Rest => "休息".to_string(),
         Action::Clinic => "保健室".to_string(),
+        Action::Race => "自选比赛".to_string(),
     }
 }
 

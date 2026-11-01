@@ -505,6 +505,10 @@
       { "stat": 8, "pt": 35 }
     ]
   },
+  "free_races": [
+    { "turn": 44, "count": 3, "grade": 1 },
+    { "turn": 68, "count": 3, "grade": 1 }
+  ],
   "soft_cap": 1200,
   "cap_decay": 0.0,
   "cap_decay_floor": 0.15,
