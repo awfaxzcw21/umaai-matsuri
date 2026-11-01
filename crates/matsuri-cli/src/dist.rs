@@ -10,7 +10,7 @@
 //! 输出：
 //!   - `score`：引擎原生 `search_score(1.0)`（衰减五维表 + PT×2.0 + 技能分）。排序口径，绝对值偏低。
 //!   - `real_score`：**面板显示用**（对齐黑板面板）——
-//!       `real = Σ status_final_score(revise(五维)) + 1.0746 × round(skill_pt × 2.35)`
+//!     `real = Σ status_final_score(revise(五维)) + 1.0746 × round(skill_pt × 2.35)`
 //!     五维分走游戏客户端 `revise`（>1200 减半）再查同一张表；技能分用剧本 15 拟合系数
 //!     `1.0746` × `grade_est`（grade/pt 取 2.35，见 `GRADE_PER_PT_DEFAULT`，`MC_GRADE_PER_PT` 可覆盖）。
 //!     名次沿用引擎原生 `rank_names`（301 档，US8=72,900）。
@@ -23,17 +23,17 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use rand::rngs::StdRng;
 use rand::SeedableRng;
-use serde_json::{json, Value};
+use rand::rngs::StdRng;
+use serde_json::{Value, json};
 
 use matsuri_core::trainer::MatsuriRolloutTrainer;
-use umaai_core::gamedata::constants::GameConstants;
 use umaai_core::Data;
+use umaai_core::gamedata::constants::GameConstants;
 use umasim::game::Game;
 use umasim::search::FlatSearchGame;
 
-mod state;
+use matsuri_cli::state;
 
 /// 剧本 15 技能系数（黑板 `score.SCENARIO_SCALES[15] = (4.7848, 1.0746)` 的技能项）。
 const SKILL_SCALE: f64 = 1.0746;
@@ -79,8 +79,14 @@ fn main() {
 /// 种子基：`MC_SEED` 覆盖（默认 0），换一次即可检验「结论是不是这套抽样序列碰巧跑出来的」。
 fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
-    let state_path = args.get(1).cloned().unwrap_or_else(|| "out/_mc_state.json".into());
-    let result_path = args.get(2).cloned().unwrap_or_else(|| "out/_dist_result.json".into());
+    let state_path = args
+        .get(1)
+        .cloned()
+        .unwrap_or_else(|| "out/_mc_state.json".into());
+    let result_path = args
+        .get(2)
+        .cloned()
+        .unwrap_or_else(|| "out/_dist_result.json".into());
     let n: usize = std::env::var("MC_N")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
@@ -296,7 +302,7 @@ fn summarize(consts: &GameConstants, scores: &[i32]) -> Value {
             (thresh, name, count)
         })
         .collect();
-    rank_rows.sort_by(|a, b| b.0.cmp(&a.0));
+    rank_rows.sort_by_key(|a| std::cmp::Reverse(a.0));
     let rank_hist: Vec<Value> = rank_rows
         .iter()
         .map(|(thresh, name, count)| {

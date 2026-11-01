@@ -35,6 +35,8 @@
 | `crates/matsuri-core/src/trainer.rs` | 样例训练员 `MatsuriTrainer` |
 | `crates/matsuri-cli/src/main.rs` | 终端前端：bin `matsuri`（跑局） |
 | `crates/matsuri-cli/src/manual.rs` | 无颜色手动训练员（机制核对） |
+| `crates/matsuri-cli/src/{lib,state}.rs` | 面板状态 → 引擎局面的共享装配（`matsuri-mccli` / `matsuri-dist` 共用） |
+| `crates/matsuri-cli/tests/state_t30.rs` | t30 参考局回归：引擎训练值逐格命中面板真值（fixture 在 `tests/data/`） |
 | `crates/matsuri-sim` | 模拟器与基线裁判（骨架） |
 | `crates/matsuri-ai` | 在线决策核心（骨架） |
 | `crates/matsuri-tools` | 外围工具（骨架） |

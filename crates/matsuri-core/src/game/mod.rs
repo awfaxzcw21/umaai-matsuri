@@ -11,15 +11,15 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use anyhow::Result;
-use rand::seq::SliceRandom;
 use rand::Rng;
 use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use umaai::Config;
 use umaai_core::Data;
 use umaai_core::gamedata::ActionValue;
-use umasim::game::CardTrainingEffect;
 use umaai_core::rng::{EventRng, StrategyRng, StreamTag, derive_seed};
+use umasim::game::CardTrainingEffect;
 use umasim::game::base::{BaseGame, BasePerson, RuleStreams};
 use umasim::game::{Game, InheritInfo, PersonType, Trainer, TrainingValueSource};
 
@@ -75,13 +75,9 @@ pub struct MatsuriGame {
     pub advice_id: [i32; 5],
     /// 教え等级（用演目等级近似）
     pub advice_level: [i32; 5],
-    /// 每个训练的真实面板 PT 收益快照（来自报文 `commands[].skill_point`；0 = 未注入，回退按比例 1.0）
-    /// 用于恢复「训练哪个维度」的真实 PT 差异（速度 62 vs 根性 23），B2 分源第一步。
-    pub train_pt_anchor: [i32; 5],
     /// 每个训练的真实面板五维收益快照（来自报文 `commands[].stat_gains`，5×5：训练 × 速度/耐力/力量/根性/智力）
-    /// 全零 = 未注入 → 回退 `value.status_pt × mult × value_scale.train_stat`。
-    /// 报文值是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/教え/発表会），
-    /// 直接吃它可绕过 value_scale 的黑盒校准。
+    /// 全零 = 未注入 → 回退引擎训练值 `value.status_pt × mult`。
+    /// 报文值是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/教え/発表会）。
     pub train_stat_anchor: [[i32; 5]; 5],
     /// 発表会累计的永久收益加成（0.2 = +20%）
     pub gain_pct: f64,
@@ -89,7 +85,6 @@ pub struct MatsuriGame {
     pub outing_count: i32,
     /// 装配时的起点回合（0 基，来自面板 turn−1）
     ///
-    /// 用于「早局专用补偿」：`early_pt_scale` 只在起点 < 29（面板 t30 前）时启用。
     /// `newgame` 里为 0，宿主装配真实局面后覆盖。
     pub start_turn: i32,
     /// 起步时的彩圈人数快照（每训练位，仅作兜底）
@@ -152,7 +147,6 @@ impl MatsuriGame {
             act_level: [1; 5],
             advice_id: [0; 5],
             advice_level: [1; 5],
-            train_pt_anchor: [0; 5],
             train_stat_anchor: [[0; 5]; 5],
             gain_pct: 0.0,
             outing_count: 0,
@@ -168,18 +162,6 @@ impl MatsuriGame {
         };
         game.init_persons()?;
         Ok(game)
-    }
-
-    /// 早局（起点回合 < 29，即面板 t30 前）的训练/稽古 PT 补偿系数
-    ///
-    /// 引擎 `train_pt`/`keiko_pt` 在 t38 前后标定：早局起步时整体 PT 偏低约 20%，
-    /// 晚局起步已偏高，故只在 `start_turn < 29` 时放大，返回 `data.early_pt_scale`。
-    fn early_pt_scale(&self) -> f64 {
-        if self.start_turn < 29 {
-            self.data.early_pt_scale
-        } else {
-            1.0
-        }
     }
 
     /// 追加一个人头（按当前人数分配人头序号）
@@ -216,10 +198,7 @@ impl MatsuriGame {
     pub fn capture_initial_shining(&mut self) {
         for t in 0..5usize {
             self.initial_shining[t] = self.shining_count(t) as i32;
-            self.initial_youqing[t] = self
-                .calc_training_buff(t)
-                .map(|b| b.youqing)
-                .unwrap_or(0.0);
+            self.initial_youqing[t] = self.calc_training_buff(t).map(|b| b.youqing).unwrap_or(0.0);
         }
     }
 
@@ -332,32 +311,14 @@ impl MatsuriGame {
             .distribution
             .get(train)
             .map(|d| {
-                d.iter().any(|&pidx| {
-                    pidx >= 0 && self.is_shining_at(pidx as usize, train)
-                })
+                d.iter()
+                    .any(|&pidx| pidx >= 0 && self.is_shining_at(pidx as usize, train))
             })
             .unwrap_or(false);
         let (mult, vital_delta, vital_pct) = self.advice_mods(train, has_shining);
         let vital_delta = vital_delta + (value.vital as f64 * vital_pct / 100.0) as i32;
-        let vs = &self.data.value_scale;
-        // B2 分源：恢复「训练哪个维度」的真实 PT 差异（速度 62 vs 根性 23），
-        // 用 anchor 均值归一 → 只改 per-train 相对权重、不改总量（绝对值对齐留待 B2 后续）。
-        let pt_ratio = {
-            let valid: Vec<i32> = self
-                .train_pt_anchor
-                .iter()
-                .copied()
-                .filter(|&x| x > 0)
-                .collect();
-            if valid.len() == 5 && self.train_pt_anchor[train] > 0 {
-                let mean = valid.iter().sum::<i32>() as f64 / valid.len() as f64;
-                self.train_pt_anchor[train] as f64 / mean
-            } else {
-                1.0
-            }
-        };
-        // 3b：报文 `stat_gains` 是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/
-        // 教え/発表会），直接用可绕过 value_scale 黑盒；未注入时才回退旧路径。
+        // 报文 `stat_gains` 是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/
+        // 教え/発表会），直接用可绕过引擎训练值的缺口；未注入时才回退引擎训练值。
         let stat_anchor = self.train_stat_anchor[train];
         let stat = if stat_anchor.iter().any(|&x| x > 0) {
             let k = self.data.stat_anchor_scale;
@@ -370,11 +331,11 @@ impl MatsuriGame {
             ]
         } else {
             [
-                (value.status_pt[0] as f64 * mult * vs.train_stat) as i32,
-                (value.status_pt[1] as f64 * mult * vs.train_stat) as i32,
-                (value.status_pt[2] as f64 * mult * vs.train_stat) as i32,
-                (value.status_pt[3] as f64 * mult * vs.train_stat) as i32,
-                (value.status_pt[4] as f64 * mult * vs.train_stat) as i32,
+                (value.status_pt[0] as f64 * mult) as i32,
+                (value.status_pt[1] as f64 * mult) as i32,
+                (value.status_pt[2] as f64 * mult) as i32,
+                (value.status_pt[3] as f64 * mult) as i32,
+                (value.status_pt[4] as f64 * mult) as i32,
             ]
         };
         // 彩圈增量：羁绊 ≥80 且得意的训练位，**按该卡真实友情加成%**结算
@@ -421,8 +382,7 @@ impl MatsuriGame {
                 stat[2],
                 stat[3],
                 stat[4],
-                (value.status_pt[5] as f64 * mult * vs.train_pt * pt_ratio * self.early_pt_scale())
-                    as i32,
+                (value.status_pt[5] as f64 * mult) as i32,
             ],
             vital: value.vital + vital_delta,
             ..Default::default()
@@ -433,9 +393,9 @@ impl MatsuriGame {
             // ④ 主属性 −10 ⑤ **随机另外 2 项各 −10**（实测掉了 速/耐/根 三项各 10）
             // ⑥ 获得「練習ベタ」⑦「練習上手○」被顶掉
             let raws = [0.0_f32; 5];
-            let mut picks: Vec<usize> = (0..5).filter(|i| *i != train as usize).collect();
+            let mut picks: Vec<usize> = (0..5).filter(|i| *i != train).collect();
             picks.shuffle(_rng);
-            let mut drop_idx = vec![train as usize];
+            let mut drop_idx = vec![train];
             drop_idx.extend(picks.into_iter().take(2));
             let _ = raws;
             let uma = self.uma_mut();
@@ -455,7 +415,12 @@ impl MatsuriGame {
         let bond_bonus = self.advice_value(16) as i32;
         if self.data.friend_gain_per_train > 0 || bond_bonus > 0 {
             let gain = self.data.friend_gain_per_train;
-            let dist = self.base.distribution.get(train).cloned().unwrap_or_default();
+            let dist = self
+                .base
+                .distribution
+                .get(train)
+                .cloned()
+                .unwrap_or_default();
             let n = self.persons.len();
             {
                 let bond_targets = self.bond_deck_indexes();
@@ -495,9 +460,14 @@ impl MatsuriGame {
         if aid <= 0 {
             return (1.0, 0, 0.0);
         }
-        let level = self.advice_level.get(act).copied().unwrap_or(1).clamp(1, 10);
+        let level = self
+            .advice_level
+            .get(act)
+            .copied()
+            .unwrap_or(1)
+            .clamp(1, 10);
         let mut gain = 0.0;
-        let mut vital = 0;
+        let vital = 0;
         let mut vital_pct = 0.0;
         for e in self
             .data
@@ -549,12 +519,16 @@ impl MatsuriGame {
             if aid <= 0 {
                 continue;
             }
-            let level = self.advice_level.get(act).copied().unwrap_or(1).clamp(1, 10);
-            for e in self
-                .data
-                .advice_effects
-                .iter()
-                .filter(|e| e.advice_id == aid && e.level == level && e.effect_type == effect_type)
+            let level = self
+                .advice_level
+                .get(act)
+                .copied()
+                .unwrap_or(1)
+                .clamp(1, 10);
+            for e in
+                self.data.advice_effects.iter().filter(|e| {
+                    e.advice_id == aid && e.level == level && e.effect_type == effect_type
+                })
             {
                 best = best.max(e.value as f64);
             }
@@ -570,14 +544,23 @@ impl MatsuriGame {
             if aid <= 0 {
                 continue;
             }
-            let level = self.advice_level.get(act).copied().unwrap_or(1).clamp(1, 10);
-            let has = self.data.advice_effects.iter().any(|e| {
-                e.advice_id == aid && e.level == level && e.effect_type == 205
-            });
+            let level = self
+                .advice_level
+                .get(act)
+                .copied()
+                .unwrap_or(1)
+                .clamp(1, 10);
+            let has = self
+                .data
+                .advice_effects
+                .iter()
+                .any(|e| e.advice_id == aid && e.level == level && e.effect_type == 205);
             if has && vital >= 50 - 5 * level {
-                let v = self.data.advice_effects.iter().find(|e| {
-                    e.advice_id == aid && e.level == level && e.effect_type == 205
-                });
+                let v = self
+                    .data
+                    .advice_effects
+                    .iter()
+                    .find(|e| e.advice_id == aid && e.level == level && e.effect_type == 205);
                 drop = drop.max(v.map(|e| e.value as f64).unwrap_or(100.0));
             }
         }
@@ -661,8 +644,7 @@ impl MatsuriGame {
     pub(crate) fn bump_lowest_act_level(&mut self) {
         let mut best = 0usize;
         for i in 1..5 {
-            if (self.act_level[i], self.act_gauge[i])
-                < (self.act_level[best], self.act_gauge[best])
+            if (self.act_level[i], self.act_gauge[i]) < (self.act_level[best], self.act_gauge[best])
             {
                 best = i;
             }
@@ -682,7 +664,8 @@ impl MatsuriGame {
         let level = self.act_level[idx].clamp(1, 10) as usize;
         // 排练基础值按时期两档（memo §3.2）：Junior 档 = 静态表 5101-5105；
         // Classic 以后档在 turn 23（Junior 进度汇报会后）切换，静态表里没有单列。
-        let table = if self.turn >= KEIKO_LATE_TURN && !self.data.keiko_basic_value_late.is_empty() {
+        let table = if self.turn >= KEIKO_LATE_TURN && !self.data.keiko_basic_value_late.is_empty()
+        {
             &self.data.keiko_basic_value_late
         } else {
             &self.data.keiko_basic_value
@@ -703,13 +686,7 @@ impl MatsuriGame {
                 sp_limit: 0,
                 base_limit: 0,
             });
-        let five_types = self
-            .base
-            .card_type_count
-            .iter()
-            .filter(|c| **c > 0)
-            .count()
-            >= 5;
+        let five_types = self.base.card_type_count.iter().filter(|c| **c > 0).count() >= 5;
         let sp_bonus = if five_types {
             (row[5] as f64 * (effect.sp_practice_pct as f64 + 100.0) / 100.0) as i32 - row[5]
         } else {
@@ -727,14 +704,19 @@ impl MatsuriGame {
                 return 0;
             }
             // 副属性（「〇〇ボーナス」）：只对本身有收益的维度按固定值相加
-            let with_bonus = base + if i < 5 { *buffs.bonus.get(i).unwrap_or(&0) } else { 0 };
+            let with_bonus = base
+                + if i < 5 {
+                    *buffs.bonus.get(i).unwrap_or(&0)
+                } else {
+                    0
+                };
             (with_bonus as f32
                 * (1.0 + 0.01 * (buffs.youqing + effect.friend_pct as f32))
                 * (1.0 + 0.01 * basic_motivation * (1.0 + 0.01 * buffs.ganjing as f32))
                 * (1.0 + 0.01 * buffs.xunlian as f32)
                 * (1.0 + 0.05 * person_count as f32)
                 * (1.0 + 0.01 * *growth.get(i).unwrap_or(&0) as f32))
-            .floor() as i32
+                .floor() as i32
         };
         let value = ActionValue {
             status_pt: [
@@ -761,23 +743,32 @@ impl MatsuriGame {
         let failed = roll < fail_rate;
         let (mult, vital_delta, vital_pct) = self.advice_mods(idx, false);
         let vital_delta = vital_delta + (value.vital as f64 * vital_pct / 100.0) as i32;
-        let vs = &self.data.value_scale;
         // 接近上限衰减：稽古收益同样随属性逼近上限递减（PT 不衰减）
         let limits = self.uma().five_status_limit;
         let cur = self.uma().five_status;
         let scaled = ActionValue {
             status_pt: [
-                (value.status_pt[0] as f64 * mult * vs.keiko_stat * self.keiko_growth(0)
+                (value.status_pt[0] as f64
+                    * mult
+                    * self.keiko_growth(0)
                     * self.cap_decay_factor(cur[0], limits[0])) as i32,
-                (value.status_pt[1] as f64 * mult * vs.keiko_stat * self.keiko_growth(1)
+                (value.status_pt[1] as f64
+                    * mult
+                    * self.keiko_growth(1)
                     * self.cap_decay_factor(cur[1], limits[1])) as i32,
-                (value.status_pt[2] as f64 * mult * vs.keiko_stat * self.keiko_growth(2)
+                (value.status_pt[2] as f64
+                    * mult
+                    * self.keiko_growth(2)
                     * self.cap_decay_factor(cur[2], limits[2])) as i32,
-                (value.status_pt[3] as f64 * mult * vs.keiko_stat * self.keiko_growth(3)
+                (value.status_pt[3] as f64
+                    * mult
+                    * self.keiko_growth(3)
                     * self.cap_decay_factor(cur[3], limits[3])) as i32,
-                (value.status_pt[4] as f64 * mult * vs.keiko_stat * self.keiko_growth(4)
+                (value.status_pt[4] as f64
+                    * mult
+                    * self.keiko_growth(4)
                     * self.cap_decay_factor(cur[4], limits[4])) as i32,
-                (value.status_pt[5] as f64 * mult * vs.keiko_pt * self.early_pt_scale()) as i32,
+                (value.status_pt[5] as f64 * mult) as i32,
             ],
             vital: value.vital + vital_delta,
             ..Default::default()
@@ -787,9 +778,9 @@ impl MatsuriGame {
             // 体力 +10（回复）、干劲 −1、该演目维度 −10 + 随机 2 项各 −10、
             // 获得「練習ベタ」，且**不清槽不升级**（花落实测）。
             //   ⚠️ 与花落转达的视频证据冲突：视频说失败「不给属性但演目Lv仍+1」，待复核。
-            let mut picks: Vec<usize> = (0..5).filter(|i| *i != idx as usize).collect();
+            let mut picks: Vec<usize> = (0..5).filter(|i| *i != idx).collect();
             picks.shuffle(_rng);
-            let mut drop_idx = vec![idx as usize];
+            let mut drop_idx = vec![idx];
             drop_idx.extend(picks.into_iter().take(2));
             let uma = self.uma_mut();
             uma.vital = (uma.vital + 10).min(uma.max_vital);
@@ -874,11 +865,12 @@ impl MatsuriGame {
         match self.stage {
             Stage::Begin => {
                 // 回合事件（与 BasicGame 同口径）
-                let mut turn_events = self.generate_events(&mut streams.event);
-                if self.turn == 77 {
-                    if let Ok(ending) = umaai_core::Data::get().and_then(|d| d.system_event("ending").cloned()) {
-                        self.base.unresolved_events.push(ending);
-                    }
+                let turn_events = self.generate_events(&mut streams.event);
+                if self.turn == 77
+                    && let Ok(ending) =
+                        umaai_core::Data::get().and_then(|d| d.system_event("ending").cloned())
+                {
+                    self.base.unresolved_events.push(ending);
                 }
                 for event in &turn_events {
                     self.run_event(event, trainer, decision, &mut streams.event)?;
@@ -909,9 +901,7 @@ impl MatsuriGame {
                         .and_then(|c| c.first_mut())
                         .map(|c| &mut c.value)
                     {
-                        for i in 0..5 {
-                            value.status_pt[i] = gains[i];
-                        }
+                        value.status_pt[..5].copy_from_slice(&gains);
                         value.status_pt[5] = pt;
                     }
                     // 演目槽：目标比赛 +4（官方口径 2026-10-31；落点 Lv 低→高、同级属性序）
@@ -935,13 +925,12 @@ impl MatsuriGame {
                     .advice_grant_turns
                     .iter()
                     .position(|t| *t == self.turn)
+                    && let Some(list) = self.data.advice_grant_order.get(idx)
                 {
-                    if let Some(list) = self.data.advice_grant_order.get(idx) {
-                        for (slot, aid) in list.iter().enumerate() {
-                            if slot < 5 {
-                                self.advice_id[slot] = *aid;
-                                self.advice_level[slot] = self.act_level[slot].clamp(1, 10);
-                            }
+                    for (slot, aid) in list.iter().enumerate() {
+                        if slot < 5 {
+                            self.advice_id[slot] = *aid;
+                            self.advice_level[slot] = self.act_level[slot].clamp(1, 10);
                         }
                     }
                 }
@@ -968,42 +957,41 @@ impl MatsuriGame {
                     .iter()
                     .find(|c| c.turn == self.turn)
                     .cloned()
+                    && self.act_level.iter().all(|lv| *lv >= cp.need)
                 {
-                    if self.act_level.iter().all(|lv| *lv >= cp.need) {
-                        let great = self.act_level.iter().all(|lv| *lv > cp.need);
-                        let buff = if great { cp.great } else { cp.success };
-                        self.gain_pct += buff.gain_pct as f64 / 100.0;
-                        // 午式駿大祭（第 3 场，cp.schedule == 3）：成功 +30% / 大成功 +100% レースボーナス
-                        if cp.schedule == 3 {
-                            self.race_bonus = if great { 1.00 } else { 0.30 };
+                    let great = self.act_level.iter().all(|lv| *lv > cp.need);
+                    let buff = if great { cp.great } else { cp.success };
+                    self.gain_pct += buff.gain_pct as f64 / 100.0;
+                    // 午式駿大祭（第 3 场，cp.schedule == 3）：成功 +30% / 大成功 +100% レースボーナス
+                    if cp.schedule == 3 {
+                        self.race_bonus = if great { 1.00 } else { 0.30 };
+                    }
+                    // 达标实数奖励（官方 Wiki 文案，见 docs/plan/intake.md）
+                    // t24 = 全能力+5 / PT+200 / トレLv+1
+                    // t48 = 全能力+10 / PT+300 / トレLv+1
+                    // t68 = 全能力+15 / PT+400 / 体力+30 / やる気+1
+                    if cp.all_stat > 0 {
+                        let limits = self.uma().five_status_limit;
+                        let uma = self.uma_mut();
+                        for (st, lim) in uma.five_status.iter_mut().zip(limits.iter()) {
+                            *st = (*st + cp.all_stat).min(*lim);
                         }
-                        // 达标实数奖励（官方 Wiki 文案，见 docs/plan/intake.md）
-                        // t24 = 全能力+5 / PT+200 / トレLv+1
-                        // t48 = 全能力+10 / PT+300 / トレLv+1
-                        // t68 = 全能力+15 / PT+400 / 体力+30 / やる気+1
-                        if cp.all_stat > 0 {
-                            let limits = self.uma().five_status_limit;
-                            let uma = self.uma_mut();
-                            for i in 0..5 {
-                                uma.five_status[i] = (uma.five_status[i] + cp.all_stat).min(limits[i]);
-                            }
+                    }
+                    if cp.pt > 0 {
+                        self.uma_mut().skill_pt += cp.pt;
+                    }
+                    if cp.train_lv > 0 {
+                        // 训练等级 = 1 + count/4，所以每 +1 级 = count +4
+                        for t in 0..5 {
+                            self.base.train_level_count[t] += cp.train_lv * 4;
                         }
-                        if cp.pt > 0 {
-                            self.uma_mut().skill_pt += cp.pt;
-                        }
-                        if cp.train_lv > 0 {
-                            // 训练等级 = 1 + count/4，所以每 +1 级 = count +4
-                            for t in 0..5 {
-                                self.base.train_level_count[t] += cp.train_lv * 4;
-                            }
-                        }
-                        if cp.vital > 0 {
-                            let uma = self.uma_mut();
-                            uma.vital = (uma.vital + cp.vital).min(uma.max_vital);
-                        }
-                        if cp.motivation > 0 {
-                            self.uma_mut().add_motivation(cp.motivation);
-                        }
+                    }
+                    if cp.vital > 0 {
+                        let uma = self.uma_mut();
+                        uma.vital = (uma.vital + cp.vital).min(uma.max_vital);
+                    }
+                    if cp.motivation > 0 {
+                        self.uma_mut().add_motivation(cp.motivation);
                     }
                 }
                 // 事件链留待后续（`streams.event`）
@@ -1032,8 +1020,20 @@ impl MatsuriGame {
 ///
 /// 数据根与配置由宿主注入：本函数只读宿主给的 [`Config`] 与 [`MatsuriData`]，不碰任何路径。
 pub fn build_game(cfg: &Config, data: Arc<MatsuriData>) -> Result<MatsuriGame> {
+    build_game_for_uma(cfg, data, cfg.sim.uma)
+}
+
+/// 按指定马娘 id 装配一局（配置里的 `cfg.sim.uma` 只是示例马娘）
+///
+/// 宿主按真实局面装配时用本函数：面板报文里的 `chara_id` 才是这局的马娘，
+/// 成长率 / 初始五维 / 生涯赛程都跟它走。
+pub fn build_game_for_uma(
+    cfg: &Config,
+    data: Arc<MatsuriData>,
+    uma_id: u32,
+) -> Result<MatsuriGame> {
     MatsuriGame::newgame(
-        cfg.sim.uma,
+        uma_id,
         &cfg.sim.cards,
         cfg.inherit(),
         cfg.race_grades()?,
@@ -1087,8 +1087,7 @@ mod tests {
                 let row = game.data.training_basic_value[train][lv - 1];
                 let expected = (row[train] as f64 * (1.0 + 0.01 * bonus[train] as f64)).floor();
                 assert_eq!(
-                    v.status_pt[train] as f64,
-                    expected,
+                    v.status_pt[train] as f64, expected,
                     "训练 {train} Lv{lv} 应取到基础表第 {lv} 行"
                 );
             }

@@ -246,14 +246,18 @@
   memo 沉默**不等于该机制不存在**（本条依据是报文判据），但它是本轮证据最弱的一环，
   **下午需拿报文重验**；若找不到干净判据，应改用 `sp_limit`/`base_limit` 模型。
   见 [`ref/README.md`](ref/README.md) §五 与 [`TODO_20261101_pm.md`](TODO_20261101_pm.md) 步骤 3。
-- **❗清单外新发现（2026-11-01，未修）：`train_pt` / `keiko_pt` 把训练与稽古的 PT 关系装反了。**
-  一手报文 clean 窗口（单一请求 + 无 `choice_reward_array`/`race_add_reward`/`race_reward` 污染，
-  全部 `n_resp ≤ 6`）实测每动作 PT：**稽古 n=182 中位 89 / 均值 111.7；训练 n=140 中位 22 / 均值 25.4**
-  ⇒ 真机 **稽古 ≈ 4.0× 训练**。而 `training_basic_value` 与 `keiko_basic_value` 的基础 PT
-  （`status_pt[5]`）分别是 `[9,10,13,7,9]` 与 `[9,10,10,10,8]`，**两边几乎相同**，
-  差异全部来自 `value_scale.train_pt = 7.35` / `keiko_pt = 1.00` ⇒ 模拟 **训练 ≈ 7.5× 稽古**。
-  方向相反、量级差约 30 倍。这是 dist 门禁 PT +1643（9982 vs 8339）的主要嫌疑源。
-  **本轮未改**：`train_pt` 属既有拟合系数，改动超出 P0-1/P0-2 范围，需单独裁决。
+- **✅ 已修（2026-11-01 晚，步骤 2）**：`train_pt` / `keiko_pt` 这两个拟合系数**已删**
+  —— `value_scale` 接线整体移除（`do_train` / `do_keiko_impl` 里的
+  `vs.train_stat` / `vs.train_pt` / `vs.keiko_stat` / `vs.keiko_pt`），
+  `pt_ratio`（用 PT 锚点归一）与 `early_pt_scale` 一并删；`value_scale` 字段留在
+  `data/scenario_matsuri.json` 但值全为 1.0、**不再参与任何结算**（旧诊断脚本仍读写它）。
+  依据：t30 面板快照 16 个分量**逐格残差 0**（`tools/variant_pt.py`）——
+  引擎 `default_calc_training_value` 原样即命中，无需任何上层乘区或系数。
+  门禁（t30 参考局 N=4000、seed 0 同抽样）：PT **9,167 → 6,860**（-2,307），
+  对真实 8,339 的偏差由 **+9.9% 翻到 -17.7%**。
+  ⇒ 真机「稽古 ≈ 4.0× 训练」里的**训练那一半现在是对的**（引擎训练 PT 与真机中位 22 同量级）；
+  剩下的缺口集中在**稽古 PT**（引擎基础 PT 9~10 → 结算约 30，真机中位 89），
+  属步骤 5「稽古 / SP 效果」那条线，不是系数问题。
   证据文件：`E:/HJM/_verify_p0/actions.json`（1984 窗口 / 8 局）、`pt_by_source.json`、
   `PT来源对照_20261101.xlsx`；抽取器 `build_actions.py`、汇总 `summarize_pt.py`。
 - **门禁 PT 口径已核清（2026-11-01）**：参考局是 **run 179 / cid179**，终局五维

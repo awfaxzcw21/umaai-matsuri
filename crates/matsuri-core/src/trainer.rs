@@ -114,35 +114,32 @@ impl MatsuriRolloutTrainer {
         //    （放在発表会截止之前：前期凹羁绊是长期投资，発表会前 15 回合才紧张）
         if game.data.friend_window > 0 && game.turn < game.data.friend_window {
             let near_shining = |t: usize| -> bool {
-                game.distribution().get(t).map_or(false, |d| {
+                game.distribution().get(t).is_some_and(|d| {
                     d.iter().any(|p| {
                         *p >= 0
-                            && game.persons.get(*p as usize).map_or(false, |person| {
+                            && game.persons.get(*p as usize).is_some_and(|person| {
                                 person.card_id.is_some() && person.friendship < 80
                             })
                     })
                 })
             };
-            if let Some(idx) = (0..5usize)
-                .filter(|&i| near_shining(i))
-                .min_by_key(|&i| {
-                    // 优先羁绊最低的支援卡所在的训练（凹最需要的那张）
-                    let min_bond = game
-                        .distribution()
-                        .get(i)
-                        .map(|d| {
-                            d.iter()
-                                .filter(|p| **p >= 0)
-                                .filter_map(|p| game.persons.get(*p as usize))
-                                .filter(|person| person.card_id.is_some())
-                                .map(|person| person.friendship)
-                                .min()
-                                .unwrap_or(100)
-                        })
-                        .unwrap_or(100);
-                    (min_bond, i)
-                })
-            {
+            if let Some(idx) = (0..5usize).filter(|&i| near_shining(i)).min_by_key(|&i| {
+                // 优先羁绊最低的支援卡所在的训练（凹最需要的那张）
+                let min_bond = game
+                    .distribution()
+                    .get(i)
+                    .map(|d| {
+                        d.iter()
+                            .filter(|p| **p >= 0)
+                            .filter_map(|p| game.persons.get(*p as usize))
+                            .filter(|person| person.card_id.is_some())
+                            .map(|person| person.friendship)
+                            .min()
+                            .unwrap_or(100)
+                    })
+                    .unwrap_or(100);
+                (min_bond, i)
+            }) {
                 return Action::Train(idx as u8);
             }
         }
@@ -153,15 +150,13 @@ impl MatsuriRolloutTrainer {
             .iter()
             .find(|c| c.turn >= game.turn)
             .cloned();
-        if let Some(cp) = need {
-            if cp.turn - game.turn <= 15 {
-                if let Some(idx) = (0..5usize)
-                    .filter(|i| game.act_level[*i] < cp.need)
-                    .min_by_key(|i| (game.act_level[*i], -game.act_gauge[*i], *i))
-                {
-                    return Action::Train(idx as u8);
-                }
-            }
+        if let Some(cp) = need
+            && cp.turn - game.turn <= 15
+            && let Some(idx) = (0..5usize)
+                .filter(|i| game.act_level[*i] < cp.need)
+                .min_by_key(|i| (game.act_level[*i], -game.act_gauge[*i], *i))
+        {
+            return Action::Train(idx as u8);
         }
         // 5) 平衡五维：练「离上限最远」的训练（相对缺口 cur/limit 最小 = 最缺），
         //    配合 do_train/do_keiko 的 `cap_decay` 衰减，接近上限的维度收益递减，

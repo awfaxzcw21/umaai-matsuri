@@ -29,7 +29,7 @@ pub mod trainer;
 
 pub use config::MatsuriConfig;
 pub use data::MatsuriData;
-pub use game::{Action, MatsuriGame, MatsuriView, Stage, build_game};
+pub use game::{Action, MatsuriGame, MatsuriView, Stage, build_game, build_game_for_uma};
 pub use trainer::MatsuriTrainer;
 
 /// 育成最大回合（0 基，78 回合）；后续实现按自己的赛程改

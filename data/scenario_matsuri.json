@@ -914,8 +914,8 @@
     }
   ],
   "value_scale": {
-    "train_stat": 2.22,
-    "train_pt": 7.35,
+    "train_stat": 1.0,
+    "train_pt": 1.0,
     "keiko_stat": 1.0,
     "keiko_pt": 1.0
   },
@@ -934,7 +934,6 @@
     ]
   },
   "soft_cap": 1200,
-  "early_pt_scale": 1.5,
   "cap_decay": 350.0,
   "cap_decay_floor": 0.15,
   "friend_gain_per_train": 4,

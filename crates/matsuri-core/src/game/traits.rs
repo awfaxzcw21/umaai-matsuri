@@ -11,7 +11,6 @@ use umasim::game::{
     Game, StageId, SupportCard, Trainer, TrainingBasicTable, TrainingValueSource, Uma,
 };
 use umasim::search::FlatSearchGame;
-use umasim::trainer::RandomTrainer;
 
 use super::{ACT_GAUGE_MAX, Action, MatsuriGame, Stage};
 use crate::MAX_TURN;
@@ -90,9 +89,7 @@ impl Game for MatsuriGame {
         let mut lit = [false; 5];
         for idx in 0..5u8 {
             // 演目槽满 → 稽古作为可选动作（官方：gauge 满才亮）
-            if self.act_gauge[idx as usize] >= ACT_GAUGE_MAX
-                && self.act_level[idx as usize] < 10
-            {
+            if self.act_gauge[idx as usize] >= ACT_GAUGE_MAX && self.act_level[idx as usize] < 10 {
                 lit[idx as usize] = true;
                 actions.push(Action::Keiko(idx));
             }
@@ -164,10 +161,10 @@ impl Game for MatsuriGame {
                 }
             }
             Ok(2) => {
-                if self.turn >= 12 {
-                    if let Ok(event) = data.system_event("drop_motivation") {
-                        events.push(event.clone());
-                    }
+                if self.turn >= 12
+                    && let Ok(event) = data.system_event("drop_motivation")
+                {
+                    events.push(event.clone());
                 }
             }
             _ => {}

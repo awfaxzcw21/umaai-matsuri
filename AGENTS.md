@@ -53,6 +53,7 @@
 | `crates/matsuri-ai` | 在线决策：帧段解析 / Session 接线 / 决策循环；只出 lib |
 | `crates/matsuri-cli` | 终端入口：bin `matsuri`（切 `matsuri` / `random` / `manual`） |
 | `crates/matsuri-cli/src/manual.rs` | 无颜色手动训练员（人工核对机制） |
+| `crates/matsuri-cli/src/{lib,state}.rs` | 面板状态 → 引擎局面的共享装配（两个 bin 共用；lib target 供回归测试进） |
 | `crates/matsuri-tools` | 外围工具：测卡 / 复盘；单 bin 多子命令 |
 
 - **契约 trait impl 不可拆文件**：一个 trait 的 `impl` 必须整体落在同一文件。

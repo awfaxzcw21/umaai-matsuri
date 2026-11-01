@@ -12,7 +12,7 @@
 |---|---|---|
 | `matsuri-core` | 内联单测 + `tests/mechanics.rs`（机制集成） | 内联单测已有；机制集成待补 |
 | `matsuri-sim` | `tests/baseline.rs`（固定种子基线） | 待补 |
-| `matsuri-cli` | `tests/smoke.rs`（一局冒烟 + 可复现） | 待补 |
+| `matsuri-cli` | `tests/state_t30.rs`（t30 参考局回归）/ `tests/smoke.rs`（一局冒烟 + 可复现） | 已有 t30 回归；冒烟待补 |
 | `matsuri-ai` / `matsuri-tools` | 骨架，暂无 | — |
 
 ## 2. 单元测试（内联）
@@ -31,6 +31,15 @@
 | 用例 | 守门内容 | 对应机制文档 |
 |---|---|---|
 | `<待补>` | 演目 / gauge / 稽古 / 教え / 合宿 / 発表会 | `mechanism.md` §1–§6 |
+
+## 3.5 参考局回归（`cli/tests/state_t30.rs`）
+
+> fixture = `cli/tests/data/state_t30.json`（面板 `_state_t30.json` 快照）。
+> 守门的是「引擎训练值 == 游戏自己的预测值」，不是任何拟合系数。
+
+| 用例 | 守门内容 | 对应机制文档 |
+|---|---|---|
+| `t30_engine_value_matches_panel_truth` | 装配后 5 条训练命令的引擎值逐格等于面板真值（16 个非零分量）；同时钉住马娘 = 报文 `chara_id`（106301）、成长率 `[0,0,0,20,10]`、训练设施 Lv2、人数加成 = 支援卡 + 嘉宾（剧本 NPC 枠 101..115 不计） | `mechanism.md` §3.3 |
 
 ## 4. 冒烟与基线
 

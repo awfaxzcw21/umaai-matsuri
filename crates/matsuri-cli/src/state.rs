@@ -7,15 +7,24 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use matsuri_core::game::MatsuriGame;
-use matsuri_core::{build_game, MatsuriData};
+use matsuri_core::{MatsuriData, build_game_for_uma};
 use umaai::Config;
 use umaai_core::{Data, RaceMask};
-use umasim::game::Game;
+use umasim::game::base::BasePerson;
+use umasim::game::{Game, PersonType};
 
 const DATA_ROOT: &str = "data";
+
+/// 面板训练名 → 引擎训练下标（速 / 耐 / 力 / 根 / 智）
+const TRAINS: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
+
+/// 报文人头 id 里「嘉宾本人」的起点（4 位数角色 id）
+///
+/// 3 位数（101..115）是剧本 NPC 人头枠、1..6 是支援卡位，都不是嘉宾。
+const GUEST_ID_MIN: i64 = 1000;
 
 /// 装配结果：引擎局面 + 面板 1 基回合号 + 兜底/校准备注。
 pub struct LoadedState {
@@ -77,41 +86,45 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
                     .and_then(|x| x.as_i64())
                     .unwrap_or(4)
                     .clamp(0, 4) as u32;
-                if let Some(map) = &carddb {
-                    if let Some(entry) = map.get(&id.to_string()) {
-                        if let Some(len) = entry
-                            .get("cardValue")
-                            .and_then(|cv| cv.as_array())
-                            .map(|a| a.len())
-                        {
-                            rank = rank.min(len.saturating_sub(1) as u32);
-                        }
-                    }
+                if let Some(map) = &carddb
+                    && let Some(entry) = map.get(&id.to_string())
+                    && let Some(len) = entry
+                        .get("cardValue")
+                        .and_then(|cv| cv.as_array())
+                        .map(|a| a.len())
+                {
+                    rank = rank.min(len.saturating_sub(1) as u32);
                 }
                 deck_ids.push(id * 10 + rank);
             }
         }
     }
     // 卡表可能缺新卡：先把卡表里不存在的卡剔掉，再装配
-    if !deck_ids.is_empty() {
-        if let Ok(raw) = std::fs::read_to_string(format!("{DATA_ROOT}/cardDB.json")) {
-            if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&raw) {
-                // 先收集缺失的卡号再剔除：之前这条日志把「卡组张数」当成卡号打出来了，
-                // 看到「缺失 1 张卡（6）」根本不知道是哪张，白查一轮。
-                let missing: Vec<u32> = deck_ids
-                    .iter()
-                    .filter(|idr| !map.contains_key(&(**idr / 10).to_string()))
-                    .map(|idr| idr / 10)
-                    .collect();
-                deck_ids.retain(|idr| map.contains_key(&(idr / 10).to_string()));
-                if !missing.is_empty() {
-                    eprintln!("卡表缺失 {} 张卡，已从卡组剔除：{:?}", missing.len(), missing);
-                }
-            }
+    if !deck_ids.is_empty()
+        && let Ok(raw) = std::fs::read_to_string(format!("{DATA_ROOT}/cardDB.json"))
+        && let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&raw)
+    {
+        // 先收集缺失的卡号再剔除：之前这条日志把「卡组张数」当成卡号打出来了，
+        // 看到「缺失 1 张卡（6）」根本不知道是哪张，白查一轮。
+        let missing: Vec<u32> = deck_ids
+            .iter()
+            .filter(|idr| !map.contains_key(&(**idr / 10).to_string()))
+            .map(|idr| idr / 10)
+            .collect();
+        deck_ids.retain(|idr| map.contains_key(&(idr / 10).to_string()));
+        if !missing.is_empty() {
+            eprintln!(
+                "卡表缺失 {} 张卡，已从卡组剔除：{:?}",
+                missing.len(),
+                missing
+            );
         }
     }
     let mut deck_fallback = false;
-    let mut game = build_game(&cfg, data).context("装配对局失败")?;
+    // ★马娘：报文里的 `chara_id` 才是这局的马娘（配置里的 `cfg.sim.uma` 只是示例马娘，
+    // 成长率 / 初始五维 / 生涯赛程全跟它走，装错人整套数值都会错位）
+    let mut game =
+        build_game_for_uma(&cfg, data, panel_uma_id(&v, &cfg)).context("装配对局失败")?;
 
     // 用报文里的真实支援卡替换引擎默认卡组（缺卡的槽位跳过）
     {
@@ -135,66 +148,120 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
         } else {
             deck_fallback = true;
         }
-    // 用报文里的人和站位/羁绊校准模型，否则 MCTS 看不见友情/提示（会得出与实测相反的结论）
-    {
-        const TRAINS: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
-        let bonds = v.get("bonds").and_then(|b| b.as_object());
-        if let Some(cmds) = v.get("commands").and_then(|x| x.as_array()) {
-            for c in cmds {
-                let Some(name) = c.get("train").and_then(|x| x.as_str()) else { continue };
-                let Some(idx) = TRAINS.iter().position(|t| *t == name) else { continue };
-                // B2 分源：真实训练 PT 收益快照（面板 skill_point，含得意/等级/教え/発表会全加成）
-                if let Some(sp) = c.get("skill_point").and_then(|x| x.as_i64()) {
-                    game.train_pt_anchor[idx] = sp as i32;
-                }
-                // 3b：真实训练五维收益快照（面板 stat_gains，同样是全加成真值）
-                if let Some(sg) = c.get("stat_gains").and_then(|x| x.as_object()) {
-                    for (i, name) in TRAINS.iter().enumerate() {
-                        if let Some(val) = sg.get(*name).and_then(|x| x.as_i64()) {
-                            game.train_stat_anchor[idx][i] = val as i32;
-                        }
-                    }
-                }
-                if let Some(ids) = c.get("partner_ids").and_then(|x| x.as_array()) {
-                    for id in ids {
-                        let Some(idv) = id.as_i64() else { continue };
-                        for p in game.persons.iter_mut() {
-                            if p.chara_id as i64 == idv {
-                                p.train_type = idx as i32;
-                            }
-                        }
-                    }
+    }
+
+    // ---- 人头与分布：按报文的 partner_id 重建 ----
+    // 报文 `training_partner_array`（= 面板 `commands[].partner_ids`）混着三套 id：
+    //   1..=6      支援卡位置（`persons` 前缀，与 `deck` 逐槽同序）
+    //   101..=115  剧本 NPC 人头枠（9001..9050 池）：**不进人数加成**
+    //   4 位数     嘉宾本人（角色 id 自身）：进人数加成、不提供卡加成
+    // NPC 枠不进人数加成：t30 实证——力量位 5 个人头（2 卡 + NPC 枠 102 + 2 嘉宾），
+    // 面板 stat_gains 对应的 N 是 4（NPC 枠 102/103 坐的是 9002 秋川理事长 / 9003 乙名史记者，
+    // 引擎 `count_training_persons` 同样排除理事长与记者）。
+    let cmds = v
+        .get("commands")
+        .and_then(|x| x.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let bonds = v
+        .get("bonds")
+        .and_then(|x| x.as_object())
+        .cloned()
+        .unwrap_or_default();
+    let mut dist: Vec<Vec<i32>> = vec![Vec::new(); 5];
+    let mut guests: HashMap<i64, usize> = HashMap::new();
+    for c in &cmds {
+        let Some(name) = c.get("train").and_then(|x| x.as_str()) else {
+            continue;
+        };
+        let Some(t) = TRAINS.iter().position(|x| *x == name) else {
+            continue;
+        };
+        // 训练设施等级 → train_level_count（引擎 `train_level = count/4 + 1`）
+        if let Some(lv) = c.get("level").and_then(|x| x.as_i64()) {
+            game.base.train_level_count[t] = ((lv - 1).max(0) * 4) as i32;
+        }
+        // 真实五维收益快照（面板 stat_gains：游戏算好的全加成真值）
+        if let Some(sg) = c.get("stat_gains").and_then(|x| x.as_object()) {
+            for (i, n) in TRAINS.iter().enumerate() {
+                if let Some(val) = sg.get(*n).and_then(|x| x.as_i64()) {
+                    game.train_stat_anchor[t][i] = val as i32;
                 }
             }
         }
-        // 羁绊快照 → 人头 → 卡组。
-        // 报文里的 training_partner_id 有两套 id：支援卡给的是「卡位」（1..=6），
-        // 剧本追加人头给的是 chara_id（4 位数）。之前只按 chara_id 匹配，支援卡一条都对不上，
-        // 导致 deck[].friendship 一直是卡面 initial_jiban —— 支援卡固有（unique_effect_type 1|2）
-        // 的「羁绊 ≥ 80 触发词条」永远不生效（t38 那套卡 4 张卡阈值都是 80，快照全是 100）。
-        if let Some(bs) = bonds {
-            const DECK_SLOTS: i64 = 6;
-            let chara_ids: Vec<i64> = game.persons.iter().map(|p| p.chara_id as i64).collect();
-            for (k, val) in bs.iter() {
-                let Some(idv) = k.parse::<i64>().ok() else { continue };
-                let Some(f) = val.as_i64() else { continue };
-                let idx = if (1..=DECK_SLOTS).contains(&idv) {
-                    (idv - 1) as usize
-                } else if let Some(i) = chara_ids.iter().position(|c| *c == idv) {
-                    i
-                } else {
-                    continue;
-                };
-                if idx < game.persons.len() {
-                    game.persons[idx].friendship = f as i32;
-                }
-            }
-            let n = game.base.deck.len().min(game.persons.len());
-            for i in 0..n {
-                game.base.deck[i].friendship = game.persons[i].friendship;
+        // 人头：partner_id → persons 下标
+        for id in c
+            .get("partner_ids")
+            .and_then(|x| x.as_array())
+            .into_iter()
+            .flatten()
+        {
+            let Some(idv) = id.as_i64() else { continue };
+            let idx = if (1..=6).contains(&idv) {
+                (idv - 1) as usize
+            } else if idv >= GUEST_ID_MIN {
+                // 嘉宾：同一角色只追加一次（追加到 persons 尾部 = 非卡人头区）
+                *guests.entry(idv).or_insert_with(|| {
+                    let bond = bonds
+                        .get(&idv.to_string())
+                        .and_then(|x| x.as_i64())
+                        .unwrap_or(0);
+                    game.add_person(BasePerson {
+                        person_index: 0,
+                        person_type: PersonType::Npc,
+                        train_type: -1,
+                        chara_id: idv as u32,
+                        friendship: bond as i32,
+                        is_hint: false,
+                        card_id: None,
+                    });
+                    game.persons.len() - 1
+                })
+            } else {
+                continue; // 剧本 NPC 人头枠：不进分布
+            };
+            if idx < game.persons.len() && !dist[t].contains(&(idx as i32)) {
+                dist[t].push(idx as i32);
             }
         }
     }
+    game.base.distribution = dist;
+
+    // 羁绊快照 → 人头 → 卡组（支援卡固有「羁绊 ≥ 80 触发词条」吃卡面羁绊）
+    for (k, val) in &bonds {
+        let Some(idv) = k.parse::<i64>().ok() else {
+            continue;
+        };
+        let Some(f) = val.as_i64() else { continue };
+        if !(1..=6).contains(&idv) {
+            continue; // 嘉宾羁绊在追加时写入；NPC 枠不建模
+        }
+        let idx = (idv - 1) as usize;
+        if idx < game.persons.len() {
+            game.persons[idx].friendship = f as i32;
+        }
+    }
+    let n = game.base.deck.len().min(game.persons.len());
+    for i in 0..n {
+        game.base.deck[i].friendship = game.persons[i].friendship;
+    }
+
+    // 叹号（提示卡）：报文的 tips_event_partner_array 给的是卡位
+    for c in &cmds {
+        for id in c
+            .get("tips_ids")
+            .and_then(|x| x.as_array())
+            .into_iter()
+            .flatten()
+        {
+            let Some(idv) = id.as_i64() else { continue };
+            if (1..=6).contains(&idv) {
+                let i = (idv - 1) as usize;
+                if i < game.persons.len() {
+                    game.persons[i].is_hint = true;
+                }
+            }
+        }
     }
 
     // ---- 用面板状态覆盖局面 ----
@@ -202,7 +269,7 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
     // 面板 turn 是 1 基（chara_info.turn），引擎是 0 基
     let panel_turn = turn;
     game.base.turn = (turn - 1).clamp(0, 77);
-    // 记录起点回合：`early_pt_scale` 只在早局（面板 t30 前）启用
+    // 记录起点回合（0 基，面板 turn−1）
     game.start_turn = game.base.turn;
     let uma = game.base.uma.clone();
     let stats: HashMap<String, i64> = v
@@ -220,8 +287,14 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
             u.five_status[i] = stats.get(*n).copied().unwrap_or(0) as i32;
             u.five_status_limit[i] = caps.get(*n).copied().unwrap_or(1200) as i32;
         }
-        u.vital = v.get("vital").and_then(|x| x.as_i64()).unwrap_or(uma.vital as i64) as i32;
-        u.max_vital = v.get("max_vital").and_then(|x| x.as_i64()).unwrap_or(uma.max_vital as i64) as i32;
+        u.vital = v
+            .get("vital")
+            .and_then(|x| x.as_i64())
+            .unwrap_or(uma.vital as i64) as i32;
+        u.max_vital = v
+            .get("max_vital")
+            .and_then(|x| x.as_i64())
+            .unwrap_or(uma.max_vital as i64) as i32;
         u.skill_pt = v.get("skill_point").and_then(|x| x.as_i64()).unwrap_or(0) as i32;
         u.motivation = match v.get("motivation").and_then(|x| x.as_str()).unwrap_or("") {
             "绝好调" => 5,
@@ -237,16 +310,19 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
     // 窗口（11..=74）外的终盘比赛仍由 is_race_turn 的 73/75/77 兜底。
     let want_turns = schedule_turns(&v);
     let mut schedule_note = Value::Null;
-    if !want_turns.is_empty() {
-        if let Ok(mask) = RaceMask::from_turns(&want_turns) {
-            let have: Vec<i32> = (RaceMask::MIN_TURN..=RaceMask::MAX_TURN)
-                .filter(|t| uma.career_races.contains_turn(*t))
-                .collect();
-            if have != want_turns {
-                game.uma_mut().career_races = mask;
-                eprintln!("赛程校准（报了 {} 场）：{have:?} → {want_turns:?}", want_turns.len());
-                schedule_note = json!({"before": have, "after": want_turns});
-            }
+    if !want_turns.is_empty()
+        && let Ok(mask) = RaceMask::from_turns(&want_turns)
+    {
+        let have: Vec<i32> = (RaceMask::MIN_TURN..=RaceMask::MAX_TURN)
+            .filter(|t| uma.career_races.contains_turn(*t))
+            .collect();
+        if have != want_turns {
+            game.uma_mut().career_races = mask;
+            eprintln!(
+                "赛程校准（报了 {} 场）：{have:?} → {want_turns:?}",
+                want_turns.len()
+            );
+            schedule_note = json!({"before": have, "after": want_turns});
         }
     }
     if let Some(acts) = v.get("acts").and_then(|x| x.as_array()) {
@@ -265,18 +341,6 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
         }
     }
 
-    // 人头分布（count_training_persons 依赖它，空 vec 会按 0 人结算）
-    game.base.distribution = (0..5usize)
-        .map(|t| {
-            game.persons
-                .iter()
-                .enumerate()
-                .filter(|(_, p)| p.train_type == t as i32)
-                .map(|(i, _)| i as i32)
-                .collect::<Vec<i32>>()
-        })
-        .collect();
-
     // 起步彩圈快照：报文的 stat_gains 已含起步彩圈，涨羁绊/新增彩圈只能给「增量」加成，
     // 否则对起步就彩圈的卡双重计算（见 do_train 的 shining_mult：按真实 youqing% 增量结算）。
     game.capture_initial_shining();
@@ -287,4 +351,18 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
         deck_fallback,
         schedule_note,
     })
+}
+
+/// 面板报文里的马娘 id（`chara_id`）；查不到就退回配置里的示例马娘
+fn panel_uma_id(v: &Value, cfg: &Config) -> u32 {
+    let id = v.get("chara_id").and_then(|x| x.as_u64()).unwrap_or(0) as u32;
+    if id > 0 && Data::get().is_ok_and(|d| d.get_uma(id).is_ok()) {
+        id
+    } else {
+        eprintln!(
+            "马娘 id {id} 不在 umaDB 里，回退配置示例马娘 {}",
+            cfg.sim.uma
+        );
+        cfg.sim.uma
+    }
 }

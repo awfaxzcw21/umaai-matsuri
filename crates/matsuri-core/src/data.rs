@@ -50,7 +50,11 @@ pub struct MatsuriData {
     /// 発表会
     #[serde(default)]
     pub check_points: Vec<CheckPointDef>,
-    /// 数值缩放（锚定 action_log 实测均值）
+    /// 数值缩放（**已停用**，2026-11-01 步骤 2）
+    ///
+    /// 训练 / 稽古结算不再读它：下段改用引擎 `default_calc_training_value` 原样
+    /// （§3.3 残差分析逐格命中面板真值，见 `docs/TODO_20261101_pm.md` 步骤 2）。
+    /// 字段保留只为旧诊断脚本仍能读写同一份 JSON；**不要再往里填系数**。
     #[serde(default)]
     pub value_scale: ValueScale,
     /// 报文五维快照的补偿系数（3b）
@@ -85,13 +89,6 @@ pub struct MatsuriData {
     /// `0` = 关闭。
     #[serde(default = "default_soft_cap")]
     pub soft_cap: i32,
-    /// 早局（起点回合 < 29）的训练/稽古 PT 补偿系数
-    ///
-    /// 引擎 `train_pt`/`keiko_pt` 是按 t38 前后标定的：从早局起步时整体 PT 偏低约 20%，
-    /// 而晚局起步已偏高，故只在起点回合 < 29（面板 t30 前）时放大。
-    /// `1.0`（默认）= 不补偿。
-    #[serde(default = "one")]
-    pub early_pt_scale: f64,
     /// 训练/稽古接近上限的收益衰减半衰距离（剧本 15 专属防偏科机制）
     ///
     /// 引擎 `calc_training_value` 是静态表、不看当前属性/五维上限，导致搜索一直堆

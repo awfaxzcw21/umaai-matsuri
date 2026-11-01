@@ -5,16 +5,16 @@
 //! 状态字段与黑板现有的 `_mc_state.json` 对齐（turn/vital/stats/stat_caps/skill_point/acts）。
 
 use anyhow::{Context, Result};
-use rand::rngs::StdRng;
 use rand::SeedableRng;
-use serde_json::{json, Value};
+use rand::rngs::StdRng;
+use serde_json::{Value, json};
 
 use matsuri_core::game::{Action, MatsuriGame};
+use matsuri_core::trainer::MatsuriRolloutTrainer;
 use umasim::game::Game;
 use umasim::search::{FlatSearch, FlatSearchGame, SearchConfig};
-use matsuri_core::trainer::MatsuriRolloutTrainer;
 
-mod state;
+use matsuri_cli::state;
 
 /// 动作 → 面板用的中文标签（与黑板规则引擎同口径）
 fn label_of(a: &Action) -> String {
@@ -51,21 +51,26 @@ fn to_next_train(g: &mut MatsuriGame, seed: u64) -> Result<bool> {
 /// CRN 做法：同一次 `fork_for_rollout(seed)` + 根动作 + 推进到下一个决策点，得到 `base`；
 /// 各子动作都从 `base.clone()` 分叉，因此子动作之间的差异不含「未来事件抽签」的噪声。
 /// 单步（1-ply）：官方 FlatSearch 只在根节点评估每个动作（UCB + rollout）。
+/// 一行搜索结果：动作标签 / 均值 / 标准误 / 采样数
+type Row = (String, f64, f64, u32);
+
 fn one_ply_rows(
     game: &MatsuriGame,
     actions: &[Action],
     search_n: usize,
-) -> Result<(Vec<(String, f64, f64, u32)>, u32)> {
-    let mut cfg_search = SearchConfig::default();
+) -> Result<(Vec<Row>, u32)> {
     // 上限从 800 抬到 5000：官方核心约 12,000 rollout/秒，800 远低于可承受预算
-    cfg_search.search_n = search_n.clamp(50, 5000);
-    cfg_search.max_depth = 0;
     // 探索项标准差（cpuct × 本值 × √total / n）。实测本剧本单次 rollout σ≈4,800，
     // 内核默认 2200 只有一半 → UCB 过早收敛（n=5000 时仍有动作只分到 256 次）。env 可覆盖以便扫描。
-    cfg_search.expected_search_stdev = std::env::var("MC_EXPECTED_STDEV")
-        .ok()
-        .and_then(|s| s.parse::<f64>().ok())
-        .unwrap_or(4800.0);
+    let cfg_search = SearchConfig {
+        search_n: search_n.clamp(50, 5000),
+        max_depth: 0,
+        expected_search_stdev: std::env::var("MC_EXPECTED_STDEV")
+            .ok()
+            .and_then(|s| s.parse::<f64>().ok())
+            .unwrap_or(4800.0),
+        ..SearchConfig::default()
+    };
     let search = FlatSearch::<MatsuriGame>::new(cfg_search);
     let mut rng = StdRng::seed_from_u64(20261028);
 
@@ -77,17 +82,21 @@ fn one_ply_rows(
             let mut rr = StdRng::seed_from_u64(seed ^ 0x51ED_2701);
             g.run_stage(&MatsuriRolloutTrainer, &mut rr)?;
         }
-        Ok(g.search_score(1.0)?)
+        g.search_score(1.0)
     })?;
 
-    let mut rows: Vec<(String, f64, f64, u32)> = out
+    let mut rows: Vec<Row> = out
         .actions
         .iter()
         .zip(out.action_results.iter())
         .map(|(a, ar)| {
             let n = ar.count();
             let mean = ar.mean();
-            let se = if n > 1 { ar.stdev() / (n as f64).sqrt() } else { 0.0 };
+            let se = if n > 1 {
+                ar.stdev() / (n as f64).sqrt()
+            } else {
+                0.0
+            };
             (label_of(a), mean, se, n)
         })
         .collect();
@@ -103,8 +112,8 @@ fn two_ply_rows(
     game: &MatsuriGame,
     actions: &[Action],
     k: usize,
-) -> Result<(Vec<(String, f64, f64, u32)>, Value, u32)> {
-    let mut rows: Vec<(String, f64, f64, u32)> = Vec::new();
+) -> Result<(Vec<Row>, Value, u32)> {
+    let mut rows: Vec<Row> = Vec::new();
     let mut plan: Vec<Value> = Vec::new();
     let mut total: u32 = 0;
     // 种子基（MC_SEED）：换一次就能检验「结论是不是这套抽样序列碰巧跑出来的」
@@ -188,8 +197,14 @@ fn main() {
 
 fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
-    let state_path = args.get(1).cloned().unwrap_or_else(|| "out/_mc_state.json".into());
-    let result_path = args.get(2).cloned().unwrap_or_else(|| "out/_mc_result.json".into());
+    let state_path = args
+        .get(1)
+        .cloned()
+        .unwrap_or_else(|| "out/_mc_state.json".into());
+    let result_path = args
+        .get(2)
+        .cloned()
+        .unwrap_or_else(|| "out/_mc_result.json".into());
     let search_n: usize = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(200);
 
     let raw = std::fs::read_to_string(&state_path).context("读状态失败")?;
@@ -211,7 +226,11 @@ fn run() -> Result<()> {
     let want_ply = if want_ply >= 2 {
         let probe_seed = 0x2B1E_0000_0000_0001u64;
         let mut probe = game.fork_for_rollout(probe_seed);
-        if to_next_train(&mut probe, probe_seed)? { want_ply } else { 1 }
+        if to_next_train(&mut probe, probe_seed)? {
+            want_ply
+        } else {
+            1
+        }
     } else {
         want_ply
     };
@@ -255,8 +274,14 @@ fn run() -> Result<()> {
                 .map(|(i, _, _)| *i)
                 .unwrap_or(0);
             const NAMES: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
-            let targets = [format!("训练 {}", NAMES[idx]), format!("稽古 {}", NAMES[idx])];
-            if let Some(pos) = rows.iter().position(|(label, _, _, _)| targets.contains(label)) {
+            let targets = [
+                format!("训练 {}", NAMES[idx]),
+                format!("稽古 {}", NAMES[idx]),
+            ];
+            if let Some(pos) = rows
+                .iter()
+                .position(|(label, _, _, _)| targets.contains(label))
+            {
                 let pick = rows.remove(pos);
                 rows.insert(0, pick);
             }
@@ -278,7 +303,9 @@ fn run() -> Result<()> {
             if !c.get("enable").and_then(|x| x.as_bool()).unwrap_or(true) {
                 continue;
             }
-            let Some(name) = c.get("train").and_then(|x| x.as_str()) else { continue };
+            let Some(name) = c.get("train").and_then(|x| x.as_str()) else {
+                continue;
+            };
             let gains = c.get("stat_gains").and_then(|g| g.as_object());
             let mut val = 0.0;
             for (i, nm) in NAMES5.iter().enumerate() {
@@ -290,7 +317,10 @@ fn run() -> Result<()> {
             }
             let pt = c.get("skill_point").and_then(|x| x.as_f64()).unwrap_or(0.0);
             let vital = c.get("vital_delta").and_then(|x| x.as_f64()).unwrap_or(0.0);
-            let fail = c.get("failure_rate").and_then(|x| x.as_f64()).unwrap_or(0.0);
+            let fail = c
+                .get("failure_rate")
+                .and_then(|x| x.as_f64())
+                .unwrap_or(0.0);
             val += pt * 2.46 + vital * 0.35 - fail * 0.8;
             live.push((format!("训练 {name}"), val));
         }
