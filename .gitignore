@@ -3,3 +3,7 @@ logs/
 __pycache__/
 *.pyc
 out/
+# 门禁判官 / 面板后端在仓根留下的散件（本该写进 out/，此处只就地忽略，不藏 tools 与 docs）
+/_gate_*.json
+/_mc_result.json
+/_state_t30.json
