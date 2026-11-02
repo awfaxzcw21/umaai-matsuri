@@ -10,15 +10,18 @@
 //! 输出：
 //!   - `score`：引擎原生 `search_score(1.0)`（衰减五维表 + PT×2.0 + 技能分）。排序口径，绝对值偏低。
 //!   - `real_score`：**面板显示用**（对齐黑板面板）——
-//!     `real = Σ status_final_score(revise(五维)) + 1.0746 × round(skill_pt × 2.35)`
-//!     五维分走游戏客户端 `revise`（>1200 减半）再查同一张表；技能分用剧本 15 拟合系数
-//!     `1.0746` × `grade_est`（grade/pt 取 2.35，见 `GRADE_PER_PT_DEFAULT`，`MC_GRADE_PER_PT` 可覆盖）。
-//!     名次沿用引擎原生 `rank_names`（301 档，US8=72,900）。
-//!   - `gate`：**三分量门禁**（2026-10-31 起）。`real_score` 里混了一个**为凑 72,142 反解出来的
-//!     拟合系数 2.35**（见 `GRADE_PER_PT_DEFAULT` 注释），拿它判机制改动会被这个系数搅混。
-//!     所以门禁改为三个**可独立核对**的分量各自对照真实局：
+//!     `real = Σ status_final_score(revise(五维)) + 1.0746 × grade_est`
+//!     五维分走游戏客户端 `revise`（>1200 减半）再查同一张表；技能分用**量出来的**汇率
+//!     `grade_est = round(skill_pt × 2.61)`，见 `GRADE_PER_PT` 的出处。本 crate 没有技能模型
+//!     （`grade_value` 在 .rs 里零命中），逐技能 Σ 只能由购买策略给出，那是黑板
+//!     `tools/skill_plan.py` 的背包 / 插件包 CP-SAT 的活。
+//!     名次沿用引擎原生 `rank_names`（现表 298 档，US8=72,900 / LF=91,400）。
+//!   - `gate`：**三分量门禁**（2026-10-31 起）。技能项不管用汇率还是用逐技能 Σ，都混进了
+//!     「购买策略」这个还没建模的环节，拿它判机制改动会被策略质量搅混。所以门禁只认三个
+//!     **可独立核对**的分量各自对照真实局：
 //!     `five_sum`（五维和，直接加）、`stat_score`（五维分，游戏原生表、无拟合）、`pt`（直接计数）。
-//!     `grade_est` 一并输出，但它**只是折算估计、不是实测**——真实 Σgrade 得从游戏里数技能清单。
+//!     `grade_est` 一并输出，但它是**汇率折算、不是实测**——真实 Σgrade 得从报文 `skill_array`
+//!     逐条查 mdb `skill_data.grade_value` 再求和。
 
 use std::collections::HashMap;
 
@@ -40,27 +43,20 @@ const SKILL_SCALE: f64 = 1.0746;
 
 /// 技能分折算：`grade_est = round(skill_pt × GRADE_PER_PT)`。
 ///
-/// 2.61 是黑板 `skill_plan.REAL_GRADES_PER_PT` 的口径（137 匹练成马娘 24,114 grade / 9,240 pt），
-/// 但那是**全样本聚合**；本剧本可核的那一局（card 114101，t78 五维 2244/1750/1845/1349/1296、
-/// PT 8,450，官方 `rank_score` 72,142）反推出来只有 `18,297 / 8,450 = 2.17`，
-/// 直接量到的 Σgrade 19,492 则给 `2.31`。取中间值 2.35，使 72,142 的残差落在 1% 内。
-/// 换值不必重编译：`MC_GRADE_PER_PT` 覆盖。
+/// **2.61 是量出来的聚合汇率，不是反解拟合**（2026-11-02 换掉旧的 2.35）：
+///   · 黑板 `skill_plan.REAL_GRADES_PER_PT`：137 匹真实练成马娘 24,114 grade / 9,240 pt = 2.6097；
+///   · LF 卡（`out/_lf_resolved.json`，115 条逐技能 Σgrade 28,718 / 獲得スキルPt 10,961）= 2.6200；
+///     两个独立来源相差 0.4%。拿 2.61 复算 LF 卡总分 = 63,626 + 1.0746×28,608 = **94,368**
+///     vs 实机 94,372，误差 −0.0041%；旧的 2.35 给 91,305（−3.25%）。
 ///
-/// ⚠ **这个数是拟合出来的，不是量出来的机制**（2026-10-31 标注）。它只是为了让 `real_score`
-/// 对上 72,142；**不要拿它当门禁**。门禁请看 `gate` 字段的三分量（`five_sum` / `stat_score` / `pt`），
-/// 真实 Σgrade 要从游戏技能清单直接数。
+/// ⚠ 汇率有**逐局离散**，不是常数：card 114101 那局（PT 8,450、实测 Σgrade 19,492）只有 2.31。
+/// 真实标尺的带宽约 **2.31–2.62**，同一份五维能差出 ~2,800 评分。这个带宽就是「购买策略没建模」
+/// 的代价，只能靠技能购买决策层收窄，调系数收窄不了——所以旧的 `MC_GRADE_PER_PT` 环境变量
+/// 已删除，不提供可覆盖的旋钮。
 ///
-/// ⚠ 另一个未定的口径问题：2.35 该除「总得到 PT」还是「实付 PT」没有定论。本机收的一局
-/// （PT 8,339 / 实付 7,649 / Σgrade 17,022）按总 PT 是 2.04、按实付是 2.23，两个都不到 2.35。
-const GRADE_PER_PT_DEFAULT: f64 = 2.35;
-
-fn grade_per_pt() -> f64 {
-    std::env::var("MC_GRADE_PER_PT")
-        .ok()
-        .and_then(|s| s.parse::<f64>().ok())
-        .filter(|v| *v > 0.0)
-        .unwrap_or(GRADE_PER_PT_DEFAULT)
-}
+/// ⚠ 依然**不要拿 `real_score` 当门禁**。门禁看 `gate` 的三分量（`five_sum` / `stat_score` / `pt`）；
+/// 逐技能 Σ 需要真实技能清单（报文 `skill_array` × mdb `skill_data.grade_value`），本 crate 没有。
+const GRADE_PER_PT: f64 = 2.61;
 
 /// 游戏客户端 `ScoreUtils`：>1200 的属性按 `(v+1200)/2` 减半计分；
 /// `revise` 是它的逆（`2v-1200`），把原始属性还原成「等效未衰减值」再去查表。
@@ -103,7 +99,6 @@ fn run() -> Result<()> {
 
     let data = Data::get()?;
     let consts = &data.consts;
-    let grade_pp = grade_per_pt();
 
     let mut native_scores: Vec<i32> = Vec::with_capacity(n);
     let mut real_scores: Vec<i32> = Vec::with_capacity(n);
@@ -128,14 +123,14 @@ fn run() -> Result<()> {
 
         // 真实标尺（对齐黑板面板）：
         //   五维分 = Σ 表[revise(属性)]（引擎 `score_parts` 少了 revise，这里补上）
-        //   技能分 = 1.0746 × round(skill_pt × grade_pp)
+        //   技能分 = 1.0746 × round(skill_pt × 2.61)，2.61 见 GRADE_PER_PT 出处
         let uma = g.uma();
         let stat_part: i32 = uma
             .five_status
             .iter()
             .map(|&v| consts.status_final_score(revise(v)))
             .sum();
-        let grade_est = (uma.skill_pt as f64 * grade_pp).round() as i32;
+        let grade_est = (uma.skill_pt as f64 * GRADE_PER_PT).round() as i32;
         let real = stat_part as f64 + SKILL_SCALE * grade_est as f64;
         real_scores.push(real as i32);
         five_sums.push(uma.five_status.iter().sum());
@@ -181,7 +176,8 @@ fn run() -> Result<()> {
             "stat_score": describe(&stat_scores),
             "pt": describe(&pts),
             "grade_est": describe(&grade_ests),
-            "grade_per_pt_used": grade_pp,
+            "grade_per_pt_used": GRADE_PER_PT,
+            "grade_per_pt_basis": "量出来的聚合汇率：137 匹 2.6097 / LF 卡 2.6200；逐局实测带宽 2.31–2.62，无旋钮可覆盖",
         },
         "debug": {
             "five_sum_mean": if n == 0 { 0.0 } else { five_sums.iter().map(|&s| s as f64).sum::<f64>() / n as f64 },
