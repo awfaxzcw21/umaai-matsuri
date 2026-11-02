@@ -1241,9 +1241,11 @@ impl MatsuriGame {
         } else {
             0
         };
-        // 排练 = 「同一训练位的普通训练下段」+ 演目基值加项（memo §3.3），
-        // 所以卡组的训练效果/友情/干劲/人数/副属性/成长率**都要走同一套乘区**，
-        // 与普通训练 `default_calc_training_value` 保持一致。
+        // 排练 = 「同一训练位的普通训练下段」（memo §3.3），所以卡组的训练效果/友情/
+        // 干劲/人数/副属性/成长率**都要走同一套乘区**，与普通训练
+        // `default_calc_training_value` 保持一致。
+        // 演目加项 `effect_type 105` 的平摊值**不在这里**——报文预览显示它不进乘区，
+        // 见下面 `flat_festa_add`。
         let buffs = self.calc_training_buff(idx).unwrap_or_default();
         let person_count = self.count_training_persons(idx);
         let basic_motivation = ((self.uma().motivation - 3) * 10) as f32;
@@ -1279,11 +1281,11 @@ impl MatsuriGame {
         };
         let value = ActionValue {
             status_pt: [
-                keiko_chain(row[0] + effect.all_base, 0),
-                keiko_chain(row[1] + effect.all_base, 1),
-                keiko_chain(row[2] + effect.all_base, 2),
-                keiko_chain(row[3] + effect.all_base, 3),
-                keiko_chain(row[4] + effect.all_base, 4),
+                keiko_chain(row[0], 0),
+                keiko_chain(row[1], 1),
+                keiko_chain(row[2], 2),
+                keiko_chain(row[3], 3),
+                keiko_chain(row[4], 4),
                 keiko_chain(row[5] + sp_bonus, 5),
             ],
             vital: row[6],
@@ -1311,27 +1313,23 @@ impl MatsuriGame {
         // 打折改由下面那条 1200 软上限承担（PT 不打折）
         let limits = self.uma().five_status_limit;
         let cur = self.uma().five_status;
+        // 演目加项（`single_mode_15_act_effect` 105）：非主属性的**平摊固定值**，
+        // 在乘区之后相加、再进 1200 软上限（报文预览：pre 1192→9、1195→7、≥1199→5
+        // 恰等于 `soft_cap_gain(1200, pre, 10)`）。主属性不吃这一项。
+        let flat_festa_add = |i: usize| -> i32 { if i == idx { 0 } else { effect.all_base } };
+        let keiko_axis = |i: usize| -> i32 {
+            (value.status_pt[i] as f64
+                * stat_mult(idx, i, main_mult, sub_mult)
+                * self.keiko_growth(i)
+                * self.cap_decay_factor(cur[i], limits[i])) as i32
+                + flat_festa_add(i)
+        };
         let gains = [
-            (value.status_pt[0] as f64
-                * stat_mult(idx, 0, main_mult, sub_mult)
-                * self.keiko_growth(0)
-                * self.cap_decay_factor(cur[0], limits[0])) as i32,
-            (value.status_pt[1] as f64
-                * stat_mult(idx, 1, main_mult, sub_mult)
-                * self.keiko_growth(1)
-                * self.cap_decay_factor(cur[1], limits[1])) as i32,
-            (value.status_pt[2] as f64
-                * stat_mult(idx, 2, main_mult, sub_mult)
-                * self.keiko_growth(2)
-                * self.cap_decay_factor(cur[2], limits[2])) as i32,
-            (value.status_pt[3] as f64
-                * stat_mult(idx, 3, main_mult, sub_mult)
-                * self.keiko_growth(3)
-                * self.cap_decay_factor(cur[3], limits[3])) as i32,
-            (value.status_pt[4] as f64
-                * stat_mult(idx, 4, main_mult, sub_mult)
-                * self.keiko_growth(4)
-                * self.cap_decay_factor(cur[4], limits[4])) as i32,
+            keiko_axis(0),
+            keiko_axis(1),
+            keiko_axis(2),
+            keiko_axis(3),
+            keiko_axis(4),
         ];
         // 1200 软上限：稽古增量同样按「超出 1200 的部分减半」（与训练同一条规则）
         let gains = [
@@ -1764,8 +1762,14 @@ mod tests {
 
     /// 造一局：把每个演目的担当按 `[(演目, 人数)]` 放到训练位 0
     fn game_with_roster(roster: &[(i32, usize)]) -> MatsuriGame {
+        game_with_data(
+            Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap()),
+            roster,
+        )
+    }
+
+    fn game_with_data(data: Arc<MatsuriData>, roster: &[(i32, usize)]) -> MatsuriGame {
         let _ = Data::init(crate::testing::data_dir());
-        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
         let mut game =
             MatsuriGame::newgame(106301, &[], InheritInfo::default(), &[], data).unwrap();
         let mut dist = Vec::new();
@@ -1909,6 +1913,65 @@ mod tests {
             mods.effect_pct, 0.0,
             "兼修的 21 不进訓練効果区 ⇒ 不乘技能Pt"
         );
+    }
+
+    #[test]
+    fn keiko_festa_flat_add_bypasses_multipliers_and_skips_primary() {
+        // 一手证据：festa 板报文的逐轴预览值（1,740 手，`single_mode_15_act_effect`
+        // `effect_type 105 v4 = 10`）。基础值为 0 的非主属性轴预览**恒等于 10**，
+        // 不随演目 Lv(1-10)、step、人头、干劲、卡组友情变化；主属性 = 基础表走乘区、
+        // **不吃这 10**（例：`('1',1,5105)` 14 手预览 智=12 恰等于表值 12、速=10）。
+        // 挨近 1200 时预览按 `soft_cap_gain(1200, pre, 10)` 退化（pre 1192→9、1195→7、
+        // ≥1199→5），说明 10 是**平摊常数**、在乘区之后相加、再进软上限。
+        let run = |with_105: bool| -> [i32; 5] {
+            let mut data = MatsuriData::load(crate::testing::data_dir()).unwrap();
+            if !with_105 {
+                for e in data.act_level_effects.iter_mut() {
+                    e.all_base = 0;
+                }
+            }
+            // 3 名担当同训练位 + 干劲絶好調 ⇒ 乘区明显 >1，才分得出「10 进乘区」和「10 平摊」
+            let mut game = game_with_data(Arc::new(data), &[(0, 3)]);
+            game.act_level[0] = 5;
+            game.uma_mut().motivation = 5;
+            game.uma_mut().vital = 100;
+            let pre = game.uma().five_status;
+            game.do_keiko(0, &mut rand::rngs::StdRng::seed_from_u64(7))
+                .expect("稽古应可结算");
+            std::array::from_fn(|i| game.uma().five_status[i] - pre[i])
+        };
+        let gain = run(true);
+        let bare = run(false);
+        // 速度稽古基础表 [16,0,3,0,0,…] ⇒ 耐/根/智三轴表值为 0
+        for i in [1usize, 3, 4] {
+            assert_eq!(gain[i], 10, "表值为 0 的轴 {i} 应拿到平摊 10、不吃乘区");
+            assert_eq!(bare[i], 0, "关掉 105 后该轴应无收益");
+        }
+        assert_eq!(gain[0], bare[0], "主属性不该吃 105 的平摊值");
+        assert!(
+            gain[0] > 16,
+            "主属性应吃到人头/干劲乘区，实测 {}/16",
+            gain[0]
+        );
+    }
+
+    #[test]
+    fn keiko_flat_ten_boundary_table_matches_packet() {
+        // 一手：基础表为 0 的轴（=纯平摊 10）的预览随赛前值的退化表，逐档括号内是该 pre
+        // 值的手数（`E:/HJM/_festa/festa_rows2.csv`，1,740 手）：
+        //   1192→9(2) / 1194→8(3) / 1195→7(7) / 1196→7(1) / 1199→5(1) / ≥1201→5(21)
+        // ⇒ 平摊值与普通训练同走一条 1200 软上限（余量原样 + 超出部分 floor 减半），
+        //   不是「超过就整条减半」。
+        // ⚠️ 唯一对不上的一档：run168 turn73 根性 pre=1191 预览 10（本公式给 9）。只此 1 手，
+        //   同局另 5 档全吻合 ⇒ 不改公式，留档待复测（怀疑该轴当时软上限并非正好 1200）。
+        assert_eq!(soft_cap_gain(1200, 1183, 10), 10);
+        assert_eq!(soft_cap_gain(1200, 1190, 10), 10);
+        assert_eq!(soft_cap_gain(1200, 1192, 10), 9);
+        assert_eq!(soft_cap_gain(1200, 1194, 10), 8);
+        assert_eq!(soft_cap_gain(1200, 1195, 10), 7);
+        assert_eq!(soft_cap_gain(1200, 1196, 10), 7);
+        assert_eq!(soft_cap_gain(1200, 1199, 10), 5);
+        assert_eq!(soft_cap_gain(1200, 1614, 10), 5);
     }
 
     #[test]
