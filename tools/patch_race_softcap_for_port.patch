@@ -1,0 +1,142 @@
+diff --git a/crates/matsuri-core/src/game/event.rs b/crates/matsuri-core/src/game/event.rs
+index fb6a852..b17ab41 100644
+--- a/crates/matsuri-core/src/game/event.rs
++++ b/crates/matsuri-core/src/game/event.rs
+@@ -24,6 +24,18 @@ pub(crate) const KENSAN_EVENT_ID: u32 = 400015106;
+ /// 友人（吾妻）出行解锁事件 ID（`809052004` 求むるは、新たな書）
+ pub(crate) const FRIEND_OUT_EVENT_ID: u32 = 809052004;
+ 
++/// ★port 待补：赛后奖励系统事件 id（生涯 `race_career` 4001 / 自选 G1–OP 4101–4104 / URA 决赛 4105–4107）
++///
++/// 赛后奖励不由剧本入账——引擎 `BaseGame::push_race_event` 造一条系统事件挂进事件流，
++/// 数值在 `Game::apply_event` 里落账（见 `game/traits.rs` 的接线处）。
++/// 这些事件的五维收益吃 **1200 软上限**；脚本事件的属性收益**不在**已实证范围内 ⇒ 不套上限。
++pub(crate) const RACE_REWARD_EVENT_IDS: [u32; 8] = [4001, 4101, 4102, 4103, 4104, 4105, 4106, 4107];
++
++/// 是否赛后奖励事件（吃属性软上限）
++pub(crate) fn is_race_reward_event(id: u32) -> bool {
++    RACE_REWARD_EVENT_IDS.contains(&id)
++}
++
+ impl MatsuriGame {
+     /// 回合开始事件链（引擎契约 `Game::generate_events` 的剧本实现）
+     ///
+diff --git a/crates/matsuri-core/src/game/traits.rs b/crates/matsuri-core/src/game/traits.rs
+index fcc041a..0d9510e 100644
+--- a/crates/matsuri-core/src/game/traits.rs
++++ b/crates/matsuri-core/src/game/traits.rs
+@@ -197,8 +197,22 @@ impl Game for MatsuriGame {
+ 
+     fn apply_event(&mut self, event: &EventData, choice: usize, rng: &mut impl Rng) -> Result<()> {
+         let before = self.key_state();
++        // ★port 待补：赛后奖励吃 1200 软上限（真机 §6.2⑪ 同一条口径）
++        //
++        // 赛后奖励由引擎 `push_race_event` 造系统事件入账，剧本侧看不到 `value`，
++        // 只能在 `apply_event` 前后按赛前值折算回填（脚本事件不在实证范围 ⇒ 不套）。
++        let pre_stat = self.uma().five_status;
+         // ① 引擎底座负责通用数值结算（含友人卡事件加成、ExtraStatus）
+         let result = self.base.apply_event(event, choice, rng);
++        if super::event::is_race_reward_event(event.id) {
++            let post_stat = self.uma().five_status;
++            for status in 0..5 {
++                let gain = post_stat[status] - pre_stat[status];
++                let capped =
++                    super::soft_cap_gain(self.data.rules.soft_cap, pre_stat[status], gain);
++                self.uma_mut().five_status[status] = pre_stat[status] + capped;
++            }
++        }
+         if let Some(result) = &result {
+             // ② 引擎 `BaseEvent::apply_event` 不结算 add/remove_flags，剧本侧补齐（变胖等状态）
+             self.base.uma.update_flags(result);
+diff --git a/crates/matsuri-core/tests/softcap.rs b/crates/matsuri-core/tests/softcap.rs
+new file mode 100644
+index 0000000..81c5700
+--- /dev/null
++++ b/crates/matsuri-core/tests/softcap.rs
+@@ -0,0 +1,86 @@
++//! ★port 待补：赛后奖励通道的 1200 软上限守门
++//!
++//! 报文一手：cid168 t54 大阪杯 速度 pre=1300、名义 7 → 实得 3。
++//!
++//! 为什么单独盯这条：`settle_training`（普通训练 / 演目稽古）与 `apply_reward`（発表会 / 终局）
++//! 都在 `MatsuriGame` 自己手里，接线一眼能找到；赛后奖励不是——它是引擎
++//! `BaseGame::push_race_event` 造一条系统事件（`race_career` / `race_g{grade}` / `race_ura_*`）
++//! 挂进事件流，数值由 `Game::apply_event` 落账 ⇒ 压缩只能接在剧本侧 `apply_event` 的前后
++//! （接线见 `game/traits.rs`，事件 id 见 `game/event.rs`）。
++//!
++//! 漏接是**静默**的：低档位五维从没碰到 1200，两臂逐位相同；只有高档才差出量级
++//! （实测强策档 五维和 −396 / 五维分 −1,968）。
++//!
++//! 两臂只差 `rules.soft_cap`（1200 / 0），事件、卡组、随机种子全一致 ⇒ 差值只来自压缩。
++//! 赛前取 1300（五维全过线）⇒ 实得应当恰好是未压增量的**一半（向下取整）**。
++
++use std::sync::Arc;
++
++use anyhow::Result;
++use matsuri_core::testing::sample_game;
++use rand::SeedableRng;
++use rand::rngs::StdRng;
++use umaai_core::Data;
++use umasim::game::Game;
++
++/// 用 `key` 这条赛后奖励事件结算一次，返回五维各自的增量
++fn race_delta(cap: i32, key: &str) -> Result<[i32; 5]> {
++    let pre = [1300; 5];
++    let mut game = sample_game();
++    game.uma_mut().five_status = pre;
++    Arc::get_mut(&mut game.data)
++        .expect("sample_game 独占 data，可改写资产")
++        .rules
++        .soft_cap = cap;
++    let event = Data::get()?.system_event(key)?.clone();
++    let mut rng = StdRng::seed_from_u64(20261102);
++    game.apply_event(&event, 0, &mut rng)?;
++    let after = game.uma().five_status;
++    let mut delta = [0; 5];
++    for slot in 0..5 {
++        delta[slot] = after[slot] - pre[slot];
++    }
++    Ok(delta)
++}
++
++/// `cap <= 0` 时原样返回；pre=1300 已全维过线 ⇒ 正增量整笔减半
++fn halved(gain: i32) -> i32 {
++    if gain > 0 { gain / 2 } else { gain }
++}
++
++#[test]
++fn career_race_reward_channel_applies_soft_cap() -> Result<()> {
++    let uncapped = race_delta(0, "race_career")?;
++    let capped = race_delta(1200, "race_career")?;
++    assert!(
++        uncapped.iter().sum::<i32>() > 0,
++        "未压那一臂也没有属性增量 ⇒ 赛后奖励不再走 `apply_event`，这条用例已失效"
++    );
++    for slot in 0..5 {
++        assert_eq!(
++            capped[slot],
++            halved(uncapped[slot]),
++            "赛后奖励第 {slot} 维：压缩没接进剧本侧 `Game::apply_event`"
++        );
++    }
++    Ok(())
++}
++
++#[test]
++fn optional_race_reward_channel_applies_soft_cap() -> Result<()> {
++    // 自选比赛走 `race_g{grade}`（G1–OP 四档），与目标赛同一条 apply 路径、不同事件
++    let uncapped = race_delta(0, "race_g1")?;
++    let capped = race_delta(1200, "race_g1")?;
++    assert!(
++        uncapped.iter().sum::<i32>() > 0,
++        "未压那一臂也没有属性增量 ⇒ 自选比赛不再走 `apply_event`，这条用例已失效"
++    );
++    for slot in 0..5 {
++        assert_eq!(
++            capped[slot],
++            halved(uncapped[slot]),
++            "自选比赛第 {slot} 维没被压缩"
++        );
++    }
++    Ok(())
++}
