@@ -43,6 +43,7 @@
 | `crates/matsuri-sim` | 模拟器与基线裁判（骨架） |
 | `crates/matsuri-ai` | 在线决策核心（骨架） |
 | `crates/matsuri-tools` | 外围工具（骨架） |
+| `tools/publish_panel_backend.py` | 把引擎后端发布到黑板面板的 `rust/` 目录（exe + `data/`） |
 | `data/` | 引擎静态表 + 剧本资产 + 双配置默认层 |
 | `docs/` | 本仓文档骨架 |
 
@@ -71,6 +72,26 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets --offline -- -D warnings
 cargo test --workspace --release --offline
 ```
+
+### 面板后端（黑板面板的实时建议）
+
+面板（`E:/HJM/jidianbeiAI0.22`）以**进程 + JSON 文件**接本仓引擎：
+
+```
+面板 → out/_mc_state.json → matsuri-mccli.exe <state> <result> <n> → out/_mc_result_<turn>.json
+面板 → out/_dist_state.json → matsuri-dist.exe  <state> <result>    → out/_dist_result_<turn>.json
+```
+
+两个 bin 共用 `crates/matsuri-cli/src/state.rs` 的装配，保证对「当前局面」的理解逐字一致。
+面板以 `cwd=<面板>/rust/` 启动后端，exe 按**相对路径** `data/` 读剧本资产 ⇒ 发布目录必须同时含 exe 与 `data/`。
+
+```powershell
+cargo build --release -p matsuri-cli
+python tools/publish_panel_backend.py            # 发布到 <面板>/rust/
+```
+
+发布后 `paths.rust_exe()` 就能定位到后端（面板 `MATSURI_BACKEND=official` 走这条）；
+发布记录（含 commit 与 exe 校验和）写在 `<面板>/rust/backend_build.json`。
 
 ### 配对门禁（机制改动的可判定性）
 
