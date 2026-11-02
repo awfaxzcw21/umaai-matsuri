@@ -11,8 +11,8 @@
 | crate | 测试面 | 现状 |
 |---|---|---|
 | `matsuri-core` | 内联单测 + `tests/mechanics.rs`（机制集成） | 内联单测已有；机制集成待补 |
-| `matsuri-sim` | `tests/baseline.rs`（固定种子基线） | 待补 |
-| `matsuri-cli` | `tests/state_t30.rs`（t30 参考局回归）/ `tests/smoke.rs`（一局冒烟 + 可复现） | 已有 t30 回归；冒烟待补 |
+| `matsuri-sim` | 内联单测（配对门禁统计内核）+ `tests/baseline.rs`（固定种子基线） | 内联单测已有；基线待补 |
+| `matsuri-cli` | `tests/state_t30.rs`（t30 参考局回归）/ `tests/gate_cli.rs`（配对门禁判官端到端）/ `tests/smoke.rs`（一局冒烟 + 可复现） | 已有 t30 回归与判官冒烟；冒烟待补 |
 | `matsuri-ai` / `matsuri-tools` | 骨架，暂无 | — |
 
 ## 2. 单元测试（内联）
@@ -23,6 +23,11 @@
 | `core/src/config.rs` | `parse_base_ok` / `overlay_replaces_list` / `unknown_key_rejected` / `out_of_range_index_rejected` | 默认层 / 覆盖层 / 未知键 / 下标 |
 | `core/src/game/stage.rs` | `next_chain` / `stage_ids_are_stable` | 阶段链 / 阶段号稳定 |
 | `core/src/trainer.rs` | `preferred_training_wraps` | 样例训练员轮转 |
+| `sim/src/bench.rs` | `paired_stats_identical_series_gives_zero_delta_and_p_one` | 自比必须 Δ=0、p=1、判定「无显著差异」（配对门禁的零假设自检） |
+| `sim/src/bench.rs` | `paired_stats_detects_uniform_improvement` / `..._regression` | 合成数据 ⇒ 判定「显著更近 / 显著更远」 |
+| `sim/src/bench.rs` | `paired_stats_win_rate_counts_strict_improvement` | 胜率只数**严格**更近的样本（平局不算） |
+| `sim/src/bench.rs` | `paired_stats_rejects_length_mismatch` / `..._empty_and_single` | 长度不等 / 空 / 少于 2 条一律报错，不截断对齐 |
+| `sim/src/bench.rs` | `align_by_index_pairs_by_sample_id` / `..._rejects_missing_ids` | 两臂按**样本号**配对；样本号集合不一致直接报错 |
 
 ## 3. 机制集成（`core/tests/mechanics.rs`）
 
@@ -75,9 +80,19 @@
 |---|---|---|
 | 冒烟 | 固定种子跑满回合、两次逐位一致 | `Result` / 非零退出 |
 | 基线 | 一基线一 JSON（`input` 自持、`expect` 逐项容差、`meta` 不含路径） | 自动比对，失败返回 `Err` |
+| 配对门禁判官 | `cli/tests/gate_cli.rs`：同一 dump 自比 ⇒ 「无显著差异」；B 更靠近真值 ⇒ 「显著更近」；两臂样本号集合不一致 ⇒ 退出码 2 | 退出码 + stdout 判定词 |
 
 - 重录命令：`<cargo ... baseline --update>`（S9 落地）
 - 数值占位替换后必须重录，并在 `glossary.md` 记影响面。
+
+### 4.1 配对门禁（`matsuri-gate`）
+
+- **守门对象**：机制改动的**可判定性**（CRN 同种子逐局配对），不是「绝对分数对不对」。
+- **判读**：贴近幅度 `e_i = |a_i − 真值| − |b_i − 真值|` 的 95% 区间——下界 >0 显著更近、
+  上界 <0 显著更远、跨 0 无显著差异（留档，不转正）。区间用 bootstrap 百分位，
+  p 值用符号翻转置换检验，两者固定种子。
+- **只用三分量**：五维和 / 五维分 / PT；**不含任何拟合系数**。
+- 用法与实测见 [`TODO_20261101_pm.md`](TODO_20261101_pm.md) §步骤 10。
 
 ## 5. 对话核对记录（前期主验证方式）
 

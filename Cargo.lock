@@ -484,6 +484,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "matsuri-core",
+ "matsuri-sim",
  "rand",
  "serde",
  "serde_json",
@@ -509,6 +510,9 @@ dependencies = [
 [[package]]
 name = "matsuri-sim"
 version = "0.1.0"
+dependencies = [
+ "rand",
+]
 
 [[package]]
 name = "matsuri-tools"

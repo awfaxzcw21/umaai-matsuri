@@ -35,8 +35,11 @@
 | `crates/matsuri-core/src/trainer.rs` | 样例训练员 `MatsuriTrainer` |
 | `crates/matsuri-cli/src/main.rs` | 终端前端：bin `matsuri`（跑局） |
 | `crates/matsuri-cli/src/manual.rs` | 无颜色手动训练员（机制核对） |
+| `crates/matsuri-cli/src/gate.rs` | 配对门禁判官：bin `matsuri-gate`（CRN 同种子逐局配对，只认五维和 / 五维分 / PT） |
 | `crates/matsuri-cli/src/{lib,state}.rs` | 面板状态 → 引擎局面的共享装配（`matsuri-mccli` / `matsuri-dist` 共用） |
 | `crates/matsuri-cli/tests/state_t30.rs` | t30 参考局回归：引擎训练值逐格命中面板真值（fixture 在 `tests/data/`） |
+| `crates/matsuri-cli/tests/gate_cli.rs` | 配对门禁判官端到端：自比 ⇒ 无显著差异 / 样本号不一致 ⇒ 报错 |
+| `crates/matsuri-sim/src/bench.rs` | 配对门禁统计内核（bootstrap 区间 + 符号翻转置换检验，无 IO） |
 | `crates/matsuri-sim` | 模拟器与基线裁判（骨架） |
 | `crates/matsuri-ai` | 在线决策核心（骨架） |
 | `crates/matsuri-tools` | 外围工具（骨架） |
@@ -67,6 +70,20 @@ cargo run --release --bin matsuri -- manual     # 无颜色人工选择（机制
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --offline -- -D warnings
 cargo test --workspace --release --offline
+```
+
+### 配对门禁（机制改动的可判定性）
+
+```powershell
+# 改动前 / 改动后各出一份样本明细（同一 MC_SEED ⇒ 随机流对齐 ⇒ 逐局配对）
+$env:MC_N=4000; $env:MC_SEED=0; $env:MC_DUMP="out/_dump_a.jsonl"
+cargo run --release --bin matsuri-dist -- _state_t30.json out/_gate_a.json
+$env:MC_DUMP="out/_dump_b.jsonl"
+cargo run --release --bin matsuri-dist -- _state_t30.json out/_gate_b.json
+
+# 判官：三个分量（真值 = 真实局 run 179）各自判「改动后是否显著更接近真值」
+cargo run --release --bin matsuri-gate -- --a out/_dump_a.jsonl --b out/_dump_b.jsonl `
+  --five 1998,1470,1656,1344,1573 --pt 8339 --stat-score 42201
 ```
 
 - `cargo check` / `clippy` / `test` 通过（**不改引擎任何一行**）。

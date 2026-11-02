@@ -23,8 +23,13 @@ path = "src/mccli.rs"
 name = "matsuri-dist"
 path = "src/dist.rs"
 
+[[bin]]
+name = "matsuri-gate"
+path = "src/gate.rs"
+
 [dependencies]
 matsuri-core.workspace = true
+matsuri-sim.workspace = true
 umaai-core.workspace = true
 umasim.workspace = true
 umaai.workspace = true
