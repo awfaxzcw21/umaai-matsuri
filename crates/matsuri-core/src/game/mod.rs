@@ -506,12 +506,13 @@ impl MatsuriGame {
         1.0
     }
 
-    pub(crate) fn do_train(&mut self, train: usize, mut _rng: &mut impl Rng) -> Result<()> {
-        // 合宿：所有训练都变成演目稽古（官方：合宿训练与演目稽古同一 ID）
-        if self.is_camp_turn() {
-            // 合宿：训练=稽古，但不升 Lv（官方：合宿结束统一 +1）
-            return self.do_keiko_impl(train, _rng, false);
-        }
+    /// 普通训练**成功结算**的那条腿（表值 → 教诲分乘区 → 彩圈/友情 → 软上限）。
+    ///
+    /// `do_train` 用它；稽古的 home 腿也用它——报文两腿恒等式实测
+    /// `实到 = 同训练位普通训练 + 稽古板自报演目加项`（229 手执行稽古里 227 手五轴全中，
+    /// 见 `docs/festa平摊加项_20261103.md`），两处必须是同一条公式，不各写一遍。
+    /// 不含失败分支、不含报文锚点（锚点在 `do_train` 里替换 `raw` 那一段）。
+    fn training_leg(&self, train: usize) -> TrainingLeg {
         let table = self.training_basic_table();
         let level = self.train_level(train).clamp(1, 5) - 1;
         // 当前表档位可少于 5：等级超出即取末档（后续实现给满 5 档）
@@ -532,6 +533,96 @@ impl MatsuriGame {
                 ..Default::default()
             },
         };
+        // 教え + 発表会加成
+        let has_shining = self
+            .base
+            .distribution
+            .get(train)
+            .map(|d| {
+                d.iter()
+                    .any(|&pidx| pidx >= 0 && self.is_shining_at(pidx as usize, train))
+            })
+            .unwrap_or(false);
+        // 分乘区（memo §3.3）：主属性吃「獲得量 + 訓練効果」，副属性吃「副属性獲得量 + 訓練効果」，
+        // 技能Pt 只吃「訓練効果 + 友情」（獲得量区不含技能Pt —— 兼修の教え明写「スキルPtは対象外」）。
+        let mods = self.advice_mods_train(train, has_shining);
+        // 「助力の支え」：3 次内的训练效果 +5%（memo §4.2），本次训练消耗 1 次
+        let assist_bonus = if self.assist_support > 0 { 5.0 } else { 0.0 };
+        let effect_mult = 1.0 + (mods.effect_pct + assist_bonus) / 100.0;
+        let main_mult = (1.0 + mods.main_pct / 100.0) * effect_mult;
+        let sub_mult = (1.0 + mods.sub_pct / 100.0) * effect_mult;
+        let pt_mult = effect_mult;
+        let raw = [
+            (value.status_pt[0] as f64 * stat_mult(train, 0, main_mult, sub_mult)) as i32,
+            (value.status_pt[1] as f64 * stat_mult(train, 1, main_mult, sub_mult)) as i32,
+            (value.status_pt[2] as f64 * stat_mult(train, 2, main_mult, sub_mult)) as i32,
+            (value.status_pt[3] as f64 * stat_mult(train, 3, main_mult, sub_mult)) as i32,
+            (value.status_pt[4] as f64 * stat_mult(train, 4, main_mult, sub_mult)) as i32,
+        ];
+        // 彩圈增量：羁绊 ≥80 且得意的训练位，**按该卡真实友情加成%**结算
+        // （2026-10-31 改口径，旧版是每多一个彩圈固定 +25%——库兰指出那不对）。
+        // 主路径：`calc_training_buff().youqing` 已把非彩圈卡归零、彩圈的按 add() 组合，
+        // 减掉起步快照即「起步后新长出来的友情加成%」，直接进 (1 + x/100) 乘区。
+        // 兜底：拿不到卡组 buff 时退回旧的 人数 × shining_boost。
+        let shining_mult = if self.data.shining_boost > 0.0 {
+            match self.calc_training_buff(train) {
+                Ok(b) => {
+                    let delta = (b.youqing - self.initial_youqing[train]).max(0.0);
+                    1.0 + delta as f64 / 100.0
+                }
+                Err(_) => {
+                    let extra =
+                        (self.shining_count(train) as i32 - self.initial_shining[train]).max(0);
+                    1.0 + self.data.shining_boost * extra as f64
+                }
+            }
+        } else {
+            1.0
+        };
+        let friend_mult = shining_mult * (1.0 + mods.friend_pct / 100.0);
+        let with_friend = [
+            (raw[0] as f64 * friend_mult) as i32,
+            (raw[1] as f64 * friend_mult) as i32,
+            (raw[2] as f64 * friend_mult) as i32,
+            (raw[3] as f64 * friend_mult) as i32,
+            (raw[4] as f64 * friend_mult) as i32,
+        ];
+        // 接近上限衰减：拟合曲线 `cap_decay` 已置 0 停用（2026-11-01 步骤 3），
+        // 接近上限的打折改由下面那条有报文依据的 1200 软上限承担
+        let limits = self.uma().five_status_limit;
+        let cur = self.uma().five_status;
+        let decayed = [
+            (with_friend[0] as f64 * self.cap_decay_factor(cur[0], limits[0])) as i32,
+            (with_friend[1] as f64 * self.cap_decay_factor(cur[1], limits[1])) as i32,
+            (with_friend[2] as f64 * self.cap_decay_factor(cur[2], limits[2])) as i32,
+            (with_friend[3] as f64 * self.cap_decay_factor(cur[3], limits[3])) as i32,
+            (with_friend[4] as f64 * self.cap_decay_factor(cur[4], limits[4])) as i32,
+        ];
+        // 1200 软上限：训练增量同样按「超出 1200 的部分减半」
+        // （2026-11-01 步骤 3 报文实证：同一训练同一格，名义 10 时 pre=1195 得 7、pre=1300 得 5）
+        let five = [
+            self.soft_cap_gain(cur[0], decayed[0]),
+            self.soft_cap_gain(cur[1], decayed[1]),
+            self.soft_cap_gain(cur[2], decayed[2]),
+            self.soft_cap_gain(cur[3], decayed[3]),
+            self.soft_cap_gain(cur[4], decayed[4]),
+        ];
+        TrainingLeg {
+            five,
+            friend_mult,
+            pt: (value.status_pt[5] as f64 * pt_mult * friend_mult) as i32,
+            vital: value.vital,
+        }
+    }
+
+    pub(crate) fn do_train(&mut self, train: usize, mut _rng: &mut impl Rng) -> Result<()> {
+        // 合宿：所有训练都变成演目稽古（官方：合宿训练与演目稽古同一 ID）
+        if self.is_camp_turn() {
+            // 合宿：训练=稽古，但不升 Lv（官方：合宿结束统一 +1）
+            return self.do_keiko_impl(train, _rng, false);
+        }
+        // 成功结算的公式在 `training_leg`（稽古的 home 腿共用同一条，不各写一遍）
+        let leg = self.training_leg(train);
         // 失败判定（引擎公式：训练等级阈值 × 体力）
         // URA 收尾期（引擎 67..=76）失败率固定 -100%（memo §7 本番演出限定效果）
         let in_ura_finale = (67..=76).contains(&self.base.turn);
@@ -556,111 +647,47 @@ impl MatsuriGame {
             let rate = self.extra_keiko_rate(&acts);
             rate > 0 && rand::Rng::random::<f32>(&mut _rng) * 100.0 < rate as f32
         };
-        // 教え + 発表会加成
-        let has_shining = self
-            .base
-            .distribution
-            .get(train)
-            .map(|d| {
-                d.iter()
-                    .any(|&pidx| pidx >= 0 && self.is_shining_at(pidx as usize, train))
-            })
-            .unwrap_or(false);
-        // 分乘区（memo §3.3）：主属性吃「獲得量 + 訓練効果」，副属性吃「副属性獲得量 + 訓練効果」，
-        // 技能Pt 只吃「訓練効果 + 友情」（獲得量区不含技能Pt —— 兼修の教え明写「スキルPtは対象外」）。
-        let mods = self.advice_mods_train(train, has_shining);
-        // 「助力の支え」：3 次内的训练效果 +5%（memo §4.2），本次训练消耗 1 次
-        let assist_bonus = if self.assist_support > 0 { 5.0 } else { 0.0 };
-        let effect_mult = 1.0 + (mods.effect_pct + assist_bonus) / 100.0;
-        let main_mult = (1.0 + mods.main_pct / 100.0) * effect_mult;
-        let sub_mult = (1.0 + mods.sub_pct / 100.0) * effect_mult;
-        let pt_mult = effect_mult;
         // 报文 `stat_gains` 是游戏对「这一下训练」的全加成真值（含训练等级/得意/人头/
-        // 教え/発表会），直接用可绕过引擎训练值的缺口；未注入时才回退引擎训练值。
+        // 教え/発表会），直接用可绕过引擎训练值的缺口；未注入时才用 `training_leg`。
+        // 锚点分支只替换「表值 × 教诲乘区」那一段，彩圈/友情与接近上限衰减仍接在后面；
+        // 1200 软上限跳过——锚点是真机**实得**值，已含这条打折，再折算会重复扣减。
         let stat_anchor = self.train_stat_anchor[train];
         let anchored = stat_anchor.iter().any(|&x| x > 0);
         let stat = if anchored {
             let k = self.data.stat_anchor_scale;
-            [
+            let raw = [
                 (stat_anchor[0] as f64 * k) as i32,
                 (stat_anchor[1] as f64 * k) as i32,
                 (stat_anchor[2] as f64 * k) as i32,
                 (stat_anchor[3] as f64 * k) as i32,
                 (stat_anchor[4] as f64 * k) as i32,
-            ]
-        } else {
+            ];
+            let with_friend = [
+                (raw[0] as f64 * leg.friend_mult) as i32,
+                (raw[1] as f64 * leg.friend_mult) as i32,
+                (raw[2] as f64 * leg.friend_mult) as i32,
+                (raw[3] as f64 * leg.friend_mult) as i32,
+                (raw[4] as f64 * leg.friend_mult) as i32,
+            ];
+            let limits = self.uma().five_status_limit;
+            let cur = self.uma().five_status;
             [
-                (value.status_pt[0] as f64 * stat_mult(train, 0, main_mult, sub_mult)) as i32,
-                (value.status_pt[1] as f64 * stat_mult(train, 1, main_mult, sub_mult)) as i32,
-                (value.status_pt[2] as f64 * stat_mult(train, 2, main_mult, sub_mult)) as i32,
-                (value.status_pt[3] as f64 * stat_mult(train, 3, main_mult, sub_mult)) as i32,
-                (value.status_pt[4] as f64 * stat_mult(train, 4, main_mult, sub_mult)) as i32,
+                (with_friend[0] as f64 * self.cap_decay_factor(cur[0], limits[0])) as i32,
+                (with_friend[1] as f64 * self.cap_decay_factor(cur[1], limits[1])) as i32,
+                (with_friend[2] as f64 * self.cap_decay_factor(cur[2], limits[2])) as i32,
+                (with_friend[3] as f64 * self.cap_decay_factor(cur[3], limits[3])) as i32,
+                (with_friend[4] as f64 * self.cap_decay_factor(cur[4], limits[4])) as i32,
             ]
-        };
-        // 彩圈增量：羁绊 ≥80 且得意的训练位，**按该卡真实友情加成%**结算
-        // （2026-10-31 改口径，旧版是每多一个彩圈固定 +25%——库兰指出那不对）。
-        // 主路径：`calc_training_buff().youqing` 已把非彩圈卡归零、彩圈的按 add() 组合，
-        // 减掉起步快照即「起步后新长出来的友情加成%」，直接进 (1 + x/100) 乘区。
-        // 兜底：拿不到卡组 buff 时退回旧的 人数 × shining_boost。
-        let shining_mult = if self.data.shining_boost > 0.0 {
-            match self.calc_training_buff(train) {
-                Ok(b) => {
-                    let delta = (b.youqing - self.initial_youqing[train]).max(0.0);
-                    1.0 + delta as f64 / 100.0
-                }
-                Err(_) => {
-                    let extra =
-                        (self.shining_count(train) as i32 - self.initial_shining[train]).max(0);
-                    1.0 + self.data.shining_boost * extra as f64
-                }
-            }
         } else {
-            1.0
-        };
-        let friend_mult = shining_mult * (1.0 + mods.friend_pct / 100.0);
-        let stat = [
-            (stat[0] as f64 * friend_mult) as i32,
-            (stat[1] as f64 * friend_mult) as i32,
-            (stat[2] as f64 * friend_mult) as i32,
-            (stat[3] as f64 * friend_mult) as i32,
-            (stat[4] as f64 * friend_mult) as i32,
-        ];
-        // 接近上限衰减：拟合曲线 `cap_decay` 已置 0 停用（2026-11-01 步骤 3），
-        // 接近上限的打折改由下面那条有报文依据的 1200 软上限承担
-        let limits = self.uma().five_status_limit;
-        let cur = self.uma().five_status;
-        let stat = [
-            (stat[0] as f64 * self.cap_decay_factor(cur[0], limits[0])) as i32,
-            (stat[1] as f64 * self.cap_decay_factor(cur[1], limits[1])) as i32,
-            (stat[2] as f64 * self.cap_decay_factor(cur[2], limits[2])) as i32,
-            (stat[3] as f64 * self.cap_decay_factor(cur[3], limits[3])) as i32,
-            (stat[4] as f64 * self.cap_decay_factor(cur[4], limits[4])) as i32,
-        ];
-        // 1200 软上限：训练增量同样按「超出 1200 的部分减半」
-        // （2026-11-01 步骤 3 报文实证：同一训练同一格，名义 10 时 pre=1195 得 7、pre=1300 得 5）。
-        // 锚点分支跳过：锚点是真机**实得**值，已含这条打折，再折算会重复扣减。
-        let stat = if anchored {
-            stat
-        } else {
-            [
-                self.soft_cap_gain(cur[0], stat[0]),
-                self.soft_cap_gain(cur[1], stat[1]),
-                self.soft_cap_gain(cur[2], stat[2]),
-                self.soft_cap_gain(cur[3], stat[3]),
-                self.soft_cap_gain(cur[4], stat[4]),
-            ]
+            leg.five
         };
         let scaled = ActionValue {
             status_pt: [
-                stat[0],
-                stat[1],
-                stat[2],
-                stat[3],
-                stat[4],
+                stat[0], stat[1], stat[2], stat[3], stat[4],
                 // 技能Pt：吃「訓練効果」与「友情」两区，**不吃獲得量区**
-                (value.status_pt[5] as f64 * pt_mult * friend_mult) as i32,
+                leg.pt,
             ],
-            vital: value.vital,
+            vital: leg.vital,
             ..Default::default()
         };
         if failed {
@@ -1317,27 +1344,32 @@ impl MatsuriGame {
         // 在乘区之后相加、再进 1200 软上限（报文预览：pre 1192→9、1195→7、≥1199→5
         // 恰等于 `soft_cap_gain(1200, pre, 10)`）。主属性不吃这一项。
         let flat_festa_add = |i: usize| -> i32 { if i == idx { 0 } else { effect.all_base } };
-        let keiko_axis = |i: usize| -> i32 {
+        let festa_axis = |i: usize| -> i32 {
             (value.status_pt[i] as f64
                 * stat_mult(idx, i, main_mult, sub_mult)
                 * self.keiko_growth(i)
                 * self.cap_decay_factor(cur[i], limits[i])) as i32
                 + flat_festa_add(i)
         };
-        let gains = [
-            keiko_axis(0),
-            keiko_axis(1),
-            keiko_axis(2),
-            keiko_axis(3),
-            keiko_axis(4),
+        // 稽古是**两条腿**（一手报文逐轴复现，229 执行手里 227 手五轴全中，
+        // 合宿期 80/81、非合宿 147/148 ⇒ 无条件成立）：
+        //   实到[axis] = home 腿[axis]（同训练位普通训练）+ festa 腿[axis]（稽古板自报值）
+        // 两腿在报文里**各自已套过 1200 软上限**（pre=1902 那腿显示 5、pre=1195 那腿显示 7），
+        // 所以折也是分腿折，不能对两腿之和套。见 `docs/festa平摊加项_20261103.md`。
+        let festa = [
+            self.soft_cap_gain(cur[0], festa_axis(0)),
+            self.soft_cap_gain(cur[1], festa_axis(1)),
+            self.soft_cap_gain(cur[2], festa_axis(2)),
+            self.soft_cap_gain(cur[3], festa_axis(3)),
+            self.soft_cap_gain(cur[4], festa_axis(4)),
         ];
-        // 1200 软上限：稽古增量同样按「超出 1200 的部分减半」（与训练同一条规则）
+        let home = self.training_leg(idx);
         let gains = [
-            self.soft_cap_gain(cur[0], gains[0]),
-            self.soft_cap_gain(cur[1], gains[1]),
-            self.soft_cap_gain(cur[2], gains[2]),
-            self.soft_cap_gain(cur[3], gains[3]),
-            self.soft_cap_gain(cur[4], gains[4]),
+            home.five[0] + festa[0],
+            home.five[1] + festa[1],
+            home.five[2] + festa[2],
+            home.five[3] + festa[3],
+            home.five[4] + festa[4],
         ];
         let scaled = ActionValue {
             status_pt: [
@@ -1346,9 +1378,11 @@ impl MatsuriGame {
                 gains[2],
                 gains[3],
                 gains[4],
-                // 技能Pt：吃「訓練効果」区，**不吃獲得量区**
-                (value.status_pt[5] as f64 * pt_mult) as i32,
+                // 技能Pt 同样是两条腿：227/229 手 `d_sp == home[30] + p[30]`
+                home.pt + (value.status_pt[5] as f64 * pt_mult) as i32,
             ],
+            // 体力**不叠第二条腿**：报文里 159/229 手的稽古板 `p[10]` 为 0，实到体力 =
+            // `home[10]` ⇒ 稽古表 `row[6]` 那列本身就是普通训练的体力消费，再加一次会翻倍。
             vital: value.vital + vital_delta,
             ..Default::default()
         };
@@ -1650,6 +1684,18 @@ fn soft_cap_gain(cap: i32, pre: i32, gain: i32) -> i32 {
     }
     let below = gain.min((cap - pre).max(0));
     below + (gain - below) / 2
+}
+
+/// [`MatsuriGame::training_leg`] 的返回值：普通训练成功结算的一条腿
+struct TrainingLeg {
+    /// 五轴增量，**已各自套过 1200 软上限**
+    five: [i32; 5],
+    /// 彩圈 + 教诲友情乘区，供 `do_train` 的报文锚点分支接着用
+    friend_mult: f64,
+    /// 技能 Pt（不吃 1200 软上限）
+    pt: i32,
+    /// 体力消费
+    vital: i32,
 }
 
 #[cfg(test)]
@@ -1972,6 +2018,105 @@ mod tests {
         assert_eq!(soft_cap_gain(1200, 1196, 10), 7);
         assert_eq!(soft_cap_gain(1200, 1199, 10), 5);
         assert_eq!(soft_cap_gain(1200, 1614, 10), 5);
+    }
+
+    #[test]
+    fn keiko_pays_home_leg_plus_festa_leg_with_per_leg_soft_cap() {
+        // 一手判据（`E:/HJM/_festa/festa_rows2.csv`，229 执行手）：
+        // `实到[axis] = home_pred[axis] + p[axis]` —— 227/229 手五轴全中
+        // （合宿 80/81、非合宿 147/148，不中的 2 手是稽古失败手），PT 同样 227/229。
+        // 报文里两腿**各自已套过** 1200 软上限（pre=1902 那条显示 5、pre=1195 显示 7），
+        // 所以是「分腿折再相加」，不是「对总和折」。
+        // 这里用三条独立路径交叉验证同一个等式：普通训练腿(do_train) + 只留稽古腿的臂 = 稽古实到。
+        let load = || MatsuriData::load(crate::testing::data_dir()).unwrap();
+        // 「只留稽古腿」臂：把普通训练那张表整块清零，剩下的增量就是稽古板自己那条腿
+        let mut festa_only_data = load();
+        for levels in festa_only_data.training_basic_value.iter_mut() {
+            for row in levels.iter_mut() {
+                *row = [0; 7];
+            }
+        }
+        let setup = |data: MatsuriData, cur_speed: i32| -> MatsuriGame {
+            let mut game = game_with_data(Arc::new(data), &[]);
+            game.act_level[0] = 1;
+            game.uma_mut().motivation = 3; // 干劲乘区 = 1.0
+            game.uma_mut().vital = 100;
+            game.uma_mut().five_status[0] = cur_speed;
+            game.uma_mut().five_status_limit[0] = 2500; // 别撞硬上限，否则折不到那条腿
+            game
+        };
+        let seed = || StdRng::seed_from_u64(7);
+
+        let mut g = setup(load(), 0);
+        let pre = g.uma().five_status;
+        let pre_pt = g.uma().skill_pt;
+        let mut r = seed();
+        g.do_keiko(0, &mut r).unwrap();
+        let both: [i32; 5] = std::array::from_fn(|i| g.uma().five_status[i] - pre[i]);
+        let both_pt = g.uma().skill_pt - pre_pt;
+
+        let mut g = setup(festa_only_data, 0);
+        let pre = g.uma().five_status;
+        let pre_pt = g.uma().skill_pt;
+        let mut r = seed();
+        g.do_keiko(0, &mut r).unwrap();
+        let festa: [i32; 5] = std::array::from_fn(|i| g.uma().five_status[i] - pre[i]);
+        let festa_pt = g.uma().skill_pt - pre_pt;
+
+        let mut g = setup(load(), 0);
+        let pre = g.uma().five_status;
+        let pre_pt = g.uma().skill_pt;
+        let mut r = seed();
+        g.do_train(0, &mut r).unwrap();
+        let home: [i32; 5] = std::array::from_fn(|i| g.uma().five_status[i] - pre[i]);
+        let home_pt = g.uma().skill_pt - pre_pt;
+
+        assert!(
+            home[0] > 0 && festa[0] > 0,
+            "两腿都要有量：home={home:?} festa={festa:?}"
+        );
+        for i in 0..5 {
+            assert_eq!(
+                both[i],
+                home[i] + festa[i],
+                "轴 {i}：稽古实到 {} 应 = home {} + festa {}",
+                both[i],
+                home[i],
+                festa[i]
+            );
+        }
+        assert_eq!(both_pt, home_pt + festa_pt, "技能Pt 同样是两条腿相加");
+
+        // 分腿折：把速度做到 pre=1195，两腿各自折后相加（12→8、16→10）
+        // 若改回「对总和折」会得到 16 ⇒ 这条断言会红
+        let mut g = setup(load(), 1195);
+        let pre = g.uma().five_status;
+        let mut r = seed();
+        g.do_keiko(0, &mut r).unwrap();
+        let capped = g.uma().five_status[0] - pre[0];
+        assert_eq!(
+            capped,
+            soft_cap_gain(1200, 1195, home[0]) + soft_cap_gain(1200, 1195, festa[0]),
+            "1200 软上限是分腿各套再相加"
+        );
+        assert_ne!(
+            capped,
+            soft_cap_gain(1200, 1195, home[0] + festa[0]),
+            "不许改成对两腿之和套软上限"
+        );
+
+        // 体力**只一条腿**：报文 159/229 手的稽古板 `p[10]` 为 0、实到体力 = `home[10]`
+        // ⇒ 稽古表 `row[6]` 那列本身就是普通训练的体力消费，不能再叠第二次
+        let keiko_row = load().keiko_basic_value[0];
+        let mut g = setup(load(), 0);
+        let pre_vital = g.uma().vital;
+        let mut r = seed();
+        g.do_keiko(0, &mut r).unwrap();
+        assert_eq!(
+            g.uma().vital - pre_vital,
+            keiko_row[6],
+            "稽古体力消费只结算一次（叠两条腿会翻倍）"
+        );
     }
 
     #[test]
