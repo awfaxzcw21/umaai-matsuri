@@ -6,6 +6,7 @@
 2. **避免信息过载**：需要分析大量代码 / 数据并提取结论时，使用子代理。
 3. **方案选择**：涉及不在上下文中的领域知识或需要选型时，停下来给出建议交用户选择，不直接生成代码。
 4. **提案前审视**：提案前从「做减法」的角度重新考虑一次。
+5. **编码前确认方案**：每一阶段的任务实际开始编码前，先总结当前方案并向用户确认，确认不再调整后再开始实际编码。
 
 ## 项目上下文
 
@@ -52,8 +53,7 @@
 | `crates/matsuri-sim` | 离线模拟：跑一局 / 批量跑局 / 基线裁判 / 测卡；只出 lib |
 | `crates/matsuri-ai` | 在线决策：帧段解析 / Session 接线 / 决策循环；只出 lib |
 | `crates/matsuri-cli` | 终端入口：bin `matsuri`（切 `matsuri` / `random` / `manual`） |
-| `crates/matsuri-cli/src/manual.rs` | 无颜色手动训练员（人工核对机制） |
-| `crates/matsuri-cli/src/{lib,state}.rs` | 面板状态 → 引擎局面的共享装配（两个 bin 共用；lib target 供回归测试进） |
+| `crates/matsuri-cli/src/manual.rs` | 手动核对面板（人工核对机制）：育成配置 + 彩色训练明细表 + 剧本资源 / 教诲分配结果 + 动作槽增量预览 + Inquire 动作 / 事件选择 |
 | `crates/matsuri-tools` | 外围工具：测卡 / 复盘；单 bin 多子命令 |
 
 - **契约 trait impl 不可拆文件**：一个 trait 的 `impl` 必须整体落在同一文件。

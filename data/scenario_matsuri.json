@@ -1,7102 +1,1080 @@
 {
   "scenario_id": 15,
-  "sample_resource": 0,
-  "training_basic_value": [
-    [
-      [
-        12,
-        0,
-        2,
-        0,
-        0,
-        7,
-        -20
-      ],
-      [
-        13,
-        0,
-        2,
-        0,
-        0,
-        7,
-        -21
-      ],
-      [
-        14,
-        0,
-        2,
-        0,
-        0,
-        7,
-        -22
-      ],
-      [
-        15,
-        0,
-        3,
-        0,
-        0,
-        7,
-        -24
-      ],
-      [
-        16,
-        0,
-        3,
-        0,
-        0,
-        7,
-        -25
-      ]
-    ],
-    [
-      [
-        0,
-        10,
-        0,
-        3,
-        0,
-        7,
-        -20
-      ],
-      [
-        0,
-        11,
-        0,
-        4,
-        0,
-        7,
-        -21
-      ],
-      [
-        0,
-        12,
-        0,
-        4,
-        0,
-        7,
-        -22
-      ],
-      [
-        0,
-        13,
-        0,
-        5,
-        0,
-        7,
-        -24
-      ],
-      [
-        0,
-        14,
-        0,
-        6,
-        0,
-        7,
-        -25
-      ]
-    ],
-    [
-      [
-        0,
-        6,
-        9,
-        0,
-        0,
-        7,
-        -21
-      ],
-      [
-        0,
-        6,
-        10,
-        0,
-        0,
-        7,
-        -22
-      ],
-      [
-        0,
-        6,
-        11,
-        0,
-        0,
-        7,
-        -23
-      ],
-      [
-        0,
-        7,
-        12,
-        0,
-        0,
-        7,
-        -25
-      ],
-      [
-        0,
-        8,
-        13,
-        0,
-        0,
-        7,
-        -25
-      ]
-    ],
-    [
-      [
-        2,
-        0,
-        2,
-        12,
-        0,
-        7,
-        -21
-      ],
-      [
-        2,
-        0,
-        2,
-        13,
-        0,
-        7,
-        -22
-      ],
-      [
-        2,
-        0,
-        2,
-        14,
-        0,
-        7,
-        -23
-      ],
-      [
-        3,
-        0,
-        2,
-        15,
-        0,
-        7,
-        -25
-      ],
-      [
-        3,
-        0,
-        2,
-        16,
-        0,
-        7,
-        -25
-      ]
-    ],
-    [
-      [
-        2,
-        0,
-        0,
-        0,
-        8,
-        6,
-        5
-      ],
-      [
-        2,
-        0,
-        0,
-        0,
-        9,
-        6,
-        5
-      ],
-      [
-        2,
-        0,
-        0,
-        0,
-        10,
-        6,
-        5
-      ],
-      [
-        3,
-        0,
-        0,
-        0,
-        11,
-        6,
-        5
-      ],
-      [
-        3,
-        0,
-        0,
-        0,
-        12,
-        6,
-        5
-      ]
-    ]
-  ],
-  "advice_effects": [
-    {"advice_id": 101, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 3},
-    {"advice_id": 101, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
-    {"advice_id": 101, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 5},
-    {"advice_id": 101, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
-    {"advice_id": 101, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 7},
-    {"advice_id": 101, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
-    {"advice_id": 101, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 9},
-    {"advice_id": 101, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
-    {"advice_id": 101, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 10},
-    {"advice_id": 101, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
-    {"advice_id": 101, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 11},
-    {"advice_id": 101, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
-    {"advice_id": 101, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 12},
-    {"advice_id": 101, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
-    {"advice_id": 101, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 13},
-    {"advice_id": 101, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
-    {"advice_id": 101, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 14},
-    {"advice_id": 101, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
-    {"advice_id": 101, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 15},
-    {"advice_id": 101, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 16, "value": 3},
-    {"advice_id": 201, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 10},
-    {"advice_id": 201, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 13},
-    {"advice_id": 201, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 16},
-    {"advice_id": 201, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 20},
-    {"advice_id": 201, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 25},
-    {"advice_id": 201, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 30},
-    {"advice_id": 201, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 35},
-    {"advice_id": 201, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 40},
-    {"advice_id": 201, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 45},
-    {"advice_id": 201, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 50},
-    {"advice_id": 301, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 30},
-    {"advice_id": 301, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 33},
-    {"advice_id": 301, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 36},
-    {"advice_id": 301, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 40},
-    {"advice_id": 301, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 45},
-    {"advice_id": 301, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 50},
-    {"advice_id": 301, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 55},
-    {"advice_id": 301, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 60},
-    {"advice_id": 301, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 70},
-    {"advice_id": 301, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 80},
-    {"advice_id": 401, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 401, "level": 1, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 20},
-    {"advice_id": 401, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 401, "level": 2, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 22},
-    {"advice_id": 401, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 401, "level": 3, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 24},
-    {"advice_id": 401, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 401, "level": 4, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 26},
-    {"advice_id": 401, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 401, "level": 5, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 28},
-    {"advice_id": 401, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 401, "level": 6, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 30},
-    {"advice_id": 401, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 401, "level": 7, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 32},
-    {"advice_id": 401, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 401, "level": 8, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 34},
-    {"advice_id": 401, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 401, "level": 9, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 37},
-    {"advice_id": 401, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 401, "level": 10, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 40},
-    {"advice_id": 501, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -1},
-    {"advice_id": 501, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -2},
-    {"advice_id": 501, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -3},
-    {"advice_id": 501, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -4},
-    {"advice_id": 501, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -5},
-    {"advice_id": 501, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -6},
-    {"advice_id": 501, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -8},
-    {"advice_id": 501, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -10},
-    {"advice_id": 501, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -12},
-    {"advice_id": 501, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -15},
-    {"advice_id": 601, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 5},
-    {"advice_id": 601, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 5},
-    {"advice_id": 601, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 6},
-    {"advice_id": 601, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 6},
-    {"advice_id": 601, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 7},
-    {"advice_id": 601, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 7},
-    {"advice_id": 601, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 8},
-    {"advice_id": 601, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 8},
-    {"advice_id": 601, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 9},
-    {"advice_id": 601, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 9},
-    {"advice_id": 601, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 10},
-    {"advice_id": 601, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 10},
-    {"advice_id": 601, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 13},
-    {"advice_id": 601, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 13},
-    {"advice_id": 601, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 16},
-    {"advice_id": 601, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 16},
-    {"advice_id": 601, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 20},
-    {"advice_id": 601, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 20},
-    {"advice_id": 601, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 25},
-    {"advice_id": 601, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 206, "value": 25},
-    {"advice_id": 701, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 20},
-    {"advice_id": 701, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 22},
-    {"advice_id": 701, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 24},
-    {"advice_id": 701, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 27},
-    {"advice_id": 701, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 30},
-    {"advice_id": 701, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 35},
-    {"advice_id": 701, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 40},
-    {"advice_id": 701, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 50},
-    {"advice_id": 701, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 65},
-    {"advice_id": 701, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 8, "value": 80},
-    {"advice_id": 801, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
-    {"advice_id": 801, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 1},
-    {"advice_id": 801, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
-    {"advice_id": 801, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 2},
-    {"advice_id": 801, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
-    {"advice_id": 801, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 3},
-    {"advice_id": 801, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
-    {"advice_id": 801, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 4},
-    {"advice_id": 801, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
-    {"advice_id": 801, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 5},
-    {"advice_id": 801, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
-    {"advice_id": 801, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 6},
-    {"advice_id": 801, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
-    {"advice_id": 801, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 7},
-    {"advice_id": 801, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
-    {"advice_id": 801, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 8},
-    {"advice_id": 801, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
-    {"advice_id": 801, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 9},
-    {"advice_id": 801, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 18, "value": 1},
-    {"advice_id": 801, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 10},
-    {"advice_id": 901, "level": 1, "condition_type": 2, "condition_value": 45, "effect_type": 205, "value": 100},
-    {"advice_id": 901, "level": 2, "condition_type": 2, "condition_value": 40, "effect_type": 205, "value": 100},
-    {"advice_id": 901, "level": 3, "condition_type": 2, "condition_value": 35, "effect_type": 205, "value": 100},
-    {"advice_id": 901, "level": 4, "condition_type": 2, "condition_value": 30, "effect_type": 205, "value": 100},
-    {"advice_id": 901, "level": 5, "condition_type": 2, "condition_value": 25, "effect_type": 205, "value": 100},
-    {"advice_id": 901, "level": 6, "condition_type": 2, "condition_value": 20, "effect_type": 205, "value": 100},
-    {"advice_id": 901, "level": 7, "condition_type": 2, "condition_value": 15, "effect_type": 205, "value": 100},
-    {"advice_id": 901, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 1},
-    {"advice_id": 901, "level": 8, "condition_type": 2, "condition_value": 10, "effect_type": 205, "value": 100},
-    {"advice_id": 901, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 3},
-    {"advice_id": 901, "level": 9, "condition_type": 2, "condition_value": 5, "effect_type": 205, "value": 100},
-    {"advice_id": 901, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 5},
-    {"advice_id": 901, "level": 10, "condition_type": 2, "condition_value": 0, "effect_type": 205, "value": 100},
-    {"advice_id": 1001, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 1},
-    {"advice_id": 1001, "level": 1, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 1},
-    {"advice_id": 1001, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 2},
-    {"advice_id": 1001, "level": 2, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 2},
-    {"advice_id": 1001, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 3},
-    {"advice_id": 1001, "level": 3, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 3},
-    {"advice_id": 1001, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 4},
-    {"advice_id": 1001, "level": 4, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 4},
-    {"advice_id": 1001, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 5},
-    {"advice_id": 1001, "level": 5, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 5},
-    {"advice_id": 1001, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 8},
-    {"advice_id": 1001, "level": 6, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 7},
-    {"advice_id": 1001, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 11},
-    {"advice_id": 1001, "level": 7, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 9},
-    {"advice_id": 1001, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 15},
-    {"advice_id": 1001, "level": 8, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 11},
-    {"advice_id": 1001, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 20},
-    {"advice_id": 1001, "level": 9, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 13},
-    {"advice_id": 1001, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 21, "value": 25},
-    {"advice_id": 1001, "level": 10, "condition_type": 0, "condition_value": 0, "effect_type": 203, "value": 15}
-  ],
-  "fusion_effects": [
-    {"advice_id": 101, "condition_type": 0, "condition_value": 0, "effect_type": 13, "value": 15},
-    {"advice_id": 101, "condition_type": 0, "condition_value": 0, "effect_type": 17, "value": 1},
-    {"advice_id": 201, "condition_type": 0, "condition_value": 0, "effect_type": 4, "value": 50},
-    {"advice_id": 201, "condition_type": 0, "condition_value": 0, "effect_type": 202, "value": 10},
-    {"advice_id": 301, "condition_type": 0, "condition_value": 0, "effect_type": 2, "value": 80},
-    {"advice_id": 301, "condition_type": 0, "condition_value": 0, "effect_type": 19, "value": 1},
-    {"advice_id": 401, "condition_type": 3, "condition_value": 0, "effect_type": 203, "value": 20},
-    {"advice_id": 401, "condition_type": 0, "condition_value": 0, "effect_type": 20, "value": 47},
-    {"advice_id": 501, "condition_type": 0, "condition_value": 0, "effect_type": 3, "value": -15}
-  ],
-  "fusion_grants": [
-    {"turn": 23, "fusion_id": 601},
-    {"turn": 23, "fusion_id": 701},
-    {"turn": 47, "fusion_id": 801},
-    {"turn": 47, "fusion_id": 901},
-    {"turn": 47, "fusion_id": 1001}
-  ],
-  "advice_grant_turns": [
-    2
-  ],
-  "advice_grant_order": [
-    [
-      101,
-      201,
-      301,
-      401,
-      501
-    ]
-  ],
-  "check_points": [
+  "limits": {
+    "five_status_limit_base": [2200, 1850, 1800, 1700, 1800],
+    "five_status_limit_upper": [2500, 2500, 2500, 2500, 2500],
+    "support_num": 5,
+    "max_skill_point": 99999
+  },
+  "acts": [
     {
-      "schedule": 1,
-      "turn": 23,
-      "need": 3,
-      "success": {
-        "gain_pct": 20,
-        "friend_pct": 0,
-        "hint_pct": 20
-      },
-      "great": {
-        "gain_pct": 40,
-        "friend_pct": 5,
-        "hint_pct": 50
-      },
-      "all_stat": 5,
-    "success_all_stat": 3,
-    "success_pt": 100,
-    "chairman_bond": 15,
-      "pt": 200,
-      "train_lv": 1,
-      "vital": 0,
-      "motivation": 0
+      "act_type": 1,
+      "command_id": 5101,
+      "train": 0,
+      "npc_chara_id": 1009
     },
     {
-      "schedule": 2,
-      "turn": 47,
-      "need": 5,
-      "success": {
-        "gain_pct": 40,
-        "friend_pct": 5,
-        "hint_pct": 50
-      },
-      "great": {
-        "gain_pct": 60,
-        "friend_pct": 10,
-        "hint_pct": 100
-      },
-      "all_stat": 10,
-    "success_all_stat": 5,
-    "success_pt": 150,
-    "chairman_bond": 15,
-      "pt": 300,
-      "train_lv": 1,
-      "vital": 0,
-      "motivation": 0
+      "act_type": 2,
+      "command_id": 5102,
+      "train": 1,
+      "npc_chara_id": 1096
     },
     {
-      "schedule": 3,
-      "turn": 67,
-      "need": 6,
-      "success": {
-        "gain_pct": 60,
-        "friend_pct": 10,
-        "hint_pct": 100
-      },
-      "great": {
-        "gain_pct": 80,
-        "friend_pct": 20,
-        "hint_pct": 150
-      },
-      "all_stat": 15,
-    "success_all_stat": 10,
-    "success_pt": 200,
-    "chairman_bond": 0,
-      "pt": 400,
-      "train_lv": 0,
-      "vital": 30,
-      "motivation": 1
+      "act_type": 3,
+      "command_id": 5103,
+      "train": 2,
+      "npc_chara_id": 1024
+    },
+    {
+      "act_type": 4,
+      "command_id": 5104,
+      "train": 3,
+      "npc_chara_id": 1029
+    },
+    {
+      "act_type": 5,
+      "command_id": 5105,
+      "train": 4,
+      "npc_chara_id": 1128
     }
   ],
-  "value_scale": {
-    "train_stat": 1.0,
-    "train_pt": 1.0,
-    "keiko_stat": 1.0,
-    "keiko_pt": 1.0
+  "training": {
+    "normal": [
+      [
+        [12, 0, 2, 0, 0, 7, -20],
+        [13, 0, 2, 0, 0, 7, -21],
+        [14, 0, 2, 0, 0, 7, -22],
+        [15, 0, 3, 0, 0, 7, -24],
+        [16, 0, 3, 0, 0, 7, -25]
+      ],
+      [
+        [0, 10, 0, 3, 0, 7, -20],
+        [0, 11, 0, 4, 0, 7, -21],
+        [0, 12, 0, 4, 0, 7, -22],
+        [0, 13, 0, 5, 0, 7, -24],
+        [0, 14, 0, 6, 0, 7, -25]
+      ],
+      [
+        [0, 6, 9, 0, 0, 7, -21],
+        [0, 6, 10, 0, 0, 7, -22],
+        [0, 6, 11, 0, 0, 7, -23],
+        [0, 7, 12, 0, 0, 7, -25],
+        [0, 8, 13, 0, 0, 7, -25]
+      ],
+      [
+        [2, 0, 2, 12, 0, 7, -21],
+        [2, 0, 2, 13, 0, 7, -22],
+        [2, 0, 2, 14, 0, 7, -23],
+        [3, 0, 2, 15, 0, 7, -25],
+        [3, 0, 2, 16, 0, 7, -25]
+      ],
+      [
+        [2, 0, 0, 0, 8, 6, 5],
+        [2, 0, 0, 0, 9, 6, 5],
+        [2, 0, 0, 0, 10, 6, 5],
+        [3, 0, 0, 0, 11, 6, 5],
+        [3, 0, 0, 0, 12, 6, 5]
+      ]
+    ],
+    "keiko": {
+      "junior": [
+        [16, 0, 3, 0, 0, 9, -25],
+        [0, 14, 0, 6, 0, 10, -25],
+        [0, 6, 14, 0, 0, 10, -25],
+        [3, 0, 2, 15, 0, 10, -25],
+        [3, 0, 0, 0, 12, 8, 5]
+      ],
+      "classic": [
+        [21, 0, 3, 0, 0, 10, -25],
+        [0, 20, 0, 8, 0, 12, -25],
+        [0, 8, 20, 0, 0, 12, -25],
+        [3, 0, 2, 23, 0, 12, -25],
+        [4, 0, 0, 0, 14, 9, 5]
+      ]
+    }
   },
-  "stat_anchor_scale": 1.45,
-  "race_reward": {
-    "target": { "stat": 5, "pt": 72 },
-    "ura": [
-      { "stat": 10, "pt": 40 },
-      { "stat": 10, "pt": 60 },
-      { "stat": 10, "pt": 80 }
-    ],
-    "non_target": [
-      { "stat": 10, "pt": 45 },
-      null,
-      { "stat": 8, "pt": 35 }
-    ]
-  },
-  "free_races": [
-    { "turn": 44, "count": 3, "grade": 1 },
-    { "turn": 68, "count": 3, "grade": 1 }
-  ],
-  "soft_cap": 1200,
-  "cap_decay": 0.0,
-  "cap_decay_floor": 0.15,
-  "friend_gain_per_train": 4,
-  "shining_boost": 0.25,
-  "friend_window": 20,
-  "keiko_basic_value": [
-    [
-      16,
-      0,
-      3,
-      0,
-      0,
-      9,
-      -25
-    ],
-    [
-      0,
-      14,
-      0,
-      6,
-      0,
-      10,
-      -25
-    ],
-    [
-      0,
-      6,
-      14,
-      0,
-      0,
-      10,
-      -25
-    ],
-    [
-      3,
-      0,
-      2,
-      15,
-      0,
-      10,
-      -25
-    ],
-    [
-      3,
-      0,
-      0,
-      0,
-      12,
-      8,
-      5
-    ]
-  ],
-  "keiko_basic_value_late": [
-    [
-      21,
-      0,
-      3,
-      0,
-      0,
-      10,
-      -25
-    ],
-    [
-      0,
-      20,
-      0,
-      8,
-      0,
-      12,
-      -25
-    ],
-    [
-      0,
-      8,
-      20,
-      0,
-      0,
-      12,
-      -25
-    ],
-    [
-      3,
-      0,
-      2,
-      23,
-      0,
-      12,
-      -25
-    ],
-    [
-      4,
-      0,
-      0,
-      0,
-      14,
-      9,
-      5
-    ]
-  ],
-  "act_level_effects": [
+  "act_effects": [
     {
       "level": 1,
-      "all_base": 10,
-      "friend_pct": 2,
-      "sp_practice_pct": 20,
+      "all_status_bonus": 10,
+      "friendship": 2,
+      "sp_training": 20,
+      "hint_event": true,
+      "all_hint": false,
       "sp_limit": 0,
-      "base_limit": 0
+      "status_limit": 0,
+      "sp_training_hidden": 30
     },
     {
       "level": 2,
-      "all_base": 10,
-      "friend_pct": 3,
-      "sp_practice_pct": 25,
+      "all_status_bonus": 10,
+      "friendship": 3,
+      "sp_training": 25,
+      "hint_event": true,
+      "all_hint": false,
       "sp_limit": 0,
-      "base_limit": 0
+      "status_limit": 0,
+      "sp_training_hidden": 30
     },
     {
       "level": 3,
-      "all_base": 10,
-      "friend_pct": 4,
-      "sp_practice_pct": 30,
+      "all_status_bonus": 10,
+      "friendship": 4,
+      "sp_training": 30,
+      "hint_event": true,
+      "all_hint": false,
       "sp_limit": 0,
-      "base_limit": 0
+      "status_limit": 0,
+      "sp_training_hidden": 30
     },
     {
       "level": 4,
-      "all_base": 10,
-      "friend_pct": 5,
-      "sp_practice_pct": 40,
+      "all_status_bonus": 10,
+      "friendship": 5,
+      "sp_training": 40,
+      "hint_event": true,
+      "all_hint": true,
       "sp_limit": 10,
-      "base_limit": 0
+      "status_limit": 0,
+      "sp_training_hidden": 30
     },
     {
       "level": 5,
-      "all_base": 10,
-      "friend_pct": 6,
-      "sp_practice_pct": 50,
+      "all_status_bonus": 10,
+      "friendship": 6,
+      "sp_training": 50,
+      "hint_event": true,
+      "all_hint": true,
       "sp_limit": 20,
-      "base_limit": 0
+      "status_limit": 0,
+      "sp_training_hidden": 30
     },
     {
       "level": 6,
-      "all_base": 10,
-      "friend_pct": 7,
-      "sp_practice_pct": 60,
+      "all_status_bonus": 10,
+      "friendship": 7,
+      "sp_training": 60,
+      "hint_event": true,
+      "all_hint": true,
       "sp_limit": 30,
-      "base_limit": 0
+      "status_limit": 0,
+      "sp_training_hidden": 30
     },
     {
       "level": 7,
-      "all_base": 10,
-      "friend_pct": 8,
-      "sp_practice_pct": 80,
+      "all_status_bonus": 10,
+      "friendship": 8,
+      "sp_training": 80,
+      "hint_event": true,
+      "all_hint": true,
       "sp_limit": 50,
-      "base_limit": 0
+      "status_limit": 0,
+      "sp_training_hidden": 30
     },
     {
       "level": 8,
-      "all_base": 10,
-      "friend_pct": 10,
-      "sp_practice_pct": 100,
+      "all_status_bonus": 10,
+      "friendship": 10,
+      "sp_training": 100,
+      "hint_event": true,
+      "all_hint": true,
       "sp_limit": 100,
-      "base_limit": 0
+      "status_limit": 0,
+      "sp_training_hidden": 30
     },
     {
       "level": 9,
-      "all_base": 10,
-      "friend_pct": 12,
-      "sp_practice_pct": 135,
+      "all_status_bonus": 10,
+      "friendship": 12,
+      "sp_training": 135,
+      "hint_event": true,
+      "all_hint": true,
       "sp_limit": 120,
-      "base_limit": 20
+      "status_limit": 20,
+      "sp_training_hidden": 30
     },
     {
       "level": 10,
-      "all_base": 10,
-      "friend_pct": 15,
-      "sp_practice_pct": 170,
+      "all_status_bonus": 10,
+      "friendship": 15,
+      "sp_training": 170,
+      "hint_event": true,
+      "all_hint": true,
       "sp_limit": 120,
-      "base_limit": 25
+      "status_limit": 25,
+      "sp_training_hidden": 30
     }
   ],
-  "hidden_events": [
-    {
-      "stat": [
-        30,
-        0,
-        30,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        7,
-        7,
-        7,
-        7,
-        7
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        25,
-        0,
-        25,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        15,
-        0,
-        15,
-        0
-      ],
-      "pt": 15,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        25,
-        0,
-        25,
-        25,
-        0
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 25,
-      "vital": -15
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        0,
-        0
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 60,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        30,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 30
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 50,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        0,
-        25,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 25
-    },
-    {
-      "stat": [
-        15,
-        15,
-        15,
-        15,
-        15
-      ],
-      "pt": 70,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        20,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 10,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        20,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        10,
-        0
-      ],
-      "pt": 10,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        20,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 20
-    },
-    {
-      "stat": [
-        5,
-        5,
-        5,
-        5,
-        5
-      ],
-      "pt": 50,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        5,
-        0,
-        5,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        5,
-        5,
-        5,
-        5,
-        5
-      ],
-      "pt": 70,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        10,
-        0,
-        10
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        0,
-        10,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        5,
-        0
-      ],
-      "pt": 36,
-      "vital": -15
-    },
-    {
-      "stat": [
-        10,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        20,
-        0,
-        0
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 50,
-      "vital": -15
-    },
-    {
-      "stat": [
-        5,
-        5,
-        5,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        20,
-        0,
-        20,
-        0,
-        0
-      ],
-      "pt": 35,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        10,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 120,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        13,
-        13,
-        13,
-        3
-      ],
-      "pt": 60,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        12
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        6,
-        6,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        25,
-        0,
-        25,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 35,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 35,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 35,
-      "vital": -15
-    },
-    {
-      "stat": [
-        15,
-        0,
-        0,
-        10,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 75,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 42,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        20,
-        0,
-        0
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        12,
-        12,
-        12,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 10,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        10,
-        10,
-        0
-      ],
-      "pt": 10,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        10,
-        10,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        20,
-        20,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        15,
-        0,
-        15,
-        0,
-        15
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        10,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        20,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        10,
-        10,
-        0
-      ],
-      "pt": 10,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 40,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        10,
-        10,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        20,
-        20,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        10,
-        20,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        25,
-        0,
-        25,
-        0,
-        25
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        10,
-        10,
-        10
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        40,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": -15
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        15,
-        15,
-        0
-      ],
-      "pt": 15,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        20,
-        0,
-        20
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        20,
-        0,
-        20,
-        20,
-        0
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        10,
-        0
-      ],
-      "pt": 10,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        30,
-        30,
-        30,
-        0,
-        0
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        20,
-        20,
-        0
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        30,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        1,
-        1,
-        1,
-        1,
-        1
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        20,
-        0,
-        0
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        15,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 15
-    },
-    {
-      "stat": [
-        25,
-        0,
-        25,
-        25,
-        0
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        20,
-        20,
-        20
-      ],
-      "pt": 15,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        15,
-        15,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 93,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 93,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 93,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        15,
-        15,
-        15,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 79,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        33,
-        33,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        20,
-        20,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        25,
-        25,
-        25,
-        0,
-        0
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 80,
-      "vital": -15
-    },
-    {
-      "stat": [
-        30,
-        0,
-        30,
-        0,
-        0
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        30,
-        30,
-        30,
-        0,
-        0
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        0,
-        15,
-        0,
-        0
-      ],
-      "pt": 15,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        20,
-        20,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        10,
-        10,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        30,
-        0,
-        30,
-        30,
-        0
-      ],
-      "pt": 24,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        15,
-        15,
-        15,
-        15
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        0,
-        10
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        10,
-        10
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        10,
-        10,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        30,
-        0,
-        30,
-        0,
-        30
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        15,
-        15,
-        0,
-        15
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        5,
-        5,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        0,
-        10
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        33,
-        33,
-        33,
-        33,
-        33
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        15,
-        15,
-        15,
-        15
-      ],
-      "pt": 15,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        5,
-        0,
-        20,
-        20,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        15,
-        15,
-        15,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        35,
-        35,
-        35,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        25,
-        0,
-        25,
-        0,
-        0
-      ],
-      "pt": 25,
-      "vital": 25
-    },
-    {
-      "stat": [
-        25,
-        25,
-        25,
-        0,
-        0
-      ],
-      "pt": 50,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        10,
-        10,
-        0,
-        10
-      ],
-      "pt": 75,
-      "vital": -15
-    },
-    {
-      "stat": [
-        20,
-        20,
-        20,
-        20,
-        20
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        20,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        20,
-        0,
-        0
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        0,
-        15,
-        15,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        10,
-        0
-      ],
-      "pt": 75,
-      "vital": -15
-    },
-    {
-      "stat": [
-        15,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 75,
-      "vital": -15
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        5,
-        5,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 10,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        15,
-        15,
-        15,
-        15
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 35,
-      "vital": -15
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        0,
-        0
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 25,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 75,
-      "vital": -15
-    },
-    {
-      "stat": [
-        25,
-        0,
-        25,
-        0,
-        0
-      ],
-      "pt": 10,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 75,
-      "vital": -15
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        20,
-        20,
-        0,
-        0
-      ],
-      "pt": 25,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 85,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 85,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 85,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        15,
-        15,
-        15,
-        15
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        35,
-        35,
-        0
-      ],
-      "pt": 25,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        20,
-        20,
-        20,
-        20
-      ],
-      "pt": 40,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        25,
-        0,
-        25,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        0,
-        15,
-        0,
-        0
-      ],
-      "pt": 15,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        14,
-        14,
-        14,
-        14
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        15,
-        15,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 75,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 112,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 112,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 112,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 112,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 112,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 112,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        15,
-        0,
-        15
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 56,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 56,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        10,
-        10,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 56,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 47,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 47,
-      "vital": 0
-    },
-    {
-      "stat": [
-        25,
-        0,
-        25,
-        0,
-        0
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        15,
-        15,
-        15,
-        15
-      ],
-      "pt": 50,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 59,
-      "vital": 0
-    },
-    {
-      "stat": [
-        15,
-        0,
-        15,
-        0,
-        15
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 40,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        20,
-        0,
-        20
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        5,
-        5,
-        5,
-        5,
-        5
-      ],
-      "pt": 30,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        20,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        20,
-        20,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        20,
-        20,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        20,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        35,
-        0,
-        35,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        35,
-        0,
-        35,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        6,
-        6,
-        6,
-        6,
-        6
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        15,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        13,
-        13,
-        13,
-        13,
-        13
-      ],
-      "pt": 125,
-      "vital": 0
-    },
-    {
-      "stat": [
-        25,
-        0,
-        25,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 56,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 45,
-      "vital": -13
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        10,
-        10
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        3,
-        3,
-        3,
-        3,
-        3
-      ],
-      "pt": 51,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 20,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 32,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 31,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 53,
-      "vital": -15
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 56,
-      "vital": -15
-    },
-    {
-      "stat": [
-        25,
-        25,
-        25,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        0,
-        0
-      ],
-      "pt": 15,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        5,
-        5,
-        5,
-        5,
-        5
-      ],
-      "pt": 45,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        0,
-        10,
-        10,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        10,
-        10,
-        10,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        10,
-        10,
-        10,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        10,
-        10,
-        0,
-        10
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        10,
-        10,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        10,
-        0,
-        10
-      ],
-      "pt": 0,
-      "vital": 0
-    },
-    {
-      "stat": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "pt": 0,
-      "vital": 0
+  "advices": [
+    {
+      "id": 101,
+      "fusion_type": 1,
+      "add_schedule_type": 1,
+      "effect": {
+        "kind": "friendship",
+        "levels": [
+          {
+            "gauge": 3,
+            "keiko_main_bonus": 3
+          },
+          {
+            "gauge": 3,
+            "keiko_main_bonus": 5
+          },
+          {
+            "gauge": 3,
+            "keiko_main_bonus": 7
+          },
+          {
+            "gauge": 3,
+            "keiko_main_bonus": 9
+          },
+          {
+            "gauge": 3,
+            "keiko_main_bonus": 10
+          },
+          {
+            "gauge": 3,
+            "keiko_main_bonus": 11
+          },
+          {
+            "gauge": 3,
+            "keiko_main_bonus": 12
+          },
+          {
+            "gauge": 3,
+            "keiko_main_bonus": 13
+          },
+          {
+            "gauge": 3,
+            "keiko_main_bonus": 14
+          },
+          {
+            "gauge": 3,
+            "keiko_main_bonus": 15
+          }
+        ]
+      }
+    },
+    {
+      "id": 201,
+      "fusion_type": 1,
+      "add_schedule_type": 1,
+      "effect": {
+        "kind": "deyilv",
+        "levels": [
+          {
+            "deyilv": 10
+          },
+          {
+            "deyilv": 13
+          },
+          {
+            "deyilv": 16
+          },
+          {
+            "deyilv": 20
+          },
+          {
+            "deyilv": 25
+          },
+          {
+            "deyilv": 30
+          },
+          {
+            "deyilv": 35
+          },
+          {
+            "deyilv": 40
+          },
+          {
+            "deyilv": 45
+          },
+          {
+            "deyilv": 50
+          }
+        ]
+      }
+    },
+    {
+      "id": 301,
+      "fusion_type": 1,
+      "add_schedule_type": 1,
+      "effect": {
+        "kind": "hint",
+        "levels": [
+          {
+            "hint_rate": 30
+          },
+          {
+            "hint_rate": 33
+          },
+          {
+            "hint_rate": 36
+          },
+          {
+            "hint_rate": 40
+          },
+          {
+            "hint_rate": 45
+          },
+          {
+            "hint_rate": 50
+          },
+          {
+            "hint_rate": 55
+          },
+          {
+            "hint_rate": 60
+          },
+          {
+            "hint_rate": 70
+          },
+          {
+            "hint_rate": 80
+          }
+        ]
+      }
+    },
+    {
+      "id": 401,
+      "fusion_type": 1,
+      "add_schedule_type": 1,
+      "effect": {
+        "kind": "assist",
+        "levels": [
+          {
+            "training_effect": 20,
+            "support_assist": true
+          },
+          {
+            "training_effect": 22,
+            "support_assist": true
+          },
+          {
+            "training_effect": 24,
+            "support_assist": true
+          },
+          {
+            "training_effect": 26,
+            "support_assist": true
+          },
+          {
+            "training_effect": 28,
+            "support_assist": true
+          },
+          {
+            "training_effect": 30,
+            "support_assist": true
+          },
+          {
+            "training_effect": 32,
+            "support_assist": true
+          },
+          {
+            "training_effect": 34,
+            "support_assist": true
+          },
+          {
+            "training_effect": 37,
+            "support_assist": true
+          },
+          {
+            "training_effect": 40,
+            "support_assist": true
+          }
+        ]
+      }
+    },
+    {
+      "id": 501,
+      "fusion_type": 1,
+      "add_schedule_type": 1,
+      "effect": {
+        "kind": "vital",
+        "levels": [
+          {
+            "keiko_vital_cost_drop": 1
+          },
+          {
+            "keiko_vital_cost_drop": 2
+          },
+          {
+            "keiko_vital_cost_drop": 3
+          },
+          {
+            "keiko_vital_cost_drop": 4
+          },
+          {
+            "keiko_vital_cost_drop": 5
+          },
+          {
+            "keiko_vital_cost_drop": 6
+          },
+          {
+            "keiko_vital_cost_drop": 8
+          },
+          {
+            "keiko_vital_cost_drop": 10
+          },
+          {
+            "keiko_vital_cost_drop": 12
+          },
+          {
+            "keiko_vital_cost_drop": 15
+          }
+        ]
+      }
+    },
+    {
+      "id": 601,
+      "fusion_type": 2,
+      "add_schedule_type": 2,
+      "effect": {
+        "kind": "special",
+        "levels": [
+          {
+            "main_gain": 5,
+            "status_limit": 5
+          },
+          {
+            "main_gain": 6,
+            "status_limit": 6
+          },
+          {
+            "main_gain": 7,
+            "status_limit": 7
+          },
+          {
+            "main_gain": 8,
+            "status_limit": 8
+          },
+          {
+            "main_gain": 9,
+            "status_limit": 9
+          },
+          {
+            "main_gain": 10,
+            "status_limit": 10
+          },
+          {
+            "main_gain": 13,
+            "status_limit": 13
+          },
+          {
+            "main_gain": 16,
+            "status_limit": 16
+          },
+          {
+            "main_gain": 20,
+            "status_limit": 20
+          },
+          {
+            "main_gain": 25,
+            "status_limit": 25
+          }
+        ]
+      }
+    },
+    {
+      "id": 701,
+      "fusion_type": 2,
+      "add_schedule_type": 2,
+      "effect": {
+        "kind": "kensan",
+        "levels": [
+          {
+            "rate": 20
+          },
+          {
+            "rate": 22
+          },
+          {
+            "rate": 24
+          },
+          {
+            "rate": 27
+          },
+          {
+            "rate": 30
+          },
+          {
+            "rate": 35
+          },
+          {
+            "rate": 40
+          },
+          {
+            "rate": 50
+          },
+          {
+            "rate": 65
+          },
+          {
+            "rate": 80
+          }
+        ]
+      }
+    },
+    {
+      "id": 801,
+      "fusion_type": 2,
+      "add_schedule_type": 3,
+      "effect": {
+        "kind": "cooperate",
+        "levels": [
+          {
+            "friendship": 1,
+            "split": 1
+          },
+          {
+            "friendship": 2,
+            "split": 1
+          },
+          {
+            "friendship": 3,
+            "split": 1
+          },
+          {
+            "friendship": 4,
+            "split": 1
+          },
+          {
+            "friendship": 5,
+            "split": 1
+          },
+          {
+            "friendship": 6,
+            "split": 1
+          },
+          {
+            "friendship": 7,
+            "split": 1
+          },
+          {
+            "friendship": 8,
+            "split": 1
+          },
+          {
+            "friendship": 9,
+            "split": 1
+          },
+          {
+            "friendship": 10,
+            "split": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": 901,
+      "fusion_type": 2,
+      "add_schedule_type": 3,
+      "effect": {
+        "kind": "unyielding",
+        "levels": [
+          {
+            "fail_vital_threshold": 45,
+            "keiko_training_effect": 0
+          },
+          {
+            "fail_vital_threshold": 40,
+            "keiko_training_effect": 0
+          },
+          {
+            "fail_vital_threshold": 35,
+            "keiko_training_effect": 0
+          },
+          {
+            "fail_vital_threshold": 30,
+            "keiko_training_effect": 0
+          },
+          {
+            "fail_vital_threshold": 25,
+            "keiko_training_effect": 0
+          },
+          {
+            "fail_vital_threshold": 20,
+            "keiko_training_effect": 0
+          },
+          {
+            "fail_vital_threshold": 15,
+            "keiko_training_effect": 0
+          },
+          {
+            "fail_vital_threshold": 10,
+            "keiko_training_effect": 1
+          },
+          {
+            "fail_vital_threshold": 5,
+            "keiko_training_effect": 3
+          },
+          {
+            "fail_vital_threshold": 0,
+            "keiko_training_effect": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": 1001,
+      "fusion_type": 2,
+      "add_schedule_type": 3,
+      "effect": {
+        "kind": "dual",
+        "levels": [
+          {
+            "sub_gain": 1,
+            "keiko_training_effect": 1
+          },
+          {
+            "sub_gain": 2,
+            "keiko_training_effect": 2
+          },
+          {
+            "sub_gain": 3,
+            "keiko_training_effect": 3
+          },
+          {
+            "sub_gain": 4,
+            "keiko_training_effect": 4
+          },
+          {
+            "sub_gain": 5,
+            "keiko_training_effect": 5
+          },
+          {
+            "sub_gain": 8,
+            "keiko_training_effect": 7
+          },
+          {
+            "sub_gain": 11,
+            "keiko_training_effect": 9
+          },
+          {
+            "sub_gain": 15,
+            "keiko_training_effect": 11
+          },
+          {
+            "sub_gain": 20,
+            "keiko_training_effect": 13
+          },
+          {
+            "sub_gain": 25,
+            "keiko_training_effect": 15
+          }
+        ]
+      }
     }
   ],
+  "fusion": [
+    {
+      "advice_id": 101,
+      "effect": {
+        "kind": "friendship",
+        "keiko_main_bonus": 15,
+        "camp_extra_person": 1
+      }
+    },
+    {
+      "advice_id": 201,
+      "effect": {
+        "kind": "deyilv",
+        "deyilv": 50,
+        "keiko_friendship": 10
+      }
+    },
+    {
+      "advice_id": 301,
+      "effect": {
+        "kind": "hint",
+        "hint_rate": 80,
+        "hint_level": 1
+      }
+    },
+    {
+      "advice_id": 401,
+      "effect": {
+        "kind": "assist",
+        "training_effect": 20,
+        "support_assist": true
+      }
+    },
+    {
+      "advice_id": 501,
+      "effect": {
+        "kind": "vital",
+        "keiko_vital_cost_drop": 15
+      }
+    }
+  ],
+  "check_points": [
+    {
+      "schedule": 0,
+      "result": "none",
+      "friendship": 0,
+      "deyilv": 20,
+      "hint_rate": 0,
+      "race_bonus": 0
+    },
+    {
+      "schedule": 1,
+      "result": "success",
+      "friendship": 0,
+      "deyilv": 20,
+      "hint_rate": 20,
+      "race_bonus": 0
+    },
+    {
+      "schedule": 1,
+      "result": "great_success",
+      "friendship": 5,
+      "deyilv": 40,
+      "hint_rate": 50,
+      "race_bonus": 0
+    },
+    {
+      "schedule": 2,
+      "result": "success",
+      "friendship": 5,
+      "deyilv": 40,
+      "hint_rate": 50,
+      "race_bonus": 0
+    },
+    {
+      "schedule": 2,
+      "result": "great_success",
+      "friendship": 10,
+      "deyilv": 60,
+      "hint_rate": 100,
+      "race_bonus": 0
+    },
+    {
+      "schedule": 3,
+      "result": "success",
+      "friendship": 10,
+      "deyilv": 60,
+      "hint_rate": 100,
+      "race_bonus": 30
+    },
+    {
+      "schedule": 3,
+      "result": "great_success",
+      "friendship": 20,
+      "deyilv": 80,
+      "hint_rate": 150,
+      "race_bonus": 100
+    }
+  ],
+  "check_point_rewards": [
+    {
+      "schedule": 1,
+      "result": "success",
+      "status": 3,
+      "skill_pt": 100,
+      "vital": 0,
+      "motivation": 0,
+      "training_level_up": 0,
+      "president_friendship": 0,
+      "act_member_add": 0,
+      "hints": [],
+      "hints_all_great": []
+    },
+    {
+      "schedule": 1,
+      "result": "great_success",
+      "status": 5,
+      "skill_pt": 200,
+      "vital": 0,
+      "motivation": 0,
+      "training_level_up": 1,
+      "president_friendship": 15,
+      "act_member_add": 0,
+      "hints": [],
+      "hints_all_great": []
+    },
+    {
+      "schedule": 2,
+      "result": "success",
+      "status": 5,
+      "skill_pt": 150,
+      "vital": 0,
+      "motivation": 0,
+      "training_level_up": 0,
+      "president_friendship": 0,
+      "act_member_add": 0,
+      "hints": [],
+      "hints_all_great": []
+    },
+    {
+      "schedule": 2,
+      "result": "great_success",
+      "status": 10,
+      "skill_pt": 300,
+      "vital": 0,
+      "motivation": 0,
+      "training_level_up": 1,
+      "president_friendship": 15,
+      "act_member_add": 1,
+      "hints": [
+        {
+          "skill": "全身全霊",
+          "level": 1
+        }
+      ],
+      "hints_all_great": []
+    },
+    {
+      "schedule": 3,
+      "result": "success",
+      "status": 10,
+      "skill_pt": 200,
+      "vital": 0,
+      "motivation": 0,
+      "training_level_up": 0,
+      "president_friendship": 0,
+      "act_member_add": 0,
+      "hints": [
+        {
+          "skill": "序盤巧者",
+          "level": 1
+        },
+        {
+          "skill": "彼方の呼び声",
+          "level": 1
+        }
+      ],
+      "hints_all_great": []
+    },
+    {
+      "schedule": 3,
+      "result": "great_success",
+      "status": 15,
+      "skill_pt": 400,
+      "vital": 30,
+      "motivation": 1,
+      "training_level_up": 0,
+      "president_friendship": 15,
+      "act_member_add": 0,
+      "hints": [
+        {
+          "skill": "機先の勝負",
+          "level": 2
+        },
+        {
+          "skill": "彼方の呼び声",
+          "level": 3
+        }
+      ],
+      "hints_all_great": [
+        {
+          "skill": "ハヤテ一文字",
+          "level": 2
+        }
+      ]
+    }
+  ],
+  "career_end_rewards": [
+    {
+      "result": "success",
+      "status": 15,
+      "skill_pt": 150,
+      "vital": 0,
+      "motivation": 0,
+      "training_level_up": 0,
+      "president_friendship": 0,
+      "act_member_add": 0,
+      "hints": [
+        {
+          "skill": "彼方の呼び声",
+          "level": 3
+        }
+      ],
+      "hints_all_great": []
+    },
+    {
+      "result": "great_success",
+      "status": 30,
+      "skill_pt": 350,
+      "vital": 0,
+      "motivation": 0,
+      "training_level_up": 0,
+      "president_friendship": 0,
+      "act_member_add": 0,
+      "hints": [
+        {
+          "skill": "名にし負う夢",
+          "level": 2
+        }
+      ],
+      "hints_all_great": []
+    }
+  ],
+  "finals_act": {
+    "vital": 30,
+    "motivation": 1,
+    "fail_rate_drop": 100,
+    "extra_member": 1
+  },
+  "outing": [
+    {
+      "card_id": 30323,
+      "story_step": 1,
+      "add_level": 1
+    },
+    {
+      "card_id": 30323,
+      "story_step": 2,
+      "add_level": 1
+    },
+    {
+      "card_id": 30323,
+      "story_step": 3,
+      "add_level": 1
+    },
+    {
+      "card_id": 30323,
+      "story_step": 4,
+      "add_level": 1
+    },
+    {
+      "card_id": 30323,
+      "story_step": 5,
+      "add_level": 1
+    },
+    {
+      "card_id": 10149,
+      "story_step": 1,
+      "add_level": 1
+    },
+    {
+      "card_id": 10149,
+      "story_step": 2,
+      "add_level": 1
+    },
+    {
+      "card_id": 10149,
+      "story_step": 3,
+      "add_level": 1
+    },
+    {
+      "card_id": 10149,
+      "story_step": 4,
+      "add_level": 1
+    },
+    {
+      "card_id": 10149,
+      "story_step": 5,
+      "add_level": 1
+    }
+  ],
+  "schedule": [
+    {
+      "turn": 23,
+      "need_act_num": 5,
+      "need_act_level": 3
+    },
+    {
+      "turn": 47,
+      "need_act_num": 5,
+      "need_act_level": 5
+    },
+    {
+      "turn": 67,
+      "need_act_num": 5,
+      "need_act_level": 6
+    }
+  ],
+  "advice_windows": [2, 11, 23, 35, 47, 59],
   "scenario_events": [
     {
-      "id": 9001,
-      "name": "剧本事件9001",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                15
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                5
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                20
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
+      "id": 400015105,
+      "name": "教えの見直し",
+      "trigger": { "type": "Fixed", "turns": [11, 35, 59] },
+      "choices": [[{
+        "value": {
+          "vital": 15,
+          "motivation": 1
+        }
+      }]]
     },
     {
-      "id": 9002,
-      "name": "剧本事件9002",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
+      "id": 400015106,
+      "name": "追加の稽古",
+      "trigger": { "type": "Code" },
       "player_select": true,
       "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                6,
-                0,
-                6,
-                0,
-                0,
-                13
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                6,
-                0
-              ],
-              "vital": 16,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9003,
-      "name": "剧本事件9003",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                5,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 20,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                25
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9004,
-      "name": "剧本事件9004",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                10,
-                0
-              ],
-              "vital": 20,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                5,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9005,
-      "name": "剧本事件9005",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                25,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 20,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                20
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9006,
-      "name": "剧本事件9006",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                20,
-                0,
-                0,
-                0
-              ],
-              "vital": 5,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                15
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9007,
-      "name": "剧本事件9007",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                5,
-                0,
-                10,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9008,
-      "name": "剧本事件9008",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                20,
-                0,
-                10,
-                0,
-                5
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                20,
-                0,
-                0,
-                0,
-                30
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9009,
-      "name": "剧本事件9009",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                20,
-                0
-              ],
-              "vital": 25,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                35,
-                10
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9010,
-      "name": "剧本事件9010",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                20,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                20,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9011,
-      "name": "剧本事件9011",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                15,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                10,
-                5,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9012,
-      "name": "剧本事件9012",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                25
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                25
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 5,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9013,
-      "name": "剧本事件9013",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                10,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                10,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9014,
-      "name": "剧本事件9014",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                20,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                20,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                20,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                20,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9015,
-      "name": "剧本事件9015",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                20,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                15,
-                0,
-                0,
-                0,
-                0,
-                15
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9016,
-      "name": "剧本事件9016",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                10,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                20,
-                0,
-                0,
-                0,
-                0,
-                10
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                10,
-                0,
-                10,
-                0,
-                0,
-                10
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9017,
-      "name": "剧本事件9017",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                10,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9018,
-      "name": "剧本事件9018",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 30,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                8,
-                8,
-                8,
-                8,
-                8,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                35
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9019,
-      "name": "剧本事件9019",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                20,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                20,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9020,
-      "name": "剧本事件9020",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                20,
-                0,
-                5,
-                0,
-                5
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                20,
-                0,
-                0,
-                0,
-                10
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                5,
-                20,
-                0,
-                0,
-                0,
-                5
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9021,
-      "name": "剧本事件9021",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 80,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                13,
-                0,
-                13,
-                13,
-                26
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9022,
-      "name": "剧本事件9022",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                25,
-                0,
-                0,
-                0,
-                0,
-                10
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                20,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9023,
-      "name": "剧本事件9023",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                30
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9024,
-      "name": "剧本事件9024",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                10,
-                0,
-                0,
-                0,
-                25,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                5,
-                0,
-                0,
-                0,
-                10,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9025,
-      "name": "剧本事件9025",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                25
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9027,
-      "name": "剧本事件9027",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                15,
-                0,
-                0,
-                0,
-                10
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9028,
-      "name": "剧本事件9028",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                15,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                10,
-                5,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9029,
-      "name": "剧本事件9029",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                6,
-                0,
-                6,
-                0,
-                0
-              ],
-              "vital": 40,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                6,
-                6,
-                6
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9030,
-      "name": "剧本事件9030",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                10,
-                0
-              ],
-              "vital": 20,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                5,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9031,
-      "name": "剧本事件9031",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                10,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                10,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9032,
-      "name": "剧本事件9032",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                15,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                5,
-                0,
-                0,
-                15
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9033,
-      "name": "剧本事件9033",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                20,
-                0,
-                0,
-                0
-              ],
-              "vital": 5,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                15
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9034,
-      "name": "剧本事件9034",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                10,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                10,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9035,
-      "name": "剧本事件9035",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                20,
-                0,
-                10,
-                0,
-                5
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                20,
-                0,
-                0,
-                0,
-                30
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9036,
-      "name": "剧本事件9036",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                20,
-                0
-              ],
-              "vital": 25,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                35,
-                10
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9037,
-      "name": "剧本事件9037",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                10,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                10,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                20
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9038,
-      "name": "剧本事件9038",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                5
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                5
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 5,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9039,
-      "name": "剧本事件9039",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                5
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                10
-              ],
-              "vital": 30,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                5,
-                0,
-                0,
-                15
-              ],
-              "vital": 30,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9040,
-      "name": "剧本事件9040",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 80,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                13,
-                0,
-                13,
-                13,
-                26
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9041,
-      "name": "剧本事件9041",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                15,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9042,
-      "name": "剧本事件9042",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                10,
-                0,
-                0,
-                0,
-                25,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                5,
-                0,
-                0,
-                0,
-                10,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9043,
-      "name": "剧本事件9043",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                20,
-                20,
-                20,
-                20,
-                20,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                77
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                22
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 40,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                22
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 20,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                11
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9044,
-      "name": "剧本事件9044",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                10,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                10,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9045,
-      "name": "剧本事件9045",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                10,
-                0,
-                20
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                20,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9046,
-      "name": "剧本事件9046",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                5,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 20,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                25
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9047,
-      "name": "剧本事件9047",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                20,
-                0,
-                5,
-                0,
-                5
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                20,
-                0,
-                0,
-                0,
-                10
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                5,
-                20,
-                0,
-                0,
-                0,
-                5
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9048,
-      "name": "剧本事件9048",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                25
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9049,
-      "name": "剧本事件9049",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                15,
-                0,
-                0,
-                0,
-                10
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9050,
-      "name": "剧本事件9050",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                20,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                15,
-                0,
-                0,
-                0,
-                0,
-                15
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9051,
-      "name": "剧本事件9051",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                10,
-                0,
-                10,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9052,
-      "name": "剧本事件9052",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                6,
-                0,
-                6,
-                0,
-                0
-              ],
-              "vital": 40,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                6,
-                6,
-                6
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9053,
-      "name": "剧本事件9053",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                15,
-                0,
-                15,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                40
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9054,
-      "name": "剧本事件9054",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                5
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                10
-              ],
-              "vital": 30,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                5,
-                0,
-                0,
-                15
-              ],
-              "vital": 30,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9055,
-      "name": "剧本事件9055",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                10,
-                10,
-                20,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                0,
-                20
-              ],
-              "vital": 20,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9056,
-      "name": "剧本事件9056",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                10,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                0,
-                0,
-                0,
-                0,
-                10,
-                0
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9057,
-      "name": "剧本事件9057",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                10,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 15,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                20,
-                0,
-                0,
-                0,
-                0,
-                10
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                10,
-                0,
-                10,
-                0,
-                0,
-                10
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
-      ]
-    },
-    {
-      "id": 9058,
-      "name": "剧本事件9058",
-      "trigger": {
-        "type": "Random",
-        "max_time": 1
-      },
-      "player_select": true,
-      "choices": [
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                25,
-                0,
-                0,
-                0,
-                0,
-                10
-              ],
-              "vital": 0,
-              "max_vital": 0,
-              "motivation": 0,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ],
-        [
-          {
-            "result": 0,
-            "prob": 100,
-            "value": {
-              "status_pt": [
-                20,
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "vital": 10,
-              "max_vital": 0,
-              "motivation": 1,
-              "hint_level": 0,
-              "friendship": 0
-            }
-          }
-        ]
+        [{
+          "result": 1,
+          "prob": 100,
+          "value": {
+            "vital": -5,
+            "status_pt": [ 0, 0, 0, 0, 0, 20 ],
+            "friendship": 5
+          },
+          "extra_status": { "kind": "last_train", "value": 20 }
+        }],
+        [{
+          "result": 1,
+          "prob": 100,
+          "value": {
+            "vital": 5
+          },
+          "extra_status": { "kind": "last_train", "value": 5 }
+        }]
       ]
     }
-  ]
+  ],
+  "event_extras": [
+    {
+      "event_id": 400015106,
+      "choice": 0,
+      "act_gauge_lowest": 1,
+      "clear_debuff": true
+    }
+  ],
+  "camp": {
+    "windows": [
+      {
+        "start": 12,
+        "end": 15
+      },
+      {
+        "start": 36,
+        "end": 39
+      },
+      {
+        "start": 60,
+        "end": 63
+      }
+    ],
+    "level_up_turns": [15, 39, 63]
+  },
+  "rules": {
+    "act_gauge_max": 5,
+    "act_gauge_gain": {
+      "member": 1,
+      "friendship": 2,
+      "target_race": 4,
+      "other": 1
+    },
+    "train_level_up_count": 4,
+    "normal_train_level_max": 5,
+    "act_level_max": 6,
+    "act_level_max_with_friend": 10,
+    "friendship_gain": {
+      "friend": 4,
+      "card": 7,
+      "absent": 0,
+      "lesson": 3,
+      "charm": 2
+    },
+    "training_upper_cap": 100,
+    "assist_support": {
+      "count": 3,
+      "effect": 5
+    },
+    "fat_recovery_prob": 20,
+    "status_soft_cap": 1200
+  }
 }

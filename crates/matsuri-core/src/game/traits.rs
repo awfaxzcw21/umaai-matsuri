@@ -5,25 +5,72 @@
 use anyhow::{Result, anyhow};
 use rand::Rng;
 use rand::rngs::StdRng;
-use umaai_core::gamedata::EventData;
-use umasim::game::base::BasePerson;
+use umaai_core::gamedata::{ActionValue, EventData};
 use umasim::game::{
-    Game, StageId, SupportCard, Trainer, TrainingBasicTable, TrainingValueSource, Uma,
+    CardTrainingEffect, Game, Person, PersonType, StageId, SupportCard, Trainer,
+    TrainingBasicTable, TrainingValueSource, Uma,
 };
 use umasim::search::FlatSearchGame;
+use umasim::trainer::RandomTrainer;
 
-use super::{ACT_GAUGE_MAX, Action, MatsuriGame, Stage};
+use super::person::{MatsuriPerson, PersonOrigin};
+use super::{Action, EventRecord, MatsuriGame, Stage};
 use crate::MAX_TURN;
+use crate::data::CheckPointResult;
+
+/// 剧本人头：引擎通用字段逐项委托 [`BasePerson`](umasim::game::base::BasePerson)
+///
+/// `PersonOrigin` ↔ `PersonType` 的映射与边界见 [`MatsuriPerson`] 文档；引擎默认逻辑只读
+/// `PersonType`，剧本逻辑只看 `PersonOrigin`。
+impl Person for MatsuriPerson {
+    fn person_type(&self) -> PersonType {
+        self.base.person_type
+    }
+
+    fn person_index(&self) -> i32 {
+        self.base.person_index
+    }
+
+    fn train_type(&self) -> i32 {
+        self.base.train_type
+    }
+
+    fn friendship(&self) -> i32 {
+        self.base.friendship
+    }
+
+    fn hint(&self) -> bool {
+        self.base.is_hint
+    }
+
+    fn set_hint(&mut self, hint: bool) {
+        self.base.is_hint = hint;
+    }
+
+    fn set_friendship(&mut self, friendship: i32) {
+        self.base.friendship = friendship;
+    }
+
+    fn card_id(&self) -> Option<u32> {
+        self.base.card_id
+    }
+}
 
 impl TrainingValueSource for MatsuriGame {
-    /// 剧本资产里的训练表（后续实现换成自己的数值表）
+    /// 普通训练返回资产 `training.normal`；**演目稽古结算期间**返回稽古表
+    /// （`training.keiko` 逐训练位一行，等级按表行数夹取到 1 档）
     fn training_basic_table(&self) -> &TrainingBasicTable {
-        &self.data.training_basic_value
+        if self.keiko_settling {
+            // 稽古档按时期切：turn 23 発表会「演目排练强化」后为 Classic 及以后档
+            self.keiko_basic_table()
+        } else {
+            &self.data.training.normal
+        }
     }
 }
 
 impl Game for MatsuriGame {
-    type Person = BasePerson;
+    type Person = MatsuriPerson;
     type Action = Action;
 
     fn turn(&self) -> i32 {
@@ -79,107 +126,132 @@ impl Game for MatsuriGame {
     }
 
     fn list_actions(&self) -> Result<Vec<Self::Action>> {
-        // S1：五个训练 + 休息；后续实现在这里列自己的动作（比赛 / 出行 / 剧本机制）
-        // 合宿窗口：只有训练（引擎里训练=演目稽古），没有出行/休息
-        if self.is_camp_turn() {
-            return Ok((0..5u8).map(Action::Train).collect());
+        // 强制比赛回合（目标赛 / URA 决赛）：只能比赛
+        if self.plan.race && !self.forced_rest {
+            return Ok(vec![Action::Race]);
         }
-        let mut actions: Vec<Action> = Vec::new();
-        // 演目亮起（槽满且未封顶）→ 该训练位只能做演目稽古，不能普通训练（memo §2.3）
-        let mut lit = [false; 5];
-        for idx in 0..5u8 {
-            // 演目槽满 → 稽古作为可选动作（官方：gauge 满才亮）
-            if self.act_gauge[idx as usize] >= ACT_GAUGE_MAX && self.act_level[idx as usize] < 10 {
-                lit[idx as usize] = true;
-                actions.push(Action::Keiko(idx));
+        // 强制休息回合（马娘特殊事件占掉目标赛）：实际动作是休息
+        if self.forced_rest {
+            return Ok(vec![Action::Rest]);
+        }
+        // 合宿排练回合：5 个稽古（全部训练变稽古）+ 休息 + 第 1 年出行 + 可自选比赛
+        if self.plan.camp_train(self.forced_rest) {
+            let mut actions: Vec<Action> = (0..5u8).map(Action::ActTrain).collect();
+            actions.push(Action::Rest);
+            if self.outing_allowed() {
+                actions.push(Action::NormalOuting);
+                if self.base.can_friend_outing() {
+                    actions.push(Action::FriendOuting);
+                }
             }
+            if self.base.can_self_race() {
+                actions.push(Action::Race);
+            }
+            if !self.uma().flags.ill.is_empty() {
+                actions.push(Action::Clinic);
+            }
+            return Ok(actions);
         }
-        actions.extend((0..5u8).filter(|i| !lit[*i as usize]).map(Action::Train));
-        // 出行：第一/二年、未满 5 次、且体力 < 40% 才放进候选（与隔壁手写策略同口径）
-        let vital_ratio = self.uma().vital as f64 / self.uma().max_vital.max(1) as f64;
-        if self.turn >= 21 && self.turn <= 60 && self.outing_count < 5 && vital_ratio < 0.40 {
-            actions.push(Action::Outing);
-        }
+        // 日常 / URA 收尾回合：槽满的演目对应训练位变演目稽古
+        let gauge_max = self.data.rules.act_gauge_max;
+        let mut actions: Vec<Action> = (0..5u8)
+            .map(|train| {
+                let act = self.act_of_train(train as usize);
+                if self.acts.gauge[act] >= gauge_max {
+                    Action::ActTrain(act as u8)
+                } else {
+                    Action::Train(train)
+                }
+            })
+            .collect();
         actions.push(Action::Rest);
-        // 自选比赛（目標外）：只在该回合有窗口时给出（面板回合 45 / 69 ⇒ 引擎 44 / 68）。
-        // 放在**末尾**：训练位下标不能因多一个候选而位移（策略按动作下标选训练）。
-        if self.free_race_window(self.turn).is_some() {
+        actions.push(Action::NormalOuting);
+        if self.base.can_friend_outing() {
+            actions.push(Action::FriendOuting);
+        }
+        if self.base.can_self_race() {
             actions.push(Action::Race);
+        }
+        if !self.uma().flags.ill.is_empty() {
+            actions.push(Action::Clinic);
         }
         Ok(actions)
     }
 
     fn generate_events(&self, rng: &mut impl Rng) -> Vec<EventData> {
-        // 与 BasicGame 同口径：剧本事件优先，否则按事件分布抽卡事件 / 马娘事件 / 掉心情
-        let Ok(data) = umaai_core::Data::get() else {
-            return vec![];
-        };
-        let mut events = vec![];
-        let story = self.list_turn_events(&data.events.story_events);
-        if !story.is_empty() {
-            return story;
-        }
-        if data.consts.no_event_turns.contains(&self.turn) {
-            return vec![];
-        }
-        let dist = data.consts.get_event_distribution();
-        match umasim::game::sample_bucket(&dist, rng) {
-            Ok(0) => {
-                let card_event_times: Vec<u32> = [8001, 8002, 8003]
-                    .iter()
-                    .map(|x| *self.base.events.get(x).unwrap_or(&0))
-                    .collect();
-                let mut available: Vec<usize> = Vec::new();
-                if card_event_times[0] < 5 {
-                    available.push(0);
-                }
-                if card_event_times[1] < card_event_times[0] {
-                    available.push(1);
-                }
-                if card_event_times[2] < card_event_times[1] {
-                    available.push(2);
-                }
-                if !available.is_empty() {
-                    let idx = available[rng.random_range(0..available.len())];
-                    let mut event = data.events.card_events[idx].clone();
-                    let mut p = rng.random_range(0..6);
-                    while !self.person_is_available(p) {
-                        p = rng.random_range(0..6);
-                    }
-                    event.person_index = Some(p as i32);
-                    events.push(event);
-                }
-            }
-            Ok(1) => {
-                // 通用马娘事件 + 剧本专属剧情事件（scenario_events）合并抽签：
-                // 剧本专属事件带真实选项（属性/体力/干劲/PT 组合），max_time=1 每局至多一次。
-                if self.data.scenario_events.is_empty() {
-                    if let Some(event) = self.random_select_event(&data.events.uma_events, rng) {
-                        events.push(event);
-                    }
-                } else {
-                    let mut pool: Vec<EventData> = data.events.uma_events.clone();
-                    pool.extend(self.data.scenario_events.iter().cloned());
-                    if let Some(event) = self.random_select_event(&pool, rng) {
-                        events.push(event);
-                    }
-                }
-            }
-            Ok(2) => {
-                if self.turn >= 12
-                    && let Ok(event) = data.system_event("drop_motivation")
-                {
-                    events.push(event.clone());
-                }
-            }
-            _ => {}
-        }
-        events
+        // S6 事件链：固定回合 / 合宿抑制 / 友人解锁 / 随机分布（见 `game/event.rs`）
+        self.begin_events(rng)
     }
 
     fn apply_event(&mut self, event: &EventData, choice: usize, rng: &mut impl Rng) -> Result<()> {
-        // 引擎底座负责通用事件结算；剧本自己的特殊事件在这里补分支
-        let _ = self.base.apply_event(event, choice, rng);
+        // 赛后奖励吃 1200 软上限（剧本 15；报文实证）：入账前留一份赛前值，
+        // 入账后按「过线部分减半」回填。脚本事件的属性收益不在已实证范围内 ⇒ 不套上限。
+        let before = self.uma().five_status;
+        // ① 引擎底座负责通用数值结算（含友人卡事件加成、ExtraStatus）
+        let result = self.base.apply_event(event, choice, rng);
+        if super::event::is_race_reward_event(event.id) {
+            let after = self.uma().five_status;
+            let mut gained: umaai_core::Array5 = [0; 5];
+            for i in 0..5 {
+                gained[i] = after[i] - before[i];
+            }
+            let capped =
+                super::softcap::capped_gain(self.data.rules.status_soft_cap, &before, &gained);
+            for i in 0..5 {
+                self.uma_mut().five_status[i] = before[i] + capped[i];
+            }
+        }
+        if let Some(result) = &result {
+            // ② 引擎 `BaseEvent::apply_event` 不结算 add/remove_flags，剧本侧补齐（变胖等状态）
+            self.base.uma.update_flags(result);
+            // ③ 事件羁绊归属（红点 / 点击 / 出行 / 友人事件等带羁绊值）
+            if result.value.friendship != 0
+                && let Some(person_index) = self.base.event_person_target(event, &self.persons)
+            {
+                self.base
+                    .add_friendship(&mut self.persons, person_index, result.value.friendship);
+            }
+        }
+        // ④ 剧本特例：友人出行解锁 + 疲劳回复 flag
+        if event.id == super::event::FRIEND_OUT_EVENT_ID {
+            self.base.friend.out_state = umasim::game::FriendOutState::AfterUnlock;
+            self.fatigue_recovery = true;
+        }
+        // ⑤ 事件额外效果（演目 gauge / 解 debuff）
+        self.apply_event_extra(event.id, choice);
+        // ⑥ 事件记录（S8 手动 / 前端核对）：记录实际到账数值与状态变化
+        let mut detail = result
+            .as_ref()
+            .map(|result| result.value.to_string())
+            .unwrap_or_default();
+        if let Some(result) = &result {
+            if let Some(flags) = &result.add_flags
+                && !flags.to_string().is_empty()
+            {
+                if !detail.is_empty() {
+                    detail.push('；');
+                }
+                detail.push_str("状态+");
+                detail.push_str(&flags.to_string());
+            }
+            if let Some(flags) = &result.remove_flags
+                && !flags.to_string().is_empty()
+            {
+                if !detail.is_empty() {
+                    detail.push('；');
+                }
+                detail.push_str("状态-");
+                detail.push_str(&flags.to_string());
+            }
+        }
+        self.push_event_log(EventRecord {
+            seq: 0,
+            turn: self.turn(),
+            id: event.id,
+            name: event.name.clone(),
+            choice,
+            detail: (!detail.is_empty()).then_some(detail),
+        });
         Ok(())
     }
 
@@ -192,18 +264,26 @@ impl Game for MatsuriGame {
     }
 
     fn init_persons(&mut self) -> Result<()> {
-        // S1：卡组人头 + 理事长；后续实现按自己的卡池与友人规则构造
-        let persons: Vec<BasePerson> = self
-            .base
-            .deck
-            .iter()
-            .map(BasePerson::try_from)
-            .collect::<Result<Vec<_>>>()?;
-        for person in persons {
-            self.add_person(person);
+        // 卡组人头（前缀同序）+ 理事长 / 记者 + 编成外神驹；担当分配在这里一次性完成
+        self.init_roster()
+    }
+
+    fn person_is_available(&self, person_index: usize) -> bool {
+        let Some(person) = self.persons.get(person_index) else {
+            return false;
+        };
+        match person.origin {
+            PersonOrigin::Card => true,
+            PersonOrigin::Friend => self.turn() >= 2,
+            PersonOrigin::Guest => {
+                self.turn() >= person.avail_turn
+                    && (!person.needs_great_success
+                        || self.check_points[1] == CheckPointResult::GreatSuccess)
+            }
+            // 理事长 / 记者按引擎基础局默认
+            PersonOrigin::Yayoi => true,
+            PersonOrigin::Reporter => self.turn() >= 13,
         }
-        self.add_person(BasePerson::yayoi());
-        Ok(())
     }
 
     fn distribution(&self) -> &Vec<Vec<i32>> {
@@ -218,19 +298,46 @@ impl Game for MatsuriGame {
         self.base.absent_rate_drop
     }
 
-    fn deyilv(&mut self, person_index: i32) -> f32 {
-        // 剧本 15 的落位规则：**支援卡按卡种站位**（自己卡种的格优先）。
-        //
-        // 引擎底座拿 `deyilv` 当「自身格权重」用（`weights[train_type] += deyilv`），
-        // 且 `deyilv` **不进增益计算**（`calc_training_value` 只吃 buffs.bonus / youqing /
-        // ganjing / xunlian / 人数），所以改它只动排列、不动收益公式。
-        //
-        // 这里不用卡牌的 `deYiLv` 数值：真机报文显示它与落位无剂量关系（见
-        // `SELF_SLOT_P` 的注释），偏置是「按卡种站位」的分类效应。
-        if person_index < 0 || person_index as usize >= self.base.deck.len() {
-            return 0.0; // 非卡人头（理事长/记者）：与引擎底座一致 ⇒ 均匀分布
+    /// 人头「不在」权重：卡 50 / 友人 100 / 理事长·记者 200（引擎基础局口径）；
+    /// **编成外神驹按剧本口径 50（约 9.1%，STUB U29）**——排练锁位时不判不在。
+    fn absent_weight(&self, person_index: usize) -> i32 {
+        let drop = self.absent_rate_drop();
+        match self.persons[person_index].person_type() {
+            PersonType::Card => 50 - drop,
+            PersonType::Yayoi | PersonType::Reporter => 200,
+            PersonType::ScenarioCard | PersonType::OtherFriend | PersonType::TeamCard => 100 - drop,
+            PersonType::Npc => 50,
         }
-        super::self_slot_weight()
+    }
+
+    /// 人头得意率（引擎底座当「自身格权重」用）：**固定权重** + 剧本加成（発表会 / 教え 得意率 / 転成）
+    ///
+    /// ⚠️ 卡面 `deYiLv` 数值**不参与**落位：真机报文显示它与「卡参与自己类型训练的比例」**无剂量关系**
+    /// （`deYiLv` = 10 / 43 / 60 / 75 → 58.0 / 65.8 / 61.5 / 47.1%，无单调性），
+    /// 落位是「按卡种站位」的分类效应 ⇒ 给与卡种无关的固定权重
+    /// （[`SELF_SLOT_P`](super::distribute::SELF_SLOT_P) = 0.977，对标报文实测 73.1%）。
+    ///
+    /// 用卡面数值当权重会把卡**反向**偏置（实测落位指标 31.2%，低于 35.6% 的零假设）。
+    fn deyilv(&mut self, person_index: i32) -> f32 {
+        if person_index < 0 {
+            return 0.0;
+        }
+        let index = person_index as usize;
+        // 卡片人头占 persons 前缀、与 deck 同序；前缀之外（神驹 / 理事长 / 记者）没有得意率
+        if index >= self.base.deck.len() {
+            return 0.0;
+        }
+        super::distribute::self_slot_weight() + self.scenario_deyilv(index) as f32
+    }
+
+    /// 重新分配所有人头（S5 剧本口径：亮起锁担当 / NPC 不在率 / 吾妻补位 / 分身）
+    fn distribute_all(&mut self, rng: &mut impl Rng) -> Result<()> {
+        self.distribute_round(rng)
+    }
+
+    /// 灵感分配（S5 剧本口径：基础公式 + 卡面加成 + 剧本加成；排练 5 种卡全灵感图标）
+    fn distribute_hint(&mut self, rng: &mut impl Rng) -> Result<()> {
+        self.distribute_hints(rng)
     }
 
     fn has_group_buff(&self) -> bool {
@@ -238,7 +345,77 @@ impl Game for MatsuriGame {
     }
 
     fn train_level(&self, train: usize) -> usize {
-        (self.base.train_level_count[train] as usize / 4 + 1).clamp(1, 5)
+        let up_count = self.data.rules.train_level_up_count.max(1) as usize;
+        let max_level = self.max_normal_train_level();
+        let bonus = self.train_level_bonus[train].max(0) as usize;
+        (self.base.train_level_count[train] as usize / up_count + 1 + bonus).clamp(1, max_level)
+    }
+
+    /// 训练值 = 下层（引擎默认公式）+ 上层（剧本来源：发布会 / 教え / 演目 Lv / 稽古 +10）
+    fn calc_training_value(&self, buffs: &CardTrainingEffect, train: usize) -> Result<ActionValue> {
+        let mut value = self.default_calc_training_value(buffs, train)?;
+        let keiko = self.keiko_settling;
+        let upper = self.training_upper(train, &value, keiko);
+        for status in 0..5 {
+            value.status_pt[status] += upper.status[status];
+            if keiko {
+                value.status_pt[status] += upper.keiko_flat;
+            }
+        }
+        value.status_pt[5] += upper.skill_pt;
+        value.vital = upper.vital;
+        value.motivation += upper.motivation;
+        Ok(value)
+    }
+
+    /// 训练失败率：引擎基础局公式（口径同 §5.6）+ 剧本失败率下降（不屈 / 本番演出 -100%）
+    fn calc_training_failure_rate(&self, buffs: &CardTrainingEffect, train: usize) -> Result<f32> {
+        let data = umaai_core::Data::get()?;
+        let thresholds = &data.consts.training_vital_threshold;
+        let row = thresholds.get(train).ok_or_else(|| {
+            anyhow!(
+                "训练类型错误: {train}（阈值表内训练数 {}）",
+                thresholds.len()
+            )
+        })?;
+        if row.is_empty() {
+            return Err(anyhow!("训练 {train} 的失败率阈值表为空"));
+        }
+        let level = self.train_level(train).clamp(1, row.len()) - 1;
+        let x0 = row[level];
+        let vital = self.uma().vital as f32;
+        let bias = if self.uma().flags.good_trainer {
+            -2.0
+        } else if self.uma().flags.bad_trainer {
+            2.0
+        } else {
+            0.0
+        };
+        let base = if vital < x0 {
+            (100.0 - vital) * (x0 - vital) / 40.0
+        } else {
+            0.0
+        }
+        .clamp(0.0, 99.0);
+        let scenario_drop = self.scenario_fail_rate_drop(train);
+        let card_factor = (100.0 - buffs.fail_rate_drop) / 100.0;
+        let scenario_factor = (100.0 - scenario_drop as f32) / 100.0;
+        let f = if scenario_drop >= 100 {
+            0.0
+        } else {
+            base * card_factor * scenario_factor + bias
+        };
+        Ok(f.clamp(0.0, 100.0))
+    }
+
+    /// 终局结算（育成终了奖励；技能灵感 / 粉丝不建模）
+    fn on_simulation_end<T: Trainer<Self>>(
+        &mut self,
+        _trainer: &T,
+        _rng: &mut StdRng,
+    ) -> Result<()> {
+        self.apply_career_end_reward();
+        Ok(())
     }
 
     fn uma(&self) -> &Uma {
@@ -255,14 +432,14 @@ impl Game for MatsuriGame {
 }
 
 impl FlatSearchGame for MatsuriGame {
-    /// rollout 基策（S2）：机制性走子
-    type RolloutTrainer = crate::trainer::MatsuriRolloutTrainer;
+    /// rollout 基策（S1 用契约参考实现；后续实现换成自己的策略）
+    type RolloutTrainer = RandomTrainer;
 
     /// 没有 leaf 估值器时声明 `false`：搜索入口会直接拒绝 `max_depth > 0`
     const SUPPORTS_TRUNCATED_LEAF: bool = false;
 
     fn default_rollout_trainer() -> Self::RolloutTrainer {
-        crate::trainer::MatsuriRolloutTrainer
+        RandomTrainer
     }
 
     fn apply_root_action(&mut self, action: &Self::Action, rng: &mut StdRng) -> Result<()> {

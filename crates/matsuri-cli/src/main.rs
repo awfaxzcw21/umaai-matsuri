@@ -5,7 +5,7 @@
 //! bin / lib）；本 bin 只是主线自测外壳，复用 `umaai-cli` 的呈现件（样例面，pub 面不承诺稳定）。
 //!
 //! 用法：`cargo run --release --bin matsuri -- [训练员]`
-//! （缺省 `matsuri`；可切 `random`——引擎随机基线、`manual`——无颜色人工选择；
+//! （缺省 `matsuri`；可切 `random`——引擎随机基线、`manual`——机制核对面板（人工逐决策）；
 //! 数据根是代码级配置 [`DATA_ROOT`]，不暴露在命令行）
 
 mod manual;
@@ -40,7 +40,7 @@ fn main() -> ExitCode {
 
 /// 装配一局并跑到底（数据根为代码级配置；命令行只选训练员）
 fn run() -> Result<()> {
-    // 训练员：matsuri（样例策略，默认）/ random（引擎随机基线）
+    // 训练员：matsuri（样例策略，默认）/ random（引擎随机基线）/ manual（机制核对面板）
     let trainer_name = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "matsuri".to_string());
@@ -54,13 +54,22 @@ fn run() -> Result<()> {
 
     let consts = &Data::get()?.consts;
     let mut out = std::io::stdout();
+    // 手动档由面板自持逐回合 / 逐事件信息（Quiet 只出终局块），避免引擎行与面板交错
     let opts = PrintOptions {
-        verbosity: Verbosity::Normal,
+        verbosity: if trainer_name == "manual" {
+            Verbosity::Quiet
+        } else {
+            Verbosity::Normal
+        },
         width: term::resolve_width(None),
         color: false,
     };
     let mut fe = PrintFrontend::new(&mut out, opts, consts);
-    let game = build_game(&cfg, data)?;
+    let game = build_game(&cfg, data)?.with_config(matsuri_cfg.clone());
+    // 编成警告（禁止项已在建局时报错）：提示宿主 / 玩家
+    for warning in &game.deck_warnings {
+        eprintln!("⚠ 编成警告：{warning}");
+    }
     // 规则主种子由 Runner 注入（`cfg.sim.seed`）：引擎两轴与剧本策略轴都按它派生
     let mut runner = Runner::new(&cfg, &mut fe)?;
     match trainer_name.as_str() {
@@ -72,7 +81,9 @@ fn run() -> Result<()> {
             runner.run_game(game, &RandomTrainer, None)?;
         }
         "manual" => {
-            runner.run_game(game, &manual::ManualTrainer, None)?;
+            // 跑局前打印一次育成配置（育成马娘 / 卡组 / 继承配置）
+            print!("{}", manual::newgame_config(&game));
+            runner.run_game(game, &manual::ManualTrainer::new(), None)?;
         }
         other => {
             return Err(anyhow!(

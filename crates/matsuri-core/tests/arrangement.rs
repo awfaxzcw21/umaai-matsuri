@@ -5,38 +5,23 @@
 //! 报文实测 **73.1%**（零假设 35.6%，z=+15.9）；分类型 速 94.7 / 力 88.6 / 智 82.0 / 耐 78.6。
 //!
 //! ⚠️ 报文**没有逐格布局**（角色在 `training_partner_array` 里的位置是分散的），
-//! 所以「卡在某一格」不可直接测；本指标是同口径的替代量，只依赖「参与者集合」。
+//! 所以「卡在某一格」不可直接测，只能测「训练 t 的参与者里有没有 t 类卡」。
 //!
 //! 引擎底座那套 `weights[train_type] += deyilv`（把 cardDB 的 `deYiLv` 数值当权重）
 //! 在报文里**没有剂量关系**（10→58.0%、43→65.8%、60→61.5%、75→47.1%，无单调性），
 //! 不能照抄；真机的偏置是「按卡种站位」这一分类效应（见 `SELF_SLOT_P`）。
 
-use std::sync::Arc;
-
-use matsuri_core::testing::data_dir;
-use matsuri_core::{MatsuriData, MatsuriGame};
+use matsuri_core::testing::sample_game;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
-use umaai_core::Data;
-use umasim::game::{Game, InheritInfo};
-
-/// 门禁参考局同款卡组（`data/ai_config.toml` 的 `sim.cards`）
-const DECK: [u32; 6] = [302424, 302464, 302484, 302564, 302574, 302644];
+use umasim::game::{Game, Person};
 
 /// 报文实测值（零假设 35.6%）
 const TARGET: f64 = 0.731;
 
-/// 回合 → 比赛等级（引擎 `race_grades` 同口径；本测试不涉及比赛，给全 0 即可）
-fn no_races() -> Vec<i32> {
-    vec![0; 72]
-}
-
 /// 跑 N 回合的排列，返回 (命中数, 观测数)
 fn measure(rounds: usize, seed: u64) -> (usize, usize) {
-    let _ = Data::init(data_dir()).ok();
-    let data = Arc::new(MatsuriData::load(data_dir()).unwrap());
-    let mut game =
-        MatsuriGame::newgame(100101, &DECK, InheritInfo::default(), &no_races(), data).unwrap();
+    let mut game = sample_game();
     let mut rng = StdRng::seed_from_u64(seed);
     let mut hit = 0usize;
     let mut total = 0usize;
@@ -44,9 +29,9 @@ fn measure(rounds: usize, seed: u64) -> (usize, usize) {
         game.distribute_all(&mut rng).unwrap();
         for t in 0..5usize {
             total += 1;
-            let matched = game.base.distribution[t].iter().any(|pi| {
+            let matched = game.distribution()[t].iter().any(|pi| {
                 let i = *pi as usize;
-                i < game.persons.len() && game.persons[i].train_type == t as i32
+                i < game.persons().len() && game.persons()[i].train_type() == t as i32
             });
             if matched {
                 hit += 1;
