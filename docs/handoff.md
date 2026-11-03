@@ -125,5 +125,11 @@
   + `dist.rs` 的 `gain_ledger` 输出，**不并回主仓**；它与主仓**共用 `CARGO_TARGET_DIR`**，
   跑完必须从主仓 `cargo build --release -p matsuri-cli` 还原 `target/release/matsuri-dist.exe`（本次已还原，
   三分量复验 7483.14075 / 17053.48175 / 6533.90075，与发布臂行为一致、sha 不同属正常）。
+  分腿打点壳 **`E:/HJM/_keileg`（detached @`282df51`，仍在，#39）**：只加 `game/keiko_legs.rs` +
+  `do_keiko_impl` 一处调用 + `dist.rs` 的 `keiko_legs` 输出（打点存档
+  `tools/patch_keiko_legs_for_measure.patch`）；它用**私有** `CARGO_TARGET_DIR=_keileg/target`，
+  不碰主仓产物。两壳的冻结二进制：`_keileg/out/arm_head_keileg.exe`（`46674ce3…`）、
+  `_srcledger/out/arm_keileg.exe`（`81b172cb…`）。主仓 `target/release/matsuri-dist.exe`
+  已在 #39 跑完后从 HEAD 重编还原（`099e108b…`）。
   上游缺陷只留本地文档、不外报；**任何出网写（push / PR / issue / 删远程分支）一次一动作、各自点头**；
   游戏接管永久关闭。
