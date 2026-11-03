@@ -6,9 +6,11 @@
 //!
 //! 用法：`cargo run --release --bin matsuri -- [训练员]`
 //! （缺省 `matsuri`；可切 `random`——引擎随机基线、`manual`——无颜色人工选择；
+//! `query` 走剧本事实层问答口子，不跑局（见 [`query`]）；
 //! 数据根是代码级配置 [`DATA_ROOT`]，不暴露在命令行）
 
 mod manual;
+mod query;
 
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -44,6 +46,11 @@ fn run() -> Result<()> {
     let trainer_name = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "matsuri".to_string());
+
+    // 问答口子：只读事实层，不装配局面（`matsuri query …`）
+    if trainer_name == "query" {
+        return query::run();
+    }
 
     // 配置两份同名不同位：默认层在数据根、覆盖层在当前目录（与引擎约定一致）
     let cfg = Config::load_with_overlay_file(DATA_ROOT, ".").context("载入配置失败")?;
