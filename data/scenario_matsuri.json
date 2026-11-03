@@ -492,6 +492,22 @@
       "train_lv": 0,
       "vital": 30,
       "motivation": 1
+    },
+    {
+      "schedule": 4,
+      "turn": 77,
+      "need": 6,
+      "success": null,
+      "great": null,
+      "all_stat": 15,
+      "success_all_stat": 15,
+      "success_pt": 150,
+      "chairman_bond": 0,
+      "pt": 350,
+      "train_lv": 0,
+      "vital": 0,
+      "motivation": 0,
+      "great_no_soft_cap": true
     }
   ],
   "value_scale": {
@@ -509,10 +525,69 @@
       { "stat": 10, "pt": 80 }
     ],
     "non_target": [
-      { "stat": 10, "pt": 45 },
-      null,
-      { "stat": 8, "pt": 35 }
-    ]
+      { "stat": 14, "pt": 65 },
+      { "stat": 11, "pt": 50 },
+      { "stat": 11, "pt": 50 }
+    ],
+    "cards": {
+      "106301": {
+        "name": "イクノディクタス",
+        "target": [
+          { "stat": 7, "pt": 111 },
+          { "stat": 19, "pt": 128 },
+          { "stat": 19, "pt": 128 },
+          { "stat": 19, "pt": 128 },
+          { "stat": 19, "pt": 128 },
+          { "stat": 19, "pt": 128 },
+          { "stat": 19, "pt": 128 },
+          { "stat": 19, "pt": 128 },
+          { "stat": 19, "pt": 128 },
+          { "stat": 19, "pt": 128 },
+          { "stat": 19, "pt": 128 },
+          { "stat": 19, "pt": 256 },
+          { "stat": 19, "pt": 256 },
+          { "stat": 19, "pt": 256 }
+        ],
+        "ura": [
+          { "stat": 15, "pt": 124 },
+          { "stat": 15, "pt": 186 },
+          { "stat": 15, "pt": 248 }
+        ]
+      },
+      "111401": {
+        "name": "ブエナビスタ",
+        "target": [
+          { "stat": 7, "pt": 111 },
+          { "stat": 7, "pt": 111 },
+          { "stat": 7, "pt": 111 },
+          { "stat": 7, "pt": 111 },
+          { "stat": 7, "pt": 111 },
+          { "stat": 7, "pt": 111 },
+          { "stat": 7, "pt": 111 },
+          { "stat": 7, "pt": 111 }
+        ],
+        "ura": []
+      },
+      "100402": {
+        "name": "マルゼンスキー",
+        "target": [
+          { "stat": 7, "pt": 113 },
+          { "stat": 7, "pt": 113 },
+          { "stat": 7, "pt": 113 },
+          { "stat": 7, "pt": 113 },
+          { "stat": 7, "pt": 113 },
+          { "stat": 7, "pt": 113 },
+          { "stat": 7, "pt": 113 },
+          { "stat": 7, "pt": 113 },
+          { "stat": 7, "pt": 113 }
+        ],
+        "ura": [
+          { "stat": 19, "pt": 81 },
+          { "stat": 19, "pt": 122 },
+          { "stat": 19, "pt": 163 }
+        ]
+      }
+    }
   },
   "free_races": [
     { "turn": 44, "count": 3, "grade": 1 },

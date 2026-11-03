@@ -47,7 +47,7 @@
 | `t30_engine_value_matches_panel_truth` | 装配后 5 条训练命令的引擎值逐格等于面板真值（16 个非零分量）；同时钉住马娘 = 报文 `chara_id`（106301）、成长率 `[0,0,0,20,10]`、训练设施 Lv2、人数加成 = 支援卡 + 嘉宾（剧本 NPC 枠 101..115 不计） | `mechanism.md` §3.3 |
 | `training_applies_soft_cap_above_1200`（`core/src/game/mod.rs`） | 训练通道的 1200 软上限接线：同一训练，赛前 500 时增量不打折、赛前 1300 时按「超出 1200 的部分减半」结算（断开 `soft_cap_gain` 会让本测失败） | `mechanism.md` § 赛后奖励（1200 软上限） |
 | `check_point_buffs_are_cumulative_totals`（`core/src/game/mod.rs`） | 発表会的永久 buff 是**累计总量**：再结算一次「成功」档必须覆盖（0.20/0%/20%）而不是累加（0.60/10%/…） | `mechanism.md` §5.2 |
-| `real_asset_check_point_buffs_match_master_mdb`（`core/src/data.rs`） | 配置里 3 场发表会的 得意率/友情ボーナス/ヒント発生率 六档，逐格等于 master.mdb `single_mode_15_check_point_effect` | `mechanism.md` §5.2 |
+| `real_asset_check_point_buffs_match_master_mdb`（`core/src/data.rs`） | 配置里 3 场发表会的 得意率/友情ボーナス/ヒント発生率 六档，逐格等于 master.mdb `single_mode_15_check_point_effect`；**第 4 场只允许「报文实证的回合 + `success/great` 为 `null`」** | `mechanism.md` §5.2 |
 | `real_asset_advice_effects_match_master_mdb`（`core/src/data.rs`） | 配置里 153 行教诲效果（教诲 id / Lv / 条件类型 / 条件值 / 效果类型 / 效果值）逐格等于 master.mdb `single_mode_15_advice_effect` | `mechanism.md` §3.3 |
 | `real_asset_fusion_effects_match_master_mdb`（`core/src/data.rs`） | 配置里 9 行转成固定档逐格等于 master.mdb `single_mode_15_fusion_effect` | `mechanism.md` §3.3 |
 | `advice_scope_follows_memo_table`（`core/src/game/mod.rs`） | 教诲效果的三个作用域（训练域 / 排练域 / 全局域）逐条等于 memo §4.2 / §4.5 的口径 | `mechanism.md` §3.3 |
@@ -68,7 +68,10 @@
 | `arrangement_metric_is_stable_across_seeds`（`core/tests/arrangement.rs`） | 换 3 个种子指标不漂（±3 个点）——不是某条抽样序列碰巧跑出来的 | `mechanism.md` §3.4 |
 | `check_point_tiers_follow_memo`（`core/src/game/mod.rs`） | 発表会成功档 3/100、大成功档 5/200（memo L215-250） | `mechanism.md` §4 |
 | `check_point_gives_chairman_bond_on_great_only`（`core/src/game/mod.rs`） | 大成功给理事長絆+15，成功档没有 | `mechanism.md` §4 |
-| `check_point_all_stat_respects_soft_cap`（`core/src/game/mod.rs`） | 発表会的全能力奖励吃 1200 软上限（过线的那项减半） | `mechanism.md` §4 |
+| `check_point_all_stat_respects_soft_cap`（`core/src/game/mod.rs`） | 発表会的全能力奖励吃 1200 软上限（**只减超出那一段**，没过线的项照给） | `mechanism.md` §4 / `发表会档位一手_20261103.md` §3 |
+| `check_point_tier_matches_packet_result_array`（`core/src/game/mod.rs`） | 档 = `min(全演目 Lv) ≥ need`：10 组报文里抄的 (场次, 演目 Lv) → 档，含 `min == need` 判大成功两例 | `发表会档位一手_20261103.md` §2 |
+| `fourth_check_point_pays_packet_reward`（`core/src/game/mod.rs`） | 第 4 场（引擎 t77）：大成功 SP+350 / 5ステ+15 **不吃压缩**、buff 不动；成功 SP+150 / +15 **吃压缩成 7**；`success/great` 必须是 `null` | `发表会档位一手_20261103.md` §3–§5 |
+| `check_point_pt_ledger_sums_to_packet_segment`（`core/src/game/mod.rs`） | 配置常数重放报文账本：整局大成功 SP 腿 1,250 / 段内（t30 之后）1,050、成功腿 600 / 500 | `逐源台账_20261103.md` §3.3 |
 | `act_level_cap_is_six_unless_ssr_agatsuma`（`core/src/game/mod.rs`） | 演目 Lv 上限：不带/ R 吾妻 = 6、SSR 吾妻 = 10（报文 7 局实证） | `mechanism.md` §4 |
 | `act_level_never_exceeds_cap`（`core/src/game/mod.rs`） | 演目 Lv 不得越过上限 | `mechanism.md` §4 |
 | `camp_start_vitality_by_year`（`core/src/game/mod.rs`） | 合宿开始体力：1 年 +10 / 2 年 +15 / 3 年外推 +15 | `mechanism.md` §4 |

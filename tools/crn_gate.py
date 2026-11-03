@@ -8,6 +8,10 @@
     # A) 两臂各留一份 dist 二进制（一次性 worktree / 每臂一个 exe 的约定）
     python tools/crn_gate.py --dist-a <臂A.exe> --dist-b <臂B.exe> --seeds 0,1,2 --n 4000
 
+    # A') 改动同时动了 data/*.json 时，每臂还要各自的数据树（A = HEAD 的 worktree）
+    python tools/crn_gate.py --dist-a out/arm_<headSha>.exe --dist-b target/release/matsuri-dist \
+        --cwd-a ../<worktree> --cwd-b . --seeds 0,1,2 --n 4000
+
     # B) 复用已有 dump —— 报告第一行会打「重放旧 dump ≠ 新门禁」，别把它当新证据
     python tools/crn_gate.py --dump-a a.jsonl --dump-b b.jsonl
 
@@ -85,13 +89,18 @@ def classify(d):
     return direction, direction + "(可结论)", True
 
 
-def sample(dist, state, seed, n, tag):
-    out = os.path.join("out", "crn_gate")
+def sample(dist, state, seed, n, tag, cwd=None):
+    """跑一臂的采样。`cwd` = 该臂自己的代码树 —— 引擎的 `DATA_ROOT="data"` 按 **当前目录**
+    解析，两臂共用仓根时 A 臂会读到 B 臂改过的 `scenario_matsuri.json`（HEAD 的代码带
+    `deny_unknown_fields`，直接报错；更坏的情况是字段兼容，静默把 A 臂的数据换成 B 的）。
+    所以带数据改动的配对必须每臂一个 cwd，状态与 dump 走绝对路径。"""
+    out = os.path.abspath(os.path.join("out", "crn_gate"))
     os.makedirs(out, exist_ok=True)
     dump = os.path.join(out, "%s_s%d.jsonl" % (tag, seed))
     env = dict(os.environ, MC_N=str(n), MC_SEED=str(seed), MC_DUMP=dump)
-    r = subprocess.run([dist, state, os.path.join(out, "%s_s%d.json" % (tag, seed))],
-                       env=env, capture_output=True, text=True)
+    r = subprocess.run([os.path.abspath(dist), os.path.abspath(state),
+                        os.path.join(out, "%s_s%d.json" % (tag, seed))],
+                       env=env, cwd=cwd, capture_output=True, text=True)
     if r.returncode != 0 or not os.path.exists(dump):
         raise SystemExit("采样失败 %s seed%d：%s" % (tag, seed, r.stderr[-300:]))
     return dump
@@ -103,6 +112,8 @@ def main(argv=None):
     ap.add_argument("--dist-b", help="臂 B 的 matsuri-dist 二进制（B = 改动后）")
     ap.add_argument("--dump-a", help="复用已有 A dump（重放，不作新证据）")
     ap.add_argument("--dump-b", help="复用已有 B dump")
+    ap.add_argument("--cwd-a", help="臂 A 的代码树（改动带数据时用；引擎按当前目录解析 data/）")
+    ap.add_argument("--cwd-b", help="臂 B 的代码树（同上；不给则用当前目录）")
     ap.add_argument("--gate", default="target/release/matsuri-gate", help="判官二进制")
     ap.add_argument("--state", default="_state_t30.json", help="CRN 状态文件（仓根）")
     ap.add_argument("--seeds", default="0,1,2", help="CRN 种子，逗号分隔")
@@ -128,6 +139,9 @@ def main(argv=None):
     for p in (args.dist_a, args.dist_b):
         if p and not os.path.exists(exe(p)):
             raise SystemExit("缺二进制：" + p)
+    for p in (args.cwd_a, args.cwd_b):
+        if p and not os.path.isdir(os.path.join(p, "data")):
+            raise SystemExit("--cwd-* 必须是有 data/ 的代码树：%s" % p)
 
     gate = exe(args.gate)
     if not os.path.exists(gate):
@@ -138,14 +152,16 @@ def main(argv=None):
         print("⚠️ 重放旧 dump：这不是新门禁，只作对账用（同种子同 MC_N 才可配对）")
     else:
         print("CRN 采样：每臂 %d 局 × 种子 %s" % (args.n, seeds))
+        print("臂数据树 A=%s B=%s（引擎 data/ 按当前目录解析，不同树必须各给 --cwd）"
+              % (os.path.abspath(args.cwd_a or "."), os.path.abspath(args.cwd_b or ".")))
 
     rows, pairs = [], []
     for s in seeds:
         if replay:
             a, b = args.dump_a, args.dump_b
         else:
-            a = sample(exe(args.dist_a), args.state, s, args.n, "a")
-            b = sample(exe(args.dist_b), args.state, s, args.n, "b")
+            a = sample(exe(args.dist_a), args.state, s, args.n, "a", args.cwd_a)
+            b = sample(exe(args.dist_b), args.state, s, args.n, "b", args.cwd_b)
         r = subprocess.run([gate, "--a", a, "--b", b, "--five", args.five,
                             "--pt", args.pt, "--stat-score", args.stat_score],
                            capture_output=True, text=True)

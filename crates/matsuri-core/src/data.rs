@@ -5,6 +5,7 @@
 //!
 //! 当前只演示最小字段；S2 后在这里补演目 / gauge / 教え / 合宿等剧本资产。
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::{Context, Result, ensure};
@@ -182,17 +183,52 @@ pub struct RaceRewardDef {
 #[serde(deny_unknown_fields)]
 pub struct RaceRewardTable {
     /// 目標賽（生涯赛）：五维各 +5 / PT +72
+    ///
+    /// **仅作「该马娘没有逐卡终值表」时的兜底**，不是机制值：
+    /// `docs/赛后奖励一手_20261103.md` §3 证明目标赛 Pt/五维是**逐卡逐场作者值**
+    /// （イクノ 111→128→256、マルゼン恒 113、エピ 108/180/216），且**不吃任何乘区**
+    /// （跨発表会不变值）。72 那档是当年拿 216 反推出来的拟合数，别再当基准读。
     #[serde(default)]
     pub target: RaceRewardDef,
     /// URA 予選 / 準決勝 / 決勝：五维各 +10 / PT +40 / +60 / +80
+    ///
+    /// 同上，仅作兜底；一手是 `X : 1.5X : 2X`，X 逐卡 81 / 120 / 124。
     #[serde(default)]
     pub ura: Vec<RaceRewardDef>,
     /// 目標外 GI / GII / GIII（`null` = 无干净样本，未定）
     ///
-    /// GII 留 `null`：memo 只列了 GI（1 ステ +10 / PT +45）与 GIII（1 ステ +8 / PT +35），
-    /// GII 没有样本 —— 「未知」不是「与目標賽同」。
+    /// 2026-11-03 报文一手（`race_reward_ledger.csv` 159 行通用事件 1011/7005）：
+    /// GI 名次1 = **PT 71 / 单轴 +15**（终盘 t≥69 涨到 92/+19）、GII = GIII = **55 / +12**。
+    /// 卡间还有 ±6% 小差（67/69/71、52/54/55），一副卡组一个值分离不出来 ⇒ 取多数值、不拆乘子。
+    /// OP（master `grade=700`）只有 2 行样本（45 / +7），且 700 与引擎 grade 4 的对应未证 ⇒ 留 `null`。
     #[serde(default)]
     pub non_target: Vec<Option<RaceRewardDef>>,
+    /// 逐马娘的赛后奖励**终值表**（键 = 面板 `chara_id`，即引擎马娘 id）
+    ///
+    /// 值是报文逐场实测的终值，**已含全部加成** ⇒ 命中本表时不再走 `race_reward_two_stage`
+    /// （重复乘 = 双重计算）。五维仍逐维过 `soft_cap_gain`（1200 软上限作用在事件增益上，已证）。
+    /// 表里没有的马娘 = 未观测 ⇒ 回落上面三档，不猜。
+    #[serde(default)]
+    pub cards: HashMap<String, CardRaceReward>,
+}
+
+/// 单个马娘的赛后奖励终值（报文一手，`docs/赛后奖励一手_20261103.md`）
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CardRaceReward {
+    /// 第 k 场**目標賽**（1 基，按该局实际目标赛顺序）的终值
+    ///
+    /// 一手按「该卡剧本里的第几场」给：新马戦恒 7×5 + 108~113，此后逐卡不同
+    /// （イクノ 19×5 + 128、マルゼン/ブエナ/エピ 7×5 + 113/111/108），收官大场翻倍。
+    /// 顺序落在表外 = 未观测，回落兜底档。
+    #[serde(default)]
+    pub target: Vec<RaceRewardDef>,
+    /// URA 予選 / 準決勝 / 決勝 的终值（事件恒为 101002 / 101004 / 101006）
+    #[serde(default)]
+    pub ura: Vec<RaceRewardDef>,
+    /// 马娘名（只给人看，便于对表；引擎不用）
+    #[serde(default)]
+    pub name: String,
 }
 
 /// 自选比赛（目標外比赛）窗口
@@ -264,9 +300,16 @@ pub struct FusionGrant {
 pub struct CheckPointDef {
     pub schedule: i32,
     pub turn: i32,
+    /// 大成功门槛：**全部**演目 Lv ≥ 本值 ⇒ 大成功，否则成功档（28/28 报文样本一致）
     pub need: i32,
-    pub success: BuffDef,
-    pub great: BuffDef,
+    /// 骏台祭ボーナス累计总量；**`null` = 本场没有一手 buff 行 ⇒ 结算时不改 buff**
+    ///
+    /// 第 4 场（t78）在 `single_mode_15_schedule` / `check_point_effect` 里都没有行，
+    /// 只有报文的一次性奖励 ⇒ 不许拿前一场的值当它的值，留 `null`。
+    #[serde(default)]
+    pub success: Option<BuffDef>,
+    #[serde(default)]
+    pub great: Option<BuffDef>,
     /// 达标奖励：全能力 +N（官方発表会 t24/48/68 = 5/10/15，**大成功档**）
     #[serde(default)]
     pub all_stat: i32,
@@ -291,6 +334,15 @@ pub struct CheckPointDef {
     /// 达标奖励：干劲 +N（本祭 t68 = 1）
     #[serde(default)]
     pub motivation: i32,
+    /// **大成功档**的全能力奖励是否跳过 1200 压缩（默认 false = 压缩）
+    ///
+    /// 报文观测（`docs/发表会档位一手_20261103.md` §3，`tools/cp_tier_check.py` 可重跑）：
+    /// #1–#3 在 pre≥1200 的轴 **27/27 减半**、#4 的成功档 **4/4 减半**；
+    /// 而 #4 的大成功 **25/25 满额**（22 轴直接给满 15，3 轴要撞 `max_*` 硬顶才截断）。
+    /// 同场两档相反 ⇒ 差异是事实，**通道原因未解释**，
+    /// 所以只给这一场这一档开这一个口子，不推广成全局规则。
+    #[serde(default)]
+    pub great_no_soft_cap: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -500,24 +552,37 @@ mod tests {
             (3, (60, 10, 100), (80, 20, 150)),
         ];
         let data = MatsuriData::load(crate::testing::data_dir()).expect("真实剧本资产应可载入");
-        assert_eq!(data.check_points.len(), expect.len(), "发表会场次数");
+        assert_eq!(
+            data.check_points.len(),
+            expect.len() + 1,
+            "表内 3 场 + 报文第 4 场（t78，无 buff 行）"
+        );
         for cp in &data.check_points {
-            let e = expect
-                .iter()
-                .find(|(s, _, _)| *s == cp.schedule)
-                .unwrap_or_else(|| panic!("schedule {} 不在 master 表里", cp.schedule));
+            let Some(e) = expect.iter().find(|(s, _, _)| *s == cp.schedule) else {
+                // 第 4 场：`single_mode_15_check_point_effect` 没有它的行 ⇒ buff 必须是 null
+                assert_eq!(cp.schedule, 4, "除 1/2/3 外只允许报文实证过的第 4 场");
+                assert!(
+                    cp.success.is_none() && cp.great.is_none(),
+                    "第 4 场无一手 buff 行"
+                );
+                continue;
+            };
+            let (succ, great) = (
+                cp.success
+                    .clone()
+                    .unwrap_or_else(|| panic!("schedule {} 应有成功档", cp.schedule)),
+                cp.great
+                    .clone()
+                    .unwrap_or_else(|| panic!("schedule {} 应有大成功档", cp.schedule)),
+            );
             assert_eq!(
-                (
-                    cp.success.gain_pct,
-                    cp.success.friend_pct,
-                    cp.success.hint_pct
-                ),
+                (succ.gain_pct, succ.friend_pct, succ.hint_pct),
                 e.1,
                 "schedule {} 成功档",
                 cp.schedule
             );
             assert_eq!(
-                (cp.great.gain_pct, cp.great.friend_pct, cp.great.hint_pct),
+                (great.gain_pct, great.friend_pct, great.hint_pct),
                 e.2,
                 "schedule {} 大成功档",
                 cp.schedule

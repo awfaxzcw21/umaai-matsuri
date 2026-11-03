@@ -17,6 +17,7 @@ use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use umaai::Config;
 use umaai_core::Data;
+use umaai_core::RaceMask;
 use umaai_core::gamedata::ActionValue;
 use umaai_core::rng::{EventRng, StrategyRng, StreamTag, derive_seed};
 use umasim::game::CardTrainingEffect;
@@ -258,6 +259,10 @@ pub struct MatsuriGame {
     /// 友人「吾妻」SSR = 卡 30323、R = 卡 10149（两者 `chara_id` 同为 9052，靠稀有度区分）。
     /// 面板直接给这个值 ⇒ 宿主装配真实局面时以面板为准（`state.rs` 注入）。
     pub act_level_cap: i32,
+    /// 本局马娘 id（= 面板 `chara_id`，与 `newgame` 的 `uma_id` 同值）
+    ///
+    /// 只用于查 `race_reward.cards` 的**逐卡赛后奖励终值表**；0 = 未知 ⇒ 走兜底档。
+    pub uma_id: u32,
 }
 
 impl Deref for MatsuriGame {
@@ -312,6 +317,7 @@ impl MatsuriGame {
         data: Arc<MatsuriData>,
     ) -> Result<Self> {
         let mut game = Self {
+            uma_id,
             base: BaseGame::new(
                 uma_id,
                 deck_ids,
@@ -408,23 +414,61 @@ impl MatsuriGame {
         (remain / (remain + self.data.cap_decay)).max(self.data.cap_decay_floor)
     }
 
-    /// 本回合生涯赛的赛后奖励基准档
+    /// 该回合理应吃到的赛后奖励档
     ///
-    /// turn 73/75/77（面板 74/76/78）= URA 予選/準決勝/決勝；其余生涯回合 = 目標賽。
-    /// 表未配 URA 档时回落目標賽档，不猜。
-    fn race_reward_def(&self) -> RaceRewardDef {
-        let idx = match self.base.turn {
-            73 => 0,
-            75 => 1,
-            77 => 2,
-            _ => return self.data.race_reward.target,
+    /// - URA 予選/準決勝/決勝 = 引擎回合 73/75/77（面板 74/76/78）→ 逐卡 `ura` 表；
+    /// - 其余比赛回合 = 目標賽 → 逐卡 `target` 表，按**本回合是第几场目标赛**取（1 基）。
+    ///
+    /// 命中本表 ⇒ 返回的是报文实测的**终值**（已含全部加成），调用方**不得再乘任何系数**。
+    /// 表里没有 / 序号落在观测范围外 ⇒ `None`，由调用方回落兜底档（旧 `target{5,72}` × 二段式）。
+    /// 依据：`docs/赛后奖励一手_20261103.md` §3/§4/§4.5。
+    fn card_race_reward(&self) -> Option<RaceRewardDef> {
+        let card = self.data.race_reward.cards.get(&self.uma_id.to_string())?;
+        let Some(slot) = self.ura_slot() else {
+            let k = (RaceMask::MIN_TURN..=RaceMask::MAX_TURN)
+                .filter(|t| {
+                    *t < self.base.turn
+                        && !Self::ura_turns().contains(t)
+                        && self.base.uma.career_races.contains_turn(*t)
+                })
+                .count();
+            return card.target.get(k).copied();
         };
-        self.data
-            .race_reward
-            .ura
-            .get(idx)
-            .copied()
-            .unwrap_or(self.data.race_reward.target)
+        card.ura.get(slot).copied()
+    }
+
+    /// URA 三场的引擎回合（0 基；面板 −1 ⇒ 74/76/78）
+    fn ura_turns() -> [i32; 3] {
+        [73, 75, 77]
+    }
+
+    /// 本回合若是 URA 场，返回其在 `ura` 表里的下标
+    fn ura_slot(&self) -> Option<usize> {
+        Self::ura_turns().iter().position(|t| *t == self.base.turn)
+    }
+
+    /// 兜底档（**未逐卡实证**）：全局目標賽 / URA 基准 + 二段式乘区
+    ///
+    /// 只在该马娘没有终值表、或赛程超出观测范围时走到这里。保留它是为了不让未知卡退成 0，
+    /// 不代表这套乘区已被证实 —— `docs/赛后奖励一手_20261103.md` §4.5 已把它对目标赛的
+    /// 解释否掉（216 是作者值，不是 `floor(floor(72×1.5)×2)`）。
+    fn fallback_race_reward(&self) -> (i32, i32) {
+        let def = match self.ura_slot() {
+            Some(slot) => self
+                .data
+                .race_reward
+                .ura
+                .get(slot)
+                .copied()
+                .unwrap_or(self.data.race_reward.target),
+            None => self.data.race_reward.target,
+        };
+        let m_card = (100 + self.base.uma.race_bonus) as f64 / 100.0;
+        let m_cp = 1.0 + self.race_bonus;
+        (
+            race_reward_two_stage(def.stat, m_card, m_cp),
+            race_reward_two_stage(def.pt, m_card, m_cp),
+        )
     }
 
     /// 该回合的自选比赛窗口（`None` = 这回合不能报名）
@@ -771,23 +815,31 @@ impl MatsuriGame {
     /// 同一 schedule 的「成功」档 = 上一场「大成功」档的值，如 schedule 2 成功 = 5/40/50
     /// 与 schedule 1 大成功同值）⇒ 设值不累加。
     /// effect_type：4 得意率 / 202 友情ボーナス / 2 ヒント発生率 / 204 比赛加成。
+    /// 発表会的档位判据：`min(全演目 Lv) >= need` ⇒ 大成功
+    ///
+    /// 一手（`docs/发表会档位一手_20261103.md` §2，`tools` 侧 `cp_tier_check.py` 28/28 对）：
+    /// 报文 `festa_data_set.check_point_result_array` 的 `result_type` 与这条判据逐场一致，
+    /// 且**到回合必结算**（未达标也发成功档，不是不发）。旧实现「全 Lv ≥ need 才结算、
+    /// 全 Lv > need 才大成功」两处都偏严：低 Lv 局在引擎里拿 0 PT，真机拿 100~150。
+    fn check_point_is_great(&self, cp: &CheckPointDef) -> bool {
+        self.act_level.iter().all(|lv| *lv >= cp.need)
+    }
+
     fn apply_check_point(&mut self, cp: &CheckPointDef, great: bool) {
-        let buff = if great {
-            cp.great.clone()
-        } else {
-            cp.success.clone()
-        };
-        self.gain_pct = buff.gain_pct as f64 / 100.0;
-        self.check_friend_pct = buff.friend_pct as f64 / 100.0;
-        self.check_hint_pct = buff.hint_pct;
+        // buff 行可为 `null`（第 4 场没有一手来源）⇒ 不改，也不许拿前一场的值顶
+        if let Some(buff) = if great { &cp.great } else { &cp.success } {
+            self.gain_pct = buff.gain_pct as f64 / 100.0;
+            self.check_friend_pct = buff.friend_pct as f64 / 100.0;
+            self.check_hint_pct = buff.hint_pct;
+        }
         // 午式駿大祭（第 3 场，cp.schedule == 3）：成功 +30% / 大成功 +100% レースボーナス
         if cp.schedule == 3 {
             self.race_bonus = if great { 1.00 } else { 0.30 };
         }
-        // 达标实数奖励（memo L215-250；官方 Wiki 文案，见 docs/plan/intake.md）
-        //   大成功：t24 = 5ステ+5 / SP+200 / トレLv+1；t48 = 5ステ+10 / SP+300 / トレLv+1；
-        //           t68 = 5ステ+15 / SP+400 / 体力+30 / やる気+1
-        //   成功  ：t24 = 5ステ+3 / SP+100；t48 = 5ステ+5 / SP+150；t68 = 5ステ+10 / SP+200
+        // 达标实数奖励（报文一手，`docs/发表会档位一手_20261103.md` §2）
+        //   大成功：t24 = 5ステ+5 / SP+200 / トレLv+1；t48 = +10 / +300 / トレLv+1；
+        //           t68 = +15 / +400 / 体力+30 / やる気+1；t78 = +15 / +350（不吃 1200 压缩）
+        //   成功  ：t24 = +3 / +100；t48 = +5 / +150；t68 = +10 / +200；t78 = +15 / +150
         // （成功档没有 トレLv+1，也没有体力 / 干劲）
         let (all_stat, pt, train_lv, vital, motivation, chairman) = if great {
             (
@@ -805,11 +857,17 @@ impl MatsuriGame {
             let limits = self.uma().five_status_limit;
             let pre = self.uma().five_status;
             let soft_cap = self.data.soft_cap;
+            // 只有「第 4 场的大成功档」观测到不压缩；其余各场各档一律压缩
+            let compress = !(cp.great_no_soft_cap && great);
             let uma = self.uma_mut();
             for (i, (st, lim)) in uma.five_status.iter_mut().zip(limits.iter()).enumerate() {
                 // 全能力奖励吃 1200 软上限：清单里那条「#2 速+5 耐+10 … 非均匀」就是
                 // 均匀的 5ステ+10 被软上限砍掉过线的那一项（不是「非均匀设计」）。
-                let gain = soft_cap_gain(soft_cap, pre[i], all_stat);
+                let gain = if compress {
+                    soft_cap_gain(soft_cap, pre[i], all_stat)
+                } else {
+                    all_stat
+                };
                 *st = (*st + gain).min(*lim);
             }
         }
@@ -1503,16 +1561,14 @@ impl MatsuriGame {
                 }
                 // 生涯比赛：引擎按回合生成比赛事件（与 BasicGame 同口径）
                 if self.base.uma.is_race_turn(self.base.turn) {
-                    // 赛后奖励 = 基准表 × 二段式乘区，两段各自 floor：
-                    //   一段 = 支援卡「赛后」加成（`uma.race_bonus`）
-                    //   二段 = 発表会#3 的 cp204 レースボーナス（`self.race_bonus`）
-                    // 报文实证（2026-11-01）：cid168 后期目標賽 PT=216=floor(floor(72×1.5)×2)
-                    // 而五维只有 14=floor(floor(5×1.5)×2)——单段式 floor(5×3.0)=15 被否掉。
-                    let def = self.race_reward_def();
-                    let m_card = (100 + self.base.uma.race_bonus) as f64 / 100.0;
-                    let m_cp = 1.0 + self.race_bonus;
-                    let full_stat = race_reward_two_stage(def.stat, m_card, m_cp);
-                    let pt = race_reward_two_stage(def.pt, m_card, m_cp);
+                    // 赛后奖励：优先逐卡**终值表**（报文一手，不再乘任何系数）；
+                    // 表里没有这场 = 未逐卡实证 ⇒ 回落旧的「基准 × 二段式乘区」兜底。
+                    // 一手依据 `docs/赛后奖励一手_20261103.md` §3/§4.5：目标赛 Pt 跨発表会
+                    // 不变值（イクノ t23~t66 恒 128、エピ t12/t34 恒 108），双倍场按卡不同。
+                    let (full_stat, pt) = match self.card_race_reward() {
+                        Some(def) => (def.stat, def.pt),
+                        None => self.fallback_race_reward(),
+                    };
                     // 1200 软上限：按赛前值逐维算实得增量（PT 不受软上限影响）
                     let pre = self.uma().five_status;
                     let gains: [i32; 5] =
@@ -1603,16 +1659,16 @@ impl MatsuriGame {
                         self.act_level[i] = (self.act_level[i] + 1).min(cap);
                     }
                 }
-                // 発表会：全演目达标 → 永久收益加成
+                // 発表会：**到回合必结算**，档只由「全演目 Lv 是否都 ≥ need」决定
+                // （报文 28/28 样本：min(Lv) ≥ need ⇒ 大成功，否则成功档；不存在「不结算」）
                 if let Some(cp) = self
                     .data
                     .check_points
                     .iter()
                     .find(|c| c.turn == self.turn)
                     .cloned()
-                    && self.act_level.iter().all(|lv| *lv >= cp.need)
                 {
-                    let great = self.act_level.iter().all(|lv| *lv > cp.need);
+                    let great = self.check_point_is_great(&cp);
                     self.apply_check_point(&cp, great);
                 }
                 // 事件链留待后续（`streams.event`）
@@ -2256,6 +2312,120 @@ mod tests {
     }
 
     #[test]
+    fn check_point_tier_matches_packet_result_array() {
+        // 报文一手（10 局 × 4 场，`check_point_result_array.result_type` 逐场对）：
+        // 档位 = min(全演目 Lv) 是否 ≥ need；**(sched,Lv) → 档** 这 10 组是从报文里抄的观测。
+        let _ = Data::init(crate::testing::data_dir());
+        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
+        let mut game =
+            MatsuriGame::newgame(106301, &[], InheritInfo::default(), &[], data.clone()).unwrap();
+        let expect: &[(i32, [i32; 5], bool)] = &[
+            (1, [3, 2, 3, 2, 2], false), // run168 t24 ⇒ 成功（100 PT）
+            (1, [4, 3, 3, 4, 3], true),  // run169 t24 ⇒ 大成功（200）
+            (1, [3, 2, 2, 2, 4], false), // run202
+            (2, [5, 5, 5, 5, 6], true),  // run168：min == need 就是大成功（旧规则会误判成功）
+            (2, [7, 6, 6, 6, 5], true),  // run172
+            (2, [5, 4, 4, 4, 4], false), // run201
+            (3, [6, 6, 6, 6, 6], true),  // run179 t68：同上，min == need
+            (3, [5, 6, 6, 6, 6], false), // run201
+            (4, [6, 6, 6, 6, 6], true),  // run179 t78 ⇒ 350
+            (4, [9, 6, 5, 6, 6], false), // run201 t78 ⇒ 150
+        ];
+        for (sched, lv, great) in expect {
+            let cp = data
+                .check_points
+                .iter()
+                .find(|c| c.schedule == *sched)
+                .unwrap_or_else(|| panic!("schedule {} 不在资产里", sched))
+                .clone();
+            game.act_level = *lv;
+            assert_eq!(
+                game.check_point_is_great(&cp),
+                *great,
+                "schedule {} 演目 Lv {:?} 的档判错",
+                sched,
+                lv
+            );
+        }
+    }
+
+    #[test]
+    fn fourth_check_point_pays_packet_reward() {
+        // 报文：#4 大成功 = SP+350 / 5ステ+15 且**不吃 1200 压缩**（pre≥1200 的 25 轴全满额）；
+        //       #4 成功 = SP+150 / 5ステ+15 但压缩（实测 7|15|15|15|15）。
+        //       本场 `single_mode_15_schedule` / `check_point_effect` 均无行 ⇒ buff 留 null。
+        let mut game = game_with_roster(&[(0, 1)]);
+        let cp = game
+            .data
+            .check_points
+            .iter()
+            .find(|c| c.schedule == 4)
+            .expect("资产里应有报文实证的第 4 场")
+            .clone();
+        assert_eq!(cp.turn, 77, "面板 t78 = 引擎回合 77");
+        assert!(
+            cp.success.is_none() && cp.great.is_none(),
+            "第 4 场没有一手 buff 行"
+        );
+
+        let (gain_pct, hint) = (game.gain_pct, game.check_hint_pct);
+        let uma = game.uma_mut();
+        uma.five_status = [1300, 800, 1300, 800, 1300];
+        uma.skill_pt = 0;
+        game.apply_check_point(&cp, true);
+        assert_eq!(game.uma().skill_pt, 350, "大成功 = SP+350");
+        assert_eq!(game.uma().five_status[0], 1315, "过 1200 的轴也照给 15");
+        assert_eq!(game.uma().five_status[1], 815);
+        assert_eq!(
+            (game.gain_pct, game.check_hint_pct),
+            (gain_pct, hint),
+            "不改 buff"
+        );
+
+        let uma = game.uma_mut();
+        uma.five_status = [1300, 800, 1300, 800, 1300];
+        uma.skill_pt = 0;
+        game.apply_check_point(&cp, false);
+        assert_eq!(game.uma().skill_pt, 150, "成功 = SP+150");
+        assert_eq!(game.uma().five_status[0] - 1300, 7, "成功档吃压缩：15→7");
+        assert_eq!(game.uma().five_status[1] - 800, 15, "没过线的项照给");
+    }
+
+    #[test]
+    fn check_point_pt_ledger_sums_to_packet_segment() {
+        // 逐源台账 §3.3 的靶：真机 t30→t77 段内 3 场发表会 = 1,050 PT、均 350。
+        // 这里用**资产里的常数**重放报文账本，钉死「引擎侧这段一共能给多少 PT」，
+        // 免得门禁只给产出计时，这一项连算术都对不上。
+        let data = MatsuriData::load(crate::testing::data_dir()).unwrap();
+        let turns: Vec<i32> = data.check_points.iter().map(|c| c.turn).collect();
+        assert_eq!(turns, [23, 47, 67, 77], "面板 24/48/68/78 −1 = 引擎回合");
+
+        let seg = |legs: &dyn Fn(&CheckPointDef) -> i32, from: i32| -> i32 {
+            data.check_points
+                .iter()
+                .filter(|c| c.turn > from)
+                .map(legs)
+                .sum()
+        };
+        assert_eq!(
+            seg(&|c| c.pt, 30),
+            1_050,
+            "t30 之后 3 场大成功 SP 腿（300+400+350）"
+        );
+        assert_eq!(seg(&|c| c.success_pt, 30), 500, "同段成功腿 150+200+150");
+        assert_eq!(
+            data.check_points.iter().map(|c| c.pt).sum::<i32>(),
+            1_250,
+            "整局大成功 SP 腿 200+300+400+350"
+        );
+        assert_eq!(
+            data.check_points.iter().map(|c| c.success_pt).sum::<i32>(),
+            600,
+            "整局成功腿 100+150+200+150"
+        );
+    }
+
+    #[test]
     fn act_level_cap_is_six_unless_ssr_agatsuma() {
         // 报文 `festa_info.max_act_level`：R 吾妻（10149）/不带 = 6，SSR 吾妻（30323）= 10
         let _ = Data::init(crate::testing::data_dir());
@@ -2336,7 +2506,9 @@ mod tests {
 
     #[test]
     fn free_race_pays_one_random_stat_and_pt() {
-        // memo §8.1：目標外 GI = 1 ステ +10 / PT +45（未乘加成；乘区与目標賽同口径）
+        // 报文一手（`race_reward_ledger.csv` 通用事件 1011/7005，GI 名次1 = PT 71 / 单轴 +15
+        // @ マルゼン m_card≈1.10）⇒ **基准档** = 65 / 14，乘区另算。
+        // 旧档 {10,45} 来自 memo §8.1（二手），那个 45 其实是 master `grade=700` 那两场 OPEN 的值。
         let mut game = game_with_roster(&[(0, 1)]);
         game.turn = 44;
         let before = game.uma().five_status;
@@ -2347,8 +2519,12 @@ mod tests {
         let gains: Vec<i32> = (0..5).map(|i| after[i] - before[i]).collect();
         let hit: Vec<i32> = gains.iter().copied().filter(|g| *g > 0).collect();
         assert_eq!(hit.len(), 1, "「1 ステ」= 只加一项，实际增益 {gains:?}");
-        assert_eq!(hit[0], 10, "G1 目标外 = 随机一项 +10");
-        assert_eq!(game.uma().skill_pt - pt_before, 45, "G1 目标外 = PT +45");
+        assert_eq!(hit[0], 14, "G1 目标外基准 = 随机一项 +14（乘区 1.0 时）");
+        assert_eq!(
+            game.uma().skill_pt - pt_before,
+            65,
+            "G1 目标外基准 = PT +65"
+        );
         // 演目槽：非生涯比赛 +1（memo §8.2）
         let gauge_before = game.act_gauge.iter().sum::<i32>();
         game.turn = 68;
@@ -2363,18 +2539,90 @@ mod tests {
 
     #[test]
     fn free_race_unknown_grade_is_not_target_row() {
-        // GII 没有样本（`non_target[1] = null`）⇒ 未知不猜：不回落目標賽档。
+        // 2026-11-03 报文一手：GII 有样本了（36 场 = PT 50 档 / 单轴 +11，乘区后 55/+12），
+        // 换成 **OP（grade 4）** 没有干净对应：master `grade=700` 的 45/+7 只有 2 场，
+        // 且 700 与引擎 grade 4 的对应未证 ⇒ 未知不猜，不回落目標賽档。
         let game = game_with_roster(&[(0, 1)]);
         assert!(game.free_race_reward(1).is_some(), "G1 有真值");
+        assert!(game.free_race_reward(2).is_some(), "GII 有真值");
         assert!(game.free_race_reward(3).is_some(), "GIII 有真值");
         assert!(
-            game.free_race_reward(2).is_none(),
-            "GII 无样本 ⇒ 返回 None，不猜"
+            game.free_race_reward(4).is_none(),
+            "OP 无确证档位 ⇒ 返回 None，不猜"
         );
         assert_ne!(
             game.free_race_reward(1).unwrap().stat,
             game.data.race_reward.target.stat,
             "目標外的五维增量不是「各 +5」"
+        );
+    }
+
+    /// 一手终值表：命中 ⇒ 直接用终值（不吃乘区）；表外的场次 ⇒ `None`（回落兜底，不猜）
+    #[test]
+    fn card_race_reward_uses_authored_final_values() {
+        let mut game = game_with_roster(&[(0, 1)]);
+        game.uma_id = 106301;
+        // URA 三场（引擎 73/75/77 = 面板 74/76/78）= 124 / 186 / 248
+        for (turn, want) in [(73, 124), (75, 186), (77, 248)] {
+            game.base.turn = turn;
+            assert_eq!(
+                game.card_race_reward().map(|d| d.pt),
+                Some(want),
+                "URA t{turn}"
+            );
+        }
+        // 第 1 场 = 新马戦 111，第 2 场起 = 128
+        let mask = RaceMask::from_turns(&(11..=25).collect::<Vec<i32>>()).unwrap();
+        game.uma_mut().career_races = mask;
+        game.base.turn = 11;
+        assert_eq!(
+            game.card_race_reward().map(|d| d.pt),
+            Some(111),
+            "k=1 新马戦"
+        );
+        game.base.turn = 12;
+        assert_eq!(game.card_race_reward().map(|d| d.pt), Some(128), "k=2");
+        // 观测只到第 14 场 ⇒ 第 15 场没有作者值，回落兜底（不猜）
+        game.base.turn = 25;
+        assert_eq!(game.card_race_reward(), None, "表外场次不猜");
+        // 未观测的马娘 ⇒ 整张表不命中
+        game.uma_id = 999999;
+        game.base.turn = 12;
+        assert_eq!(game.card_race_reward(), None, "未逐卡实证 ⇒ 回落兜底");
+    }
+
+    /// run179 赛程逐场重放 = 一手账本的 **2,478 PT / 名义五维 1,365 点**。
+    ///
+    /// 「比赛源与真机账本构造性一致」这句结论的**可执行形式**：不靠 sims 均值反推，
+    /// 直接把面板 `races` 的 17 场（1 基 ⇒ 引擎 0 基）里 t30 之后的 15 场喂给查表逻辑。
+    /// 赛程固定 ⇒ 这项与抽样无关，是恒定量。
+    #[test]
+    fn run179_program_replays_the_packet_race_ledger() {
+        let mut game = game_with_roster(&[(0, 1)]);
+        game.uma_id = 106301;
+        // 面板 12·23·31·32·34·44·54·56·59·60·66·69·70·72·74·76·78 ⇒ 引擎 0 基。
+        // 75/77 出 `RaceMask` 窗口（`MAX_TURN = 74`），URA 三场由 `ura_turns()` 认。
+        let career = [11, 22, 30, 31, 33, 43, 53, 55, 58, 59, 65, 68, 69, 71, 73];
+        game.uma_mut().career_races = RaceMask::from_turns(&career).unwrap();
+        let ura = [75, 77];
+        let mut pt = 0;
+        let mut stat_each = 0;
+        for turn in career[2..].iter().chain(ura.iter()) {
+            game.base.turn = *turn;
+            let def = game
+                .card_race_reward()
+                .unwrap_or_else(|| panic!("t{turn} 无作者值"));
+            pt += def.pt;
+            stat_each += def.stat;
+        }
+        assert_eq!(
+            pt, 2478,
+            "同段 15 场 = 9×128 + 3×256 + (124+186+248) = 2,478"
+        );
+        assert_eq!(
+            stat_each * 5,
+            1365,
+            "名义五维（过软上限前）= 12×19×5 + 3×15×5"
         );
     }
 }
