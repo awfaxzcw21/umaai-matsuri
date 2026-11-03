@@ -1,0 +1,278 @@
+diff --git a/crates/matsuri-cli/src/dist.rs b/crates/matsuri-cli/src/dist.rs
+index a96e68a..9245415 100644
+--- a/crates/matsuri-cli/src/dist.rs
++++ b/crates/matsuri-cli/src/dist.rs
+@@ -30,6 +30,7 @@ use rand::SeedableRng;
+ use rand::rngs::StdRng;
+ use serde_json::{Value, json};
+ 
++use matsuri_core::game::ledger;
+ use matsuri_core::trainer::MatsuriRolloutTrainer;
+ use umaai_core::Data;
+ use umaai_core::gamedata::constants::GameConstants;
+@@ -106,6 +107,8 @@ fn run() -> Result<()> {
+     let mut stat_scores: Vec<i32> = Vec::with_capacity(n);
+     let mut pts: Vec<i32> = Vec::with_capacity(n);
+     let mut grade_ests: Vec<i32> = Vec::with_capacity(n);
++    // 逐源台账累计（跨样本求均值用）：每桶一行 [pt, 速, 耐, 力, 根, 智]
++    let mut ledger_sum = [[0i64; 7]; ledger::SRC_N];
+ 
+     // 逐样本明细（尾部诊断用）：`MC_DUMP=<path>` 时才落盘，避免默认输出变大。
+     let dump_path = std::env::var("MC_DUMP").ok();
+@@ -117,7 +120,14 @@ fn run() -> Result<()> {
+             .wrapping_add((i as u64).wrapping_mul(0xD1B5_4A32_D192_ED03));
+         let mut g = game.fork_for_rollout(seed);
+         let mut rng = StdRng::seed_from_u64(seed ^ 0xA1B2_C3D4_5E6F_7081);
++        ledger::reset();
+         g.run_full_game(&MatsuriRolloutTrainer, &mut rng)?;
++        let src = ledger::get();
++        for (acc, row) in ledger_sum.iter_mut().zip(src.iter()) {
++            for (cell, v) in acc.iter_mut().zip(row.iter()) {
++                *cell += *v;
++            }
++        }
+ 
+         native_scores.push(g.search_score(1.0)? as i32);
+ 
+@@ -151,6 +161,7 @@ fn run() -> Result<()> {
+                 "act": g.act_level.to_vec(),
+                 "gauge": g.act_gauge.to_vec(),
+                 "gain": g.gain_pct,
++                "src": src.iter().map(|r| r.to_vec()).collect::<Vec<_>>(),
+             }));
+         }
+     }
+@@ -170,6 +181,7 @@ fn run() -> Result<()> {
+         "score": summarize(consts, &native_scores),
+         "real_score": summarize(consts, &real_scores),
+         // 三分量门禁：各自可独立核对，不含拟合系数。
++        "gain_ledger": ledger_mean(&ledger_sum, n),
+         "gate": {
+             "note": "五维和 / 五维分 / PT 三项各自与真实局对照；grade_est 只是折算估计，真实 Σgrade 需从游戏技能清单直接数",
+             "five_sum": describe(&five_sums),
+@@ -193,6 +205,32 @@ fn run() -> Result<()> {
+ }
+ 
+ /// 纯数值描述统计（不带名次直方图）——门禁三分量用。
++/// 逐源台账的每局均值（正差分口径，与 `docs/PT台账_20261103.md` 真机账本一致）
++///
++/// 桶：`train` / `keiko` / `race_target` / `race_free` / `check_point` / `event`。
++/// 注意这是「引擎侧自报」，不含装配状态里已存在的余额与五维（起点在 t30）。
++fn ledger_mean(sum: &[[i64; 7]], n: usize) -> Value {
++    let m = n.max(1) as f64;
++    let obj: serde_json::Map<String, Value> = ledger::SRC_NAMES
++        .iter()
++        .enumerate()
++        .map(|(i, name)| {
++            let row = sum[i];
++            let axes: Vec<f64> = row[1..6].iter().map(|v| *v as f64 / m).collect();
++            (
++                (*name).to_string(),
++                json!({
++                    "pt_mean": row[0] as f64 / m,
++                    "n_mean": row[6] as f64 / m,
++                    "five_sum_mean": axes.iter().sum::<f64>(),
++                    "five_axes_mean": axes,
++                }),
++            )
++        })
++        .collect();
++    Value::Object(obj)
++}
++
+ fn describe(values: &[i32]) -> Value {
+     let n = values.len();
+     let mean = if n == 0 {
+diff --git a/crates/matsuri-core/src/game/ledger.rs b/crates/matsuri-core/src/game/ledger.rs
+new file mode 100644
+index 0000000..9990ea8
+--- /dev/null
++++ b/crates/matsuri-core/src/game/ledger.rs
+@@ -0,0 +1,77 @@
++//! 逐源增益台账（**测量壳专用，不并回 HEAD**）
++//!
++//! 目的：把一局里 PT / 五维的毛增按来源分桶，与 `docs/PT台账_20261103.md` 的真机逐源
++//! 账本对齐，定位「引擎比真机少的那 1,805 PT / 7,053 五维分」缺在哪一源。
++//!
++//! 口径与真机侧一致：**只记正差分**（毛增），负向（掉属性 / 技能购入）不计入；
++//! 状态用 `thread_local` 而不进 `MatsuriGame`，避免污染序列化与 `fork_for_rollout`。
++
++use std::cell::RefCell;
++
++pub const SRC_TRAIN: usize = 0;
++pub const SRC_KEIKO: usize = 1;
++pub const SRC_RACE_TARGET: usize = 2;
++pub const SRC_RACE_FREE: usize = 3;
++pub const SRC_CHECK_POINT: usize = 4;
++pub const SRC_EVENT: usize = 5;
++pub const SRC_N: usize = 6;
++
++/// 与真机账本对齐用的桶名（顺序同 `SRC_*`）
++pub const SRC_NAMES: [&str; SRC_N] = [
++    "train",
++    "keiko",
++    "race_target",
++    "race_free",
++    "check_point",
++    "event",
++];
++
++/// 一列 = `[pt, 速, 耐, 力, 根, 智, 结算次数]`
++pub type Acc = [i64; 7];  // 末列 = 结算次数
++
++#[derive(Debug, Clone, Copy)]
++pub struct Snap {
++    pub pt: i64,
++    pub five: [i64; 5],
++}
++
++thread_local! {
++    static LEDGER: RefCell<[Acc; SRC_N]> = const { RefCell::new([[0i64; 7]; SRC_N]) };
++}
++
++/// 从马娘当前状态取快照（调用方负责在结算前后各取一次）
++pub fn snap(pt: i32, five: [i32; 5]) -> Snap {
++    Snap {
++        pt: pt as i64,
++        five: five.map(i64::from),
++    }
++}
++
++/// 累加一次结算的正差分
++pub fn accrue(src: usize, before: Snap, after: Snap) {
++    LEDGER.with(|l| {
++        let mut l = l.borrow_mut();
++        let row = &mut l[src];
++        let d = after.pt - before.pt;
++        if d > 0 {
++            row[0] += d;
++        }
++        for i in 0..5 {
++            let d = after.five[i] - before.five[i];
++            if d > 0 {
++                row[1 + i] += d;
++            }
++        }
++        row[6] += 1;
++    });
++}
++
++/// 清零（每局开跑前）
++pub fn reset() {
++    LEDGER.with(|l| *l.borrow_mut() = [[0i64; 7]; SRC_N]);
++}
++
++/// 读出累计值（顺序同 [`SRC_NAMES`]）
++pub fn get() -> [Acc; SRC_N] {
++    LEDGER.with(|l| *l.borrow())
++}
+diff --git a/crates/matsuri-core/src/game/mod.rs b/crates/matsuri-core/src/game/mod.rs
+index 78ea32f..219264b 100644
+--- a/crates/matsuri-core/src/game/mod.rs
++++ b/crates/matsuri-core/src/game/mod.rs
+@@ -4,6 +4,7 @@
+ //! 阶段机、人头与剧本资产。契约 impl 集中在 [`traits`]，本文件只放 inherent 方法。
+ 
+ pub mod action;
++pub mod ledger;
+ pub mod stage;
+ pub mod traits;
+ 
+@@ -475,10 +476,13 @@ impl MatsuriGame {
+         let mut status_pt = [0i32; 6];
+         status_pt[idx] = gain;
+         status_pt[5] = pt;
++        let ledger_b = ledger::snap(self.uma().skill_pt, self.uma().five_status);
+         self.uma_mut().add_value(&ActionValue {
+             status_pt,
+             ..Default::default()
+         });
++        let ledger_a = ledger::snap(self.uma().skill_pt, self.uma().five_status);
++        ledger::accrue(ledger::SRC_RACE_FREE, ledger_b, ledger_a);
+         // 演目槽：非生涯比赛 +1（memo §8.2；落点 Lv 低 → 槽低 → 属性序）
+         self.push_act_gauge(1);
+         Ok(())
+@@ -711,7 +715,10 @@ impl MatsuriGame {
+             }
+             self.practice_bad = true;
+         } else {
++            let ledger_b = ledger::snap(self.uma().skill_pt, self.uma().five_status);
+             self.uma_mut().add_value(&scaled);
++            let ledger_a = ledger::snap(self.uma().skill_pt, self.uma().five_status);
++            ledger::accrue(ledger::SRC_TRAIN, ledger_b, ledger_a);
+             if extra_keiko {
+                 let upper = rand::Rng::random::<f32>(&mut _rng) < 0.5;
+                 self.apply_extra_keiko(train, upper);
+@@ -772,6 +779,7 @@ impl MatsuriGame {
+     /// 与 schedule 1 大成功同值）⇒ 设值不累加。
+     /// effect_type：4 得意率 / 202 友情ボーナス / 2 ヒント発生率 / 204 比赛加成。
+     fn apply_check_point(&mut self, cp: &CheckPointDef, great: bool) {
++        let ledger_b = ledger::snap(self.uma().skill_pt, self.uma().five_status);
+         let buff = if great {
+             cp.great.clone()
+         } else {
+@@ -840,6 +848,8 @@ impl MatsuriGame {
+                 base.add_friendship(persons, idx, chairman);
+             }
+         }
++        let ledger_a = ledger::snap(self.uma().skill_pt, self.uma().five_status);
++        ledger::accrue(ledger::SRC_CHECK_POINT, ledger_b, ledger_a);
+     }
+ 
+     /// 某演目槽上的教诲效果行（已按「融合 ⇒ 固定档」解析）
+@@ -1405,7 +1415,10 @@ impl MatsuriGame {
+             }
+             self.practice_bad = true;
+         } else {
++            let ledger_b = ledger::snap(self.uma().skill_pt, self.uma().five_status);
+             self.uma_mut().add_value(&scaled);
++            let ledger_a = ledger::snap(self.uma().skill_pt, self.uma().five_status);
++            ledger::accrue(ledger::SRC_KEIKO, ledger_b, ledger_a);
+             if extra_keiko {
+                 let upper = rand::Rng::random::<f32>(&mut _rng) < 0.5;
+                 self.apply_extra_keiko(idx, upper);
+@@ -1499,9 +1512,13 @@ impl MatsuriGame {
+                     self.base.unresolved_events.push(ending);
+                 }
+                 for event in &turn_events {
++                    let ledger_b = ledger::snap(self.uma().skill_pt, self.uma().five_status);
+                     self.run_event(event, trainer, decision, &mut streams.event)?;
++                    let ledger_a = ledger::snap(self.uma().skill_pt, self.uma().five_status);
++                    ledger::accrue(ledger::SRC_EVENT, ledger_b, ledger_a);
+                 }
+                 // 生涯比赛：引擎按回合生成比赛事件（与 BasicGame 同口径）
++                let mut ledger_race_id: Option<u32> = None;
+                 if self.base.uma.is_race_turn(self.base.turn) {
+                     // 赛后奖励 = 基准表 × 二段式乘区，两段各自 floor：
+                     //   一段 = 支援卡「赛后」加成（`uma.race_bonus`）
+@@ -1519,6 +1536,7 @@ impl MatsuriGame {
+                         std::array::from_fn(|i| self.soft_cap_gain(pre[i], full_stat));
+                     // 先走引擎入口拿到事件骨架与 `set_race`，再把面板值换成机制表算出的真值
+                     self.base.push_race_event(1.0, 1.0)?;
++                    ledger_race_id = self.base.unresolved_events.last().map(|e| e.id);
+                     if let Some(value) = self
+                         .base
+                         .unresolved_events
+@@ -1536,11 +1554,22 @@ impl MatsuriGame {
+                 // 执行本回合事件（比赛事件也在其中）
+                 let events = std::mem::take(&mut self.base.unresolved_events);
+                 for event in &events {
++                    let ledger_b = ledger::snap(self.uma().skill_pt, self.uma().five_status);
+                     self.run_event(event, trainer, decision, &mut streams.event)?;
++                    let ledger_a = ledger::snap(self.uma().skill_pt, self.uma().five_status);
++                    let src = if Some(event.id) == ledger_race_id {
++                        ledger::SRC_RACE_TARGET
++                    } else {
++                        ledger::SRC_EVENT
++                    };
++                    ledger::accrue(src, ledger_b, ledger_a);
+                 }
+                 // B1a：比赛后隐藏事件（bwiki 238 条，剧本 15 专属，按概率抽一条）
+                 if self.base.uma.is_race_turn(self.base.turn) {
++                    let ledger_b = ledger::snap(self.uma().skill_pt, self.uma().five_status);
+                     self.apply_hidden_event(&mut streams.event);
++                    let ledger_a = ledger::snap(self.uma().skill_pt, self.uma().five_status);
++                    ledger::accrue(ledger::SRC_EVENT, ledger_b, ledger_a);
+                 }
+                 // 人头分配 + 提示（hint）：走回合固定流（seed 可复现）
+                 self.distribute_all(&mut streams.turn_fixed)?;

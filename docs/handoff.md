@@ -100,7 +100,8 @@
   **逐源台账两件（11-03 深夜新增）**：`docs/逐源台账_20261103.md`（引擎每笔增益按来源记账 vs 真机 run179 同段，
   −1,708 PT 的三源分解 + 桶落点表 + 复现两条坑）、`tools/pt_ledger_segment.py`（真机账本分段版，
   `--run 179 --from 30`；**先打印整局行做交叉校验**、只统计 `same_run=1` 且正差分，
-  它的 `classify()` 与 `pt_ledger.main()` 内层同规则，**改一处必须改两处**）。
+  它的 `classify()` 与 `pt_ledger.main()` 内层同规则，**改一处必须改两处**）、
+  `tools/patch_src_pt_ledger_for_measure.patch`（壳内打点的可 apply 存档，壳拆了也能重建）。
 - **约束**：上游 `umaai-project/umaai-matsuri` 与祖仓 `xf8410/umaai-rs` **只读**；
   通用引擎 `E:/HJM/umaai_next` 保持 diff-empty；`E:/HJM/umaai-matsuri-port`（隔壁 WIP）**不可编辑**；
   实验壳 `E:/HJM/_s7x2` 是 port 线的 tar 副本、可丢弃，跑完脚本会把它的 `matsuri_config.toml` 恢复出厂；
