@@ -2,3 +2,7 @@
 # （`core.autocrlf=true` 的机器上，`git apply` 会因上下文行尾不符而报 corrupt patch）
 *.patch -text
 *.diff  -text
+
+# 归档的可执行脚本同理：Windows 上 core.autocrlf=true 会把检出文件变成 CRLF，
+# Git Bash 跑带 CR 的 shell 脚本会报错 ⇒ 强制 LF
+*.sh text eol=lf
