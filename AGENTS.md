@@ -131,7 +131,9 @@
   `tools/patch_*_for_measure.patch`（对壳树跑 `git apply --check --reverse` 必须通过 ⇒ 它就是壳相对基线的
   全量差），冻结臂 exe 的 sha1 写进对应文档；**清理壳之前先把分片证据迁出来**。
 - **并行会话只写文件，不碰 git 索引、不 commit**；由主线核对口径与区间算法后成组提交。
-  16 核机器上引擎臂**并发上限 6**；查占用按 `arm_*.exe` 过滤（只按 `matsuri-dist.exe` 过滤会漏判成「空闲」）。
+  16 核机器上引擎臂**并发上限 6**；查占用用 `tasklist //NH | grep -iE "arm_|matsuri"`——
+  `tasklist /FI "IMAGENAME eq arm_*.exe"` 的**通配筛选不报错但恒空**（会把在跑的臂判成「空闲」），
+  只按 `matsuri-dist.exe` 过滤也会漏判（臂 exe 发布时是改名拷贝的）。
 - **后台进程树会被 harness 限速**（实测每进程只有 9%–25% CPU，前台满速）⇒ 长批次拆成前台分波跑
   （带 `LIMIT` 的续跑形式），不要一把丢后台。
 - **判据只有一个事实源**：配对三分量 ＋ `T975` t 表（`tools/forced_cp_ci.py`、`tools/crn_gate.py`）。
