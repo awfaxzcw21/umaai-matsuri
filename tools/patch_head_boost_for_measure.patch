@@ -1,0 +1,689 @@
+diff --git a/crates/matsuri-cli/src/dist.rs b/crates/matsuri-cli/src/dist.rs
+index a96e68a..be0c1ae 100644
+--- a/crates/matsuri-cli/src/dist.rs
++++ b/crates/matsuri-cli/src/dist.rs
+@@ -30,6 +30,8 @@ use rand::SeedableRng;
+ use rand::rngs::StdRng;
+ use serde_json::{Value, json};
+ 
++use matsuri_core::game::keiko_legs;
++use matsuri_core::game::train_legs;
+ use matsuri_core::trainer::MatsuriRolloutTrainer;
+ use umaai_core::Data;
+ use umaai_core::gamedata::constants::GameConstants;
+@@ -106,6 +108,12 @@ fn run() -> Result<()> {
+     let mut stat_scores: Vec<i32> = Vec::with_capacity(n);
+     let mut pts: Vec<i32> = Vec::with_capacity(n);
+     let mut grade_ests: Vec<i32> = Vec::with_capacity(n);
++    // 稽古分腿（#39）：每行 = 一个演目 Lv，列同 `keiko_legs::LEG_COLS`
++    let mut keiko_sum = [[0i64; 7]; keiko_legs::LV_N];
++    // 训练腿分解（#40）：[槽位=普通/稽古home][训练Lv][卡组人头] -> Cell
++    let mut tl_sum = [[[[0i64; 16]; 8]; 6]; 2];
++    // 盘面人头（#40 第二刀）：[非合宿/合宿][BOARD_COLS]
++    let mut bs_sum = [[0i64; 20]; 2];
+ 
+     // 逐样本明细（尾部诊断用）：`MC_DUMP=<path>` 时才落盘，避免默认输出变大。
+     let dump_path = std::env::var("MC_DUMP").ok();
+@@ -117,7 +125,28 @@ fn run() -> Result<()> {
+             .wrapping_add((i as u64).wrapping_mul(0xD1B5_4A32_D192_ED03));
+         let mut g = game.fork_for_rollout(seed);
+         let mut rng = StdRng::seed_from_u64(seed ^ 0xA1B2_C3D4_5E6F_7081);
++        keiko_legs::reset();
++        train_legs::reset();
+         g.run_full_game(&MatsuriRolloutTrainer, &mut rng)?;
++        for (acc, row) in keiko_sum.iter_mut().zip(keiko_legs::get().iter()) {
++            for (cell, v) in acc.iter_mut().zip(row.iter()) {
++                *cell += *v;
++            }
++        }
++        for (slot, rows) in tl_sum.iter_mut().zip(train_legs::get().iter()) {
++            for (lvrow, r2) in slot.iter_mut().zip(rows.iter()) {
++                for (cell, v) in lvrow.iter_mut().zip(r2.iter()) {
++                    for (a, b) in cell.iter_mut().zip(v.iter()) {
++                        *a += *b;
++                    }
++                }
++            }
++        }
++        for (acc, row) in bs_sum.iter_mut().zip(train_legs::board_get().iter()) {
++            for (a, b) in acc.iter_mut().zip(row.iter()) {
++                *a += *b;
++            }
++        }
+ 
+         native_scores.push(g.search_score(1.0)? as i32);
+ 
+@@ -169,6 +198,17 @@ fn run() -> Result<()> {
+         "schedule": loaded.schedule_note,
+         "score": summarize(consts, &native_scores),
+         "real_score": summarize(consts, &real_scores),
++        // #39：稽古两条腿按演目 Lv 分开（home 腿 = 同位普通训练，演目腿 = 稽古板自报值过乘区）
++        "keiko_legs": keiko_legs_mean(&keiko_sum, n),
++        "train_legs": train_legs_mean(&tl_sum, n),
++        "train_board": train_board_mean(&bs_sum, n),
++        // #42：`paired_board_ci.py` 吃原始计数（跨片合池才精确），不吃上面的人均值。
++        "seed_base": seed_base,
++        "train_board_raw": json!({
++            "columns": train_legs::BOARD_COLS,
++            "n_runs": n,
++            "per_layer": bs_sum,
++        }),
+         // 三分量门禁：各自可独立核对，不含拟合系数。
+         "gate": {
+             "note": "五维和 / 五维分 / PT 三项各自与真实局对照；grade_est 只是折算估计，真实 Σgrade 需从游戏技能清单直接数",
+@@ -337,3 +377,116 @@ fn summarize(consts: &GameConstants, scores: &[i32]) -> Value {
+         "targets": targets_json,
+     })
+ }
++
++/// 盘面人头（#40 第二刀）：一层 = 非合宿 / 合宿。
++/// `max_hist` = 这手决策时**盘面上最满的格**有多满 ⇒ 站位模型给的机会；
++/// `chosen_hist` = 策略实际选中格的人头 ⇒ 机会 vs 取用分开，才不冤枉站位模型。
++fn train_board_mean(sum: &[[i64; 20]; 2], n_runs: usize) -> Value {
++    let m = n_runs.max(1) as f64;
++    let names = ["non_camp", "camp"];
++    let per_layer: Vec<Value> = sum
++        .iter()
++        .enumerate()
++        .map(|(l, r)| {
++            let boards = r[0] as f64;
++            let chosen_n = r[10] as f64;
++            json!({
++                "layer": names[l],
++                "decisions_per_run": boards / m,
++                "train_decisions_per_run": chosen_n / m,
++                "max_hist_per_run": (0..8).map(|h| r[1 + h] as f64 / m).collect::<Vec<_>>(),
++                "chosen_hist_per_run": (0..8).map(|h| r[11 + h] as f64 / m).collect::<Vec<_>>(),
++                "mean_slot_heads": r[9] as f64 / (boards * 5.0).max(1.0),
++                "take_max_share": r[19] as f64 / chosen_n.max(1.0),
++                "offer_ge2_share": (r[3] + r[4] + r[5] + r[6] + r[7] + r[8]) as f64 / boards.max(1.0),
++                "chosen_ge2_share": (r[13] + r[14] + r[15] + r[16] + r[17] + r[18]) as f64 / chosen_n.max(1.0),
++            })
++        })
++        .collect();
++    json!({ "columns": train_legs::BOARD_COLS, "per_layer": per_layer })
++}
++
++/// 训练腿分解（#40）：`[槽位][训练Lv][卡组人头]` 一格一行，分母 = 该格手数。
++/// 槽位 0 = 普通训练结算，1 = 稽古的 home 腿（同一条 `training_leg` 公式，两条都记）。
++/// `pt_mult` / `friend_mult` 是引擎自己的乘区读数，用来判断「少掉的一半」落在
++/// 基础值还是乘区；`pt_over_five` 是与真机板上报文可比的**比值判据**（乘区在比值里约掉）。
++fn train_legs_mean(sum: &[[[[i64; 16]; 8]; 6]; 2], n_runs: usize) -> Value {
++    let m = n_runs.max(1) as f64;
++    let slot_names = ["plain", "keiko_home"];
++    let mut per_cell: Vec<Value> = Vec::new();
++    let mut totals = [0i64; 2];
++    let mut oob = [0i64; 2];
++    for (s, slots) in sum.iter().enumerate() {
++        for (lv, rows) in slots.iter().enumerate() {
++            for (heads, c) in rows.iter().enumerate() {
++                if c[0] == 0 {
++                    continue;
++                }
++                totals[s] += c[0];
++                if lv == 0 || heads == 7 {
++                    oob[s] += c[0];
++                }
++                let d = c[0] as f64;
++                per_cell.push(json!({
++                    "slot": slot_names[s],
++                    "lv": lv,
++                    "heads": heads,
++                    "hands": c[0],
++                    "hands_per_run": c[0] as f64 / m,
++                    "pt": c[1] as f64 / d,
++                    "base_pt": c[2] as f64 / d,
++                    "five": c[3] as f64 / d,
++                    "vital": c[4] as f64 / d,
++                    "pt_mult": c[5] as f64 / 1000.0 / d,
++                    "friend_mult": c[6] as f64 / 1000.0 / d,
++                    "effect_pct": c[7] as f64 / 10.0 / d,
++                    "friend_pct": c[8] as f64 / 10.0 / d,
++                    "shining_hand_share": c[9] as f64 / d,
++                    "shining_heads": c[10] as f64 / d,
++                    "heads_total": c[11] as f64 / d,
++                    "h_card": c[12] as f64 / d,
++                    "h_team": c[13] as f64 / d,
++                    "h_npc": c[14] as f64 / d,
++                    "h_other": c[15] as f64 / d,
++                    "pt_over_five": c[1] as f64 / c[3].max(1) as f64,
++                }));
++            }
++        }
++    }
++    json!({
++        "columns": train_legs::COLS,
++        "hands_total": { "plain": totals[0], "keiko_home": totals[1] },
++        "hands_per_run": { "plain": totals[0] as f64 / m, "keiko_home": totals[1] as f64 / m },
++        "oob": { "plain": oob[0], "keiko_home": oob[1] },
++        "per_cell": per_cell,
++    })
++}
++/// 稽古分腿（#39）：按演目 Lv 出每手均值，分母 = 该 Lv 的**成功手**（失败手不发收益）。
++/// `oob` 是落在 Lv 钳位之外的手数，正常应为 0。
++fn keiko_legs_mean(sum: &[[i64; 7]], n_runs: usize) -> Value {
++    let m = n_runs.max(1) as f64;
++    let per_lv: Vec<Value> = (1..=10u64)
++        .map(|lv| {
++            let r = sum[lv as usize];
++            let ok = (r[0] - r[1]).max(0) as f64;
++            let d = if ok > 0.0 { ok } else { 1.0 };
++            json!({
++                "lv": lv,
++                "hands_per_run": r[0] as f64 / m,
++                "failed_per_run": r[1] as f64 / m,
++                "ok_hands_per_run": ok / m,
++                "home_leg_pt": r[2] as f64 / d,
++                "act_leg_pt": r[3] as f64 / d,
++                "home_leg_five": r[4] as f64 / d,
++                "act_leg_five": r[5] as f64 / d,
++                "act_share_of_pt": r[3] as f64 / (r[2] + r[3]).max(1) as f64,
++                "extra_keiko_per_run": r[6] as f64 / m,
++            })
++        })
++        .collect();
++    json!({
++        "columns": keiko_legs::LEG_COLS,
++        "per_lv": per_lv,
++        "oob": { "lv0": sum[0][0], "lv11": sum[keiko_legs::LV_N - 1][0] },
++    })
++}
+diff --git a/crates/matsuri-core/src/game/keiko_legs.rs b/crates/matsuri-core/src/game/keiko_legs.rs
+new file mode 100644
+index 0000000..10da676
+--- /dev/null
++++ b/crates/matsuri-core/src/game/keiko_legs.rs
+@@ -0,0 +1,66 @@
++//! 稽古分腿打点（**测量壳专用，不并回 HEAD**）· #39
++//!
++//! 一手报文（`docs/稽古PT逐手曲线_20261103.md`）证实稽古实到 = **home 腿 + 演目腿**，
++//! 但逐 Lv 的缺口到底落在哪条腿，引擎侧此前只能靠整体 PT 反推。这里在结算点把两条腿
++//! 按「本手用的演目板等级」分开记账，直接出对照表。
++//!
++//! 状态用 `thread_local`，不进 `MatsuriGame`：避免污染序列化与 `fork_for_rollout`。
++
++use std::cell::RefCell;
++
++/// Lv 桶数（下标 1..=10 是真实等级，0 与 11 是越界保护）
++pub const LV_N: usize = 12;
++
++/// 一列 = `[手数, 失败手数, home腿PT, 演目腿PT, home腿五维和, 演目腿五维和, 追加稽古手数]`
++pub type LegRow = [i64; 7];
++
++pub const LEG_COLS: [&str; 7] = [
++    "hands",
++    "failed",
++    "home_leg_pt",
++    "act_leg_pt",
++    "home_leg_five",
++    "act_leg_five",
++    "extra_keiko",
++];
++
++thread_local! {
++    static KEIKO_LEGS: RefCell<[LegRow; LV_N]> = const { RefCell::new([[0i64; 7]; LV_N]) };
++}
++
++/// 记一手稽古（失败手只进分母，不进腿值——失败不发任何收益）
++pub fn keiko_leg(
++    level: usize,
++    failed: bool,
++    extra: bool,
++    home_leg_pt: i32,
++    act_leg_pt: i32,
++    home_leg_five: i32,
++    act_leg_five: i32,
++) {
++    KEIKO_LEGS.with(|k| {
++        let row = &mut k.borrow_mut()[level.min(LV_N - 1)];
++        row[0] += 1;
++        if failed {
++            row[1] += 1;
++        } else {
++            row[2] += i64::from(home_leg_pt);
++            row[3] += i64::from(act_leg_pt);
++            row[4] += i64::from(home_leg_five);
++            row[5] += i64::from(act_leg_five);
++        }
++        if extra {
++            row[6] += 1;
++        }
++    });
++}
++
++/// 清零（每局开跑前）
++pub fn reset() {
++    KEIKO_LEGS.with(|k| *k.borrow_mut() = [[0i64; 7]; LV_N]);
++}
++
++/// 读出分腿累计（下标 = 演目 Lv）
++pub fn get() -> [LegRow; LV_N] {
++    KEIKO_LEGS.with(|k| *k.borrow())
++}
+diff --git a/crates/matsuri-core/src/game/mod.rs b/crates/matsuri-core/src/game/mod.rs
+index 59e6168..3c60001 100644
+--- a/crates/matsuri-core/src/game/mod.rs
++++ b/crates/matsuri-core/src/game/mod.rs
+@@ -6,6 +6,8 @@
+ pub mod action;
+ pub mod stage;
+ pub mod traits;
++pub mod keiko_legs;
++pub mod train_legs;
+ 
+ use std::ops::{Deref, DerefMut};
+ use std::sync::Arc;
+@@ -651,11 +653,53 @@ impl MatsuriGame {
+             self.soft_cap_gain(cur[3], decayed[3]),
+             self.soft_cap_gain(cur[4], decayed[4]),
+         ];
++        let pt = (value.status_pt[5] as f64 * pt_mult * friend_mult) as i32;
++        // === 测量壳打点（#40，不并回）：把这条腿的分解按 (训练Lv, 支援卡人头) 记下 ===
++        let dist = self.base.distribution.get(train);
++        let mut heads = 0usize;
++        let (mut h_card, mut h_team, mut h_npc, mut h_other) = (0i64, 0i64, 0i64, 0i64);
++        if let Some(d) = dist {
++            for &p in d.iter().filter(|&&p| p >= 0) {
++                heads += 1;
++                match self.persons.get(p as usize).map(|q| q.person_type) {
++                    Some(PersonType::Card) => h_card += 1,
++                    Some(PersonType::TeamCard) => h_team += 1,
++                    Some(PersonType::Npc) => h_npc += 1,
++                    _ => h_other += 1,
++                }
++            }
++        }
++        let shining_heads = dist
++            .map(|d| {
++                d.iter()
++                    .filter(|&&p| p >= 0 && self.is_shining_at(p as usize, train))
++                    .count()
++            })
++            .unwrap_or(0);
++        let meas = crate::game::train_legs::LegObs {
++            lv: self.train_level(train) as usize,
++            card_heads: h_card as usize,
++            heads_total: heads as i64,
++            h_card,
++            h_team,
++            h_npc,
++            h_other,
++            shining_heads,
++            pt: pt as i64,
++            base_pt: value.status_pt[5] as i64,
++            five: five.iter().sum::<i32>() as i64,
++            vital: value.vital as i64,
++            pt_mult,
++            friend_mult,
++            effect_pct: mods.effect_pct + assist_bonus,
++            friend_pct: mods.friend_pct,
++        };
+         TrainingLeg {
+             five,
+             friend_mult,
+-            pt: (value.status_pt[5] as f64 * pt_mult * friend_mult) as i32,
++            pt,
+             vital: value.vital,
++            meas,
+         }
+     }
+ 
+@@ -667,6 +711,7 @@ impl MatsuriGame {
+         }
+         // 成功结算的公式在 `training_leg`（稽古的 home 腿共用同一条，不各写一遍）
+         let leg = self.training_leg(train);
++        crate::game::train_legs::record_train(&leg.meas);
+         // 失败判定（引擎公式：训练等级阈值 × 体力）
+         // URA 收尾期（引擎 67..=76）失败率固定 -100%（memo §7 本番演出限定效果）
+         let in_ura_finale = (67..=76).contains(&self.base.turn);
+@@ -1422,6 +1467,9 @@ impl MatsuriGame {
+             self.soft_cap_gain(cur[4], festa_axis(4)),
+         ];
+         let home = self.training_leg(idx);
++        crate::game::train_legs::record_keiko_home(&home.meas);
++        // 演目腿的 PT：稽古板自报 SP 过完乘区那一份（不含 home 腿）
++        let act_pt_leg = (value.status_pt[5] as f64 * pt_mult) as i32;
+         let gains = [
+             home.five[0] + festa[0],
+             home.five[1] + festa[1],
+@@ -1437,13 +1485,18 @@ impl MatsuriGame {
+                 gains[3],
+                 gains[4],
+                 // 技能Pt 同样是两条腿：227/229 手 `d_sp == home[30] + p[30]`
+-                home.pt + (value.status_pt[5] as f64 * pt_mult) as i32,
++                home.pt + act_pt_leg,
+             ],
+             // 体力**不叠第二条腿**：报文里 159/229 手的稽古板 `p[10]` 为 0，实到体力 =
+             // `home[10]` ⇒ 稽古表 `row[6]` 那列本身就是普通训练的体力消费，再加一次会翻倍。
+             vital: value.vital + vital_delta,
+             ..Default::default()
+         };
++        // #39 分腿打点：`level` = 本手用的演目板等级（与上面 `act_level_effects` 取档同一个）
++        keiko_legs::keiko_leg(
++            level, failed, extra_keiko, home.pt, act_pt_leg,
++            home.five.iter().sum(), festa.iter().sum(),
++        );
+         if failed {
+             // 稽古失败与普通训练失败同一套「無茶は厳禁！」口径（2026-10-31 真机）：
+             // 体力 +10（回复）、干劲 −1、该演目维度 −10 + 随机 2 项各 −10、
+@@ -1752,6 +1805,8 @@ struct TrainingLeg {
+     pt: i32,
+     /// 体力消费
+     vital: i32,
++    /// 测量壳（#40）用：同一条腿的乘区分解，HEAD 里没有这个字段
++    meas: crate::game::train_legs::LegObs,
+ }
+ 
+ #[cfg(test)]
+diff --git a/crates/matsuri-core/src/game/train_legs.rs b/crates/matsuri-core/src/game/train_legs.rs
+new file mode 100644
+index 0000000..87d46a4
+--- /dev/null
++++ b/crates/matsuri-core/src/game/train_legs.rs
+@@ -0,0 +1,169 @@
++//! 训练腿分解打点（**测量壳专用，不并回 HEAD**）
++//!
++//! #40 要回答的是「引擎训练腿 PT 只有真机一半，丢在哪个乘区」，所以这里不只要 PT 的总数，
++//! 而是把 `training_leg` 的**分解**记下来：基础值 `base_pt` → 教诲/训练效果乘区 `pt_mult`
++//! → 彩圈+友情乘区 `friend_mult`，再按 (训练Lv, **支援卡人头**) 分桶。
++//!
++//! 分桶键只数 `PersonType::Card`，不是数全部人头：板上报文 `training_partner_array` 里
++//! `<100` 的那些就是卡组位，`>=100` 的是剧本成员/NPC/记者/理事长，而引擎的
++//! `base.distribution` 把**所有** person 类型都装进去（`gain_act_gauge_from_train` 那段
++//! 明确写了记者/理事长/友人不算担当）。两侧只有按「支援卡人头」对齐才是同一个变量。
++//!
++//! 真机侧同位置可比量 = 板上报文 `home_info` 的 `target_type=30`
++//! （`tools/train_leg_preview.py`）。关键判据是 **Pt/Σ五维 比值**：引擎里 PT 与五维共用
++//! `pt_mult`/`friend_mult`，比值对人头应近似不变；真机比值却随人头从 0.47 涨到 1.0
++//! ⇒ 结构性差异，不是系数大小。
++
++use std::cell::RefCell;
++
++pub const LV_N: usize = 6; // 下标 1..=5（训练 Lv）
++pub const CARD_N: usize = 8; // 0..=7（支援卡人头）
++
++/// 一格：`[hands, pt_sum, base_pt_sum, five_sum, vital_sum, pt_mult_x1000, friend_x1000,
++///        effect_pct_x10, friend_pct_x10, shining_hands, shining_heads_sum,
++///        heads_total_sum, h_card_sum, h_team_sum, h_npc_sum, h_other_sum]`
++pub type Cell = [i64; 16];
++
++pub const COLS: [&str; 16] = [
++    "hands",
++    "pt_sum",
++    "base_pt_sum",
++    "five_sum",
++    "vital_sum",
++    "pt_mult_x1000",
++    "friend_x1000",
++    "effect_pct_x10",
++    "friend_pct_x10",
++    "shining_hands",
++    "shining_heads_sum",
++    "heads_total_sum",
++    "h_card_sum",
++    "h_team_sum",
++    "h_npc_sum",
++    "h_other_sum",
++];
++
++#[derive(Debug, Clone, Copy)]
++pub struct LegObs {
++    pub lv: usize,
++    pub card_heads: usize,
++    pub heads_total: i64,
++    pub h_card: i64,
++    pub h_team: i64,
++    pub h_npc: i64,
++    pub h_other: i64,
++    pub shining_heads: usize,
++    pub pt: i64,
++    pub base_pt: i64,
++    pub five: i64,
++    pub vital: i64,
++    pub pt_mult: f64,
++    pub friend_mult: f64,
++    pub effect_pct: f64,
++    pub friend_pct: f64,
++}
++
++thread_local! {
++    // 第 0 层 = 普通训练结算，第 1 层 = 稽古的 home 腿
++    static TABLE: RefCell<[[[Cell; CARD_N]; LV_N]; 2]> =
++        const { RefCell::new([[[[0i64; 16]; 8]; 6]; 2]) };
++}
++
++fn bump(slot: usize, o: &LegObs) {
++    let l = o.lv.clamp(0, LV_N - 1);
++    let h = o.card_heads.clamp(0, CARD_N - 1);
++    TABLE.with(|t| {
++        let c = &mut t.borrow_mut()[slot][l][h];
++        c[0] += 1;
++        c[1] += o.pt;
++        c[2] += o.base_pt;
++        c[3] += o.five;
++        c[4] += o.vital;
++        c[5] += (o.pt_mult * 1000.0) as i64;
++        c[6] += (o.friend_mult * 1000.0) as i64;
++        c[7] += (o.effect_pct * 10.0) as i64;
++        c[8] += (o.friend_pct * 10.0) as i64;
++        c[9] += if o.shining_heads > 0 { 1 } else { 0 };
++        c[10] += o.shining_heads as i64;
++        c[11] += o.heads_total;
++        c[12] += o.h_card;
++        c[13] += o.h_team;
++        c[14] += o.h_npc;
++        c[15] += o.h_other;
++    });
++}
++
++/// 普通训练那一条（`do_train` 成功结算处）
++pub fn record_train(o: &LegObs) {
++    bump(0, o);
++}
++
++/// 稽古的 home 腿（`do_keiko_impl` 里 `self.training_leg(idx)` 那一份）
++pub fn record_keiko_home(o: &LegObs) {
++    bump(1, o);
++}
++
++pub fn reset() {
++    TABLE.with(|t| *t.borrow_mut() = [[[[0i64; 16]; 8]; 6]; 2]);
++    BOARD.with(|b| *b.borrow_mut() = [[0i64; 20]; 2]);
++}
++
++pub fn get() -> [[[Cell; CARD_N]; LV_N]; 2] {
++    TABLE.with(|t| *t.borrow())
++}
++
++// ── 盘面打点：一手决策前，5 个训练位上各站了几个**支援卡**人头 ────────────────────
++//
++// 要回答的是 #40 的归属问题：`人头分布效应 −985 Pt/局` 到底是
++// **站位模型**没把卡组堆到一起（盘面就没这种格），还是堆得出而**选位策略**不去站。
++// 真机侧同口径已有（`out/train_leg_preview_20261103.csv` 每块板的每个位）：
++// 真机盘面 98% 的手都有 ≥2 卡的格可站，且 80.6% 的手选中了盘面人头最多的那一格。
++
++/// `[boards, max_hist0..max_hist7, sum_slot_heads, chosen_n, chosen_hist0..chosen_hist7, take_max]`
++pub const BOARD_COLS: [&str; 20] = [
++    "boards",
++    "max0", "max1", "max2", "max3", "max4", "max5", "max6", "max7",
++    "sum_slot_heads",
++    "chosen_n",
++    "ch0", "ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7",
++    "take_max",
++];
++
++pub struct BoardObs {
++    /// 每个训练位上的支援卡人头数（长度 5）
++    pub slot_heads: [i64; 5],
++    /// 选中的槽位；`usize::MAX` = 这手不是训练/稽古
++    pub chosen: usize,
++    pub camp: bool,
++}
++
++thread_local! {
++    // 第 0 层 = 非合宿回合，第 1 层 = 合宿回合（稽古）
++    static BOARD: RefCell<[[i64; 20]; 2]> = const { RefCell::new([[0i64; 20]; 2]) };
++}
++
++pub fn record_board(o: &BoardObs) {
++    let mx = o.slot_heads.iter().max().copied().unwrap_or(0);
++    let l = usize::from(o.camp);
++    BOARD.with(|b| {
++        let r = &mut b.borrow_mut()[l];
++        r[0] += 1;
++        r[1 + mx.clamp(0, 7) as usize] += 1;
++        for h in o.slot_heads {
++            r[9] += h.clamp(0, 7);
++        }
++        if o.chosen != usize::MAX {
++            if let Some(h) = o.slot_heads.get(o.chosen).copied() {
++                r[10] += 1;
++                r[11 + h.clamp(0, 7) as usize] += 1;
++                if h == mx {
++                    r[19] += 1;
++                }
++            }
++        }
++    });
++}
++
++pub fn board_get() -> [[i64; 20]; 2] {
++    BOARD.with(|b| *b.borrow())
++}
+diff --git a/crates/matsuri-core/src/trainer.rs b/crates/matsuri-core/src/trainer.rs
+index 44087ac..75afcbd 100644
+--- a/crates/matsuri-core/src/trainer.rs
++++ b/crates/matsuri-core/src/trainer.rs
+@@ -6,7 +6,7 @@
+ use anyhow::{Result, anyhow};
+ use rand::rngs::StdRng;
+ use umaai_core::gamedata::EventChoice;
+-use umasim::game::{Game, Trainer};
++use umasim::game::{Game, PersonType, Trainer};
+ 
+ use crate::MatsuriConfig;
+ use crate::game::{Action, MatsuriGame};
+@@ -90,6 +90,32 @@ mod tests {
+ pub struct MatsuriRolloutTrainer;
+ 
+ impl MatsuriRolloutTrainer {
++    /// #42 实验臂的人头权重（千分位 / 支援卡人头）。`0.0` 时各规则的排序键退回原式 ⇒ 与 HEAD 恒等。
++    ///
++    /// 只活在实验壳里：不写 `data/`、不写 `matsuri_config.toml`、不做反推凑分。
++    /// 每臂 `sed` 这一个常量后各编一份 exe。
++    const HEAD_BOOST: f64 = 0.0;
++
++    /// 该训练位上站的**支援卡**人头（与 `train_legs::BoardObs::slot_heads` 同口径）。
++    fn card_heads(game: &MatsuriGame, slot: usize) -> i64 {
++        game.distribution().get(slot).map_or(0, |d| {
++            d.iter()
++                .filter(|&&p| p >= 0)
++                .filter(|&&p| {
++                    matches!(
++                        game.persons.get(p as usize).map(|q| q.person_type),
++                        Some(PersonType::Card)
++                    )
++                })
++                .count() as i64
++        })
++    }
++
++    /// 人头的千分位加分；`HEAD_BOOST = 0` 时恒为 0。
++    fn head_credit(game: &MatsuriGame, slot: usize) -> i64 {
++        (Self::HEAD_BOOST * Self::card_heads(game, slot) as f64) as i64
++    }
++
+     fn desired(game: &MatsuriGame) -> Action {
+         // 0) 合宿：候选只有 5 个训练（=稽古、不升 Lv），练「等级最低」的演目把属性摊开，
+         //    避免落空后 fallback 到 Train(0) 死磕第一个演目（实测 act0 被合宿 3 回合
+@@ -97,7 +123,13 @@ impl MatsuriRolloutTrainer {
+         if game.is_camp_turn() {
+             let idx = (0..5usize)
+                 .filter(|i| game.act_level[*i] < 10)
+-                .min_by_key(|i| (game.act_level[*i], -game.act_gauge[*i], *i))
++                .min_by_key(|i| {
++                    (
++                        game.act_level[*i] as i64 * 1000 - Self::head_credit(game, *i),
++                        -game.act_gauge[*i],
++                        *i,
++                    )
++                })
+                 .unwrap_or(0);
+             return Action::Train(idx as u8);
+         }
+@@ -111,7 +143,10 @@ impl MatsuriRolloutTrainer {
+         // 2) 稽古
+         if let Some(idx) = (0..5usize)
+             .filter(|i| game.act_gauge[*i] >= 5 && game.act_level[*i] < 10)
+-            .min_by_key(|i| (game.act_level[*i], *i))
++            .min_by_key(|i| (
++                game.act_level[*i] as i64 * 1000 - Self::head_credit(game, *i),
++                *i,
++            ))
+         {
+             return Action::Keiko(idx as u8);
+         }
+@@ -145,7 +180,10 @@ impl MatsuriRolloutTrainer {
+                             .unwrap_or(100)
+                     })
+                     .unwrap_or(100);
+-                (min_bond, i)
++                (
++                    min_bond as i64 * 1000 - Self::head_credit(game, i),
++                    i,
++                )
+             }) {
+                 return Action::Train(idx as u8);
+             }
+@@ -161,7 +199,13 @@ impl MatsuriRolloutTrainer {
+             && cp.turn - game.turn <= 15
+             && let Some(idx) = (0..5usize)
+                 .filter(|i| game.act_level[*i] < cp.need)
+-                .min_by_key(|i| (game.act_level[*i], -game.act_gauge[*i], *i))
++                .min_by_key(|i| {
++                    (
++                        game.act_level[*i] as i64 * 1000 - Self::head_credit(game, *i),
++                        -game.act_gauge[*i],
++                        *i,
++                    )
++                })
+         {
+             return Action::Train(idx as u8);
+         }
+@@ -179,7 +223,11 @@ impl MatsuriRolloutTrainer {
+             let lim = game.uma().five_status_limit[*i].max(1) as i64;
+             // 千分位相对缺口（0..1000，越小越缺）；同缺口优先 gauge 高（更接近稽古）
+             let gap_permille = cur * 1000 / lim;
+-            (gap_permille, -game.act_gauge[*i], *i)
++            (
++                gap_permille - Self::head_credit(game, *i),
++                -game.act_gauge[*i],
++                *i,
++            )
+         });
+         Action::Train(best.unwrap_or(0) as u8)
+     }
+@@ -193,6 +241,23 @@ impl Trainer<MatsuriGame> for MatsuriRolloutTrainer {
+         _rng: &mut StdRng,
+     ) -> Result<usize> {
+         let want = Self::desired(game);
++        // 测量壳打点（不并回 HEAD）：这手决策前，5 个训练位各站了几个支援卡人头，
++        // 以及策略选中了哪一格 —— 用来分「盘面没这种格」与「有格但不站」。
++        {
++            let mut slot_heads = [0i64; 5];
++            for (s, h) in slot_heads.iter_mut().enumerate() {
++                *h = Self::card_heads(game, s);
++            }
++            let chosen = match &want {
++                Action::Train(i) | Action::Keiko(i) => (usize::from(*i)).min(4),
++                _ => usize::MAX,
++            };
++            crate::game::train_legs::record_board(&crate::game::train_legs::BoardObs {
++                slot_heads,
++                chosen,
++                camp: game.is_camp_turn(),
++            });
++        }
+         if let Some(i) = actions.iter().position(|a| *a == want) {
+             return Ok(i);
+         }
