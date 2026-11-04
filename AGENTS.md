@@ -124,6 +124,19 @@
    `docs/TODO_20261101_pm.md` §步骤 10；盘上现成的成对样本是 `out/_dump_pre.jsonl` 与 `out/_dump_a.jsonl`。
    **注意重放旧 dump 只证明判官可复现，不等于对当前工作树做了新门禁**——新 A/B 要重新出 dump（落盘）＋基线 worktree。
 
+## 测量壳与并行会话
+
+- **要改代码才能量的东西只在一次性壳里做**：`git worktree add --detach` 到基线提交 ＋ 私有 `CARGO_TARGET_DIR`
+  （现役壳 `E:/HJM/_keileg`，一次性壳如 `_wt_r50` / `_wt_hg`）。**插桩永不并回主仓**；每个壳归档
+  `tools/patch_*_for_measure.patch`（对壳树跑 `git apply --check --reverse` 必须通过 ⇒ 它就是壳相对基线的
+  全量差），冻结臂 exe 的 sha1 写进对应文档；**清理壳之前先把分片证据迁出来**。
+- **并行会话只写文件，不碰 git 索引、不 commit**；由主线核对口径与区间算法后成组提交。
+  16 核机器上引擎臂**并发上限 6**；查占用按 `arm_*.exe` 过滤（只按 `matsuri-dist.exe` 过滤会漏判成「空闲」）。
+- **后台进程树会被 harness 限速**（实测每进程只有 9%–25% CPU，前台满速）⇒ 长批次拆成前台分波跑
+  （带 `LIMIT` 的续跑形式），不要一把丢后台。
+- **判据只有一个事实源**：配对三分量 ＋ `T975` t 表（`tools/forced_cp_ci.py`、`tools/crn_gate.py`）。
+  隔壁会话自带同算法脚本时**不并回主仓**（并回来只造第二个事实源）；主线核对＝用本仓判据对它的**原始分片**独立重聚。
+
 ## 工具使用
 
 - 日常 `cargo fmt --all --check` / `cargo clippy --workspace --all-targets -- -D warnings` /
