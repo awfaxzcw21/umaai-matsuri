@@ -79,6 +79,16 @@ impl Game for MatsuriGame {
     }
 
     fn list_actions(&self) -> Result<Vec<Self::Action>> {
+        // URA 三场那三回合（引擎 73/75/77 = 面板 74/76/78）**不给训练/稽古/休息**：
+        // 报文侧全库 13 局在这三回合 0 条 `command_result` ⇒ 真机在这里不结算任何手。
+        // 不收窄的话收尾期 perk 会从真机的 3 个可出手回合（引擎 72/74/76）涨到 6 个，
+        // 实测这一条占三条虚高净效应的 77%（五维和 −87.8、五维分 −994、PT −99）。
+        // 见 docs/URA收尾期窗口报文核对_20261104.md §6 与 #52-B 的 CRN 台账。
+        if Self::ura_turns().contains(&self.turn) {
+            // 只留 Rest：这三回合不结算任何训练 ⇒ perk 拿不到，也不会多发一次演目 Lv。
+            // （给空动作集会卡住决策循环，且我在 #52-B 实测的正是 Rest 这一版。）
+            return Ok(vec![Action::Rest]);
+        }
         // S1：五个训练 + 休息；后续实现在这里列自己的动作（比赛 / 出行 / 剧本机制）
         // 合宿窗口：只有训练（引擎里训练=演目稽古），没有出行/休息
         if self.is_camp_turn() {

@@ -10,6 +10,11 @@ pub mod traits;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
+/// URA 收尾期的**引擎回合**闭区间（＝面板 73–77）。右沿刻意不到 77：
+/// 面板 74/76/78（引擎 73/75/77）全库 13 局 **0 条 `command_result`** ⇒ 77 拿不到收益，
+/// 扩沿只是多发 perk（同文档 §4/§6 + 主线独立复算 §11）。
+pub(crate) const MATSURI_FINALE_TURNS: std::ops::RangeInclusive<i32> = 72..=76;
+
 use anyhow::{Result, anyhow};
 use rand::Rng;
 use rand::rngs::StdRng;
@@ -668,8 +673,11 @@ impl MatsuriGame {
         // 成功结算的公式在 `training_leg`（稽古的 home 腿共用同一条，不各写一遍）
         let leg = self.training_leg(train);
         // 失败判定（引擎公式：训练等级阈值 × 体力）
-        // URA 收尾期（引擎 67..=76）失败率固定 -100%（memo §7 本番演出限定效果）
-        let in_ura_finale = (67..=76).contains(&self.base.turn);
+        // URA 收尾期（引擎 72..=76，＝面板 73–77）失败率固定 -100%。
+        // 左沿 11-04 由 67 改 72：报文一手 K1/K2 两条签名在引擎 64–71 **逐回合 0/9 全违例**、
+        // 72–77 9/9 全支持（9 局无例外），且 @202 在引擎 67 的板上直接报出 failure_rate=99%
+        // ⇒ 本番当回合没有免失败。见 docs/URA收尾期窗口报文核对_20261104.md §3/§4。
+        let in_ura_finale = MATSURI_FINALE_TURNS.contains(&self.base.turn);
         let fail_rate = if in_ura_finale {
             0.0
         } else {
@@ -796,15 +804,14 @@ impl MatsuriGame {
         // 演目槽入账（官方 2026-10-31 口径）：该训练位每位「演目担当」+1、闪彩担当再 +1，
         // 落点是**该担当对应的演目**，不是当前训练（原来只喂训练对口的演目，见 docs/mechanism.md §2）
         self.gain_act_gauge_from_train(train);
-        // URA 收尾期（面板 t68–77 = 引擎 67..=76，memo §7 本番演出限定效果）：
-        // 所选训练对应演目 +1 级；同时每次训练 体力 +30、干劲 +1。
-        if (67..=76).contains(&self.base.turn) {
+        // URA 收尾期 perk（面板 73–77 = 引擎 72..=76）：所选训练对应演目 +1 级、干劲 +1。
+        // 体力 +30 **不在这里加**：报文侧 327 个真结算手的手后体力残差≈+30 者 **0 手**
+        // （≈0 有 310 手），+30 是收尾期训练**预告**里的账（同格台阶 ≈+30），
+        // 原来这条分支是在预告之外又铺了一层。见同文档 §5。
+        if MATSURI_FINALE_TURNS.contains(&self.base.turn) {
             let cap = self.act_level_cap;
             self.act_level[train.clamp(0, 4)] = (self.act_level[train.clamp(0, 4)] + 1).min(cap);
-            let max_vital = self.uma().max_vital;
-            let uma = self.uma_mut();
-            uma.vital = (uma.vital + 30).min(max_vital.max(uma.vital));
-            uma.add_motivation(1);
+            self.uma_mut().add_motivation(1);
         }
         Ok(())
     }
@@ -2624,5 +2631,37 @@ mod tests {
             1365,
             "名义五维（过软上限前）= 12×19×5 + 3×15×5"
         );
+    }
+    /// 收尾期窗口 + URA 三场动作面（一手报文钉住，`docs/URA收尾期窗口报文核对_20261104.md` §4/§6，
+    /// 主线独立复算 §11 逐位对上）：
+    /// - 收尾期只算引擎 72–76（＝面板 73–77）；左沿 11-04 从 67 挪到 72，
+    ///   因为 K1/K2 两条签名在引擎 64–71 **逐回合 0/9 全违例**、72–77 9/9 全支持。
+    /// - 面板 74/76/78（引擎 73/75/77）真机**不结算任何手**（全库 13 局 0 条 `command_result`）
+    ///   ⇒ 动作面只剩 Rest，否则收尾期 perk 从 3 个可出手回合涨到 6 个。
+    #[test]
+    fn finale_window_and_ura_race_turns_match_packets() {
+        let _ = Data::init(crate::testing::data_dir());
+        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
+        let mut game =
+            MatsuriGame::newgame(106301, &[], InheritInfo::default(), &[], data).unwrap();
+        assert_eq!(MATSURI_FINALE_TURNS, 72..=76, "收尾期＝引擎 72..=76");
+        assert!(!MATSURI_FINALE_TURNS.contains(&67), "本番当回合不再免失败");
+        assert!(!MATSURI_FINALE_TURNS.contains(&77), "右沿不扩 77：那回合拿不到收益");
+        for turn in [67, 68, 69, 70, 71] {
+            game.base.turn = turn;
+            let acts = Game::list_actions(&game).unwrap();
+            assert!(
+                acts.contains(&Action::Train(0)),
+                "引擎 {turn} 该给普通训练（报文里那几回合玩家真打了 cmd 101/102/105）"
+            );
+        }
+        for turn in [73, 75, 77] {
+            game.base.turn = turn;
+            assert_eq!(
+                Game::list_actions(&game).unwrap(),
+                vec![Action::Rest],
+                "URA 场引擎 {turn} 不结算任何训练手"
+            );
+        }
     }
 }

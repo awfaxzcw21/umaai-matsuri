@@ -89,21 +89,35 @@ def classify(d):
     return direction, direction + "(可结论)", True
 
 
-def sample(dist, state, seed, n, tag, cwd=None):
+def sample(dist, state, seed, n, tag, cwd=None, extra_env=None):
     """跑一臂的采样。`cwd` = 该臂自己的代码树 —— 引擎的 `DATA_ROOT="data"` 按 **当前目录**
     解析，两臂共用仓根时 A 臂会读到 B 臂改过的 `scenario_matsuri.json`（HEAD 的代码带
     `deny_unknown_fields`，直接报错；更坏的情况是字段兼容，静默把 A 臂的数据换成 B 的）。
-    所以带数据改动的配对必须每臂一个 cwd，状态与 dump 走绝对路径。"""
+    所以带数据改动的配对必须每臂一个 cwd，状态与 dump 走绝对路径。
+    `extra_env` = 该臂额外的环境变量（测量壳用它在一个 exe 上切行为，见 `--env-a/--env-b`）。"""
     out = os.path.abspath(os.path.join("out", "crn_gate"))
     os.makedirs(out, exist_ok=True)
     dump = os.path.join(out, "%s_s%d.jsonl" % (tag, seed))
     env = dict(os.environ, MC_N=str(n), MC_SEED=str(seed), MC_DUMP=dump)
+    if extra_env:
+        env.update(extra_env)
     r = subprocess.run([os.path.abspath(dist), os.path.abspath(state),
                         os.path.join(out, "%s_s%d.json" % (tag, seed))],
                        env=env, cwd=cwd, capture_output=True, text=True)
     if r.returncode != 0 or not os.path.exists(dump):
         raise SystemExit("采样失败 %s seed%d：%s" % (tag, seed, r.stderr[-300:]))
     return dump
+
+
+def parse_kv(pairs):
+    """`--env-a K=V --env-a K2=V2` → dict；写错的直接退出，不静默忽略。"""
+    out = {}
+    for p in pairs or []:
+        if "=" not in p:
+            raise SystemExit("--env-* 要写成 KEY=VAL，收到的是：" + p)
+        k, v = p.split("=", 1)
+        out[k] = v
+    return out
 
 
 def main(argv=None):
@@ -114,6 +128,10 @@ def main(argv=None):
     ap.add_argument("--dump-b", help="复用已有 B dump")
     ap.add_argument("--cwd-a", help="臂 A 的代码树（改动带数据时用；引擎按当前目录解析 data/）")
     ap.add_argument("--cwd-b", help="臂 B 的代码树（同上；不给则用当前目录）")
+    ap.add_argument("--env-a", action="append", metavar="K=V",
+                    help="臂 A 的额外环境变量（可重复）。测量壳用它在同一个 exe 上切行为，"
+                         "A/B 只差这个变量 ⇒ 初始局、抽样序列、代码全同")
+    ap.add_argument("--env-b", action="append", metavar="K=V", help="臂 B 的额外环境变量（可重复）")
     ap.add_argument("--gate", default="target/release/matsuri-gate", help="判官二进制")
     ap.add_argument("--state", default="_state_t30.json", help="CRN 状态文件（仓根）")
     ap.add_argument("--seeds", default="0,1,2", help="CRN 种子，逗号分隔")
@@ -144,6 +162,9 @@ def main(argv=None):
             raise SystemExit("--cwd-* 必须是有 data/ 的代码树：%s" % p)
 
     gate = exe(args.gate)
+    env_a, env_b = parse_kv(args.env_a), parse_kv(args.env_b)
+    if replay and (env_a or env_b):
+        raise SystemExit("--env-* 只在采样时有意义（重放没有子进程可传）")
     if not os.path.exists(gate):
         raise SystemExit("缺判官 %s：先 cargo build --release -p matsuri-cli --offline" % gate)
 
@@ -160,8 +181,8 @@ def main(argv=None):
         if replay:
             a, b = args.dump_a, args.dump_b
         else:
-            a = sample(exe(args.dist_a), args.state, s, args.n, "a", args.cwd_a)
-            b = sample(exe(args.dist_b), args.state, s, args.n, "b", args.cwd_b)
+            a = sample(exe(args.dist_a), args.state, s, args.n, "a", args.cwd_a, env_a)
+            b = sample(exe(args.dist_b), args.state, s, args.n, "b", args.cwd_b, env_b)
         r = subprocess.run([gate, "--a", a, "--b", b, "--five", args.five,
                             "--pt", args.pt, "--stat-score", args.stat_score],
                            capture_output=True, text=True)
