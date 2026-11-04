@@ -1,0 +1,17 @@
+diff --git a/crates/matsuri-core/src/game/mod.rs b/crates/matsuri-core/src/game/mod.rs
+index 3ab3853..7a80a91 100644
+--- a/crates/matsuri-core/src/game/mod.rs
++++ b/crates/matsuri-core/src/game/mod.rs
+@@ -1496,7 +1496,11 @@ impl MatsuriGame {
+                 // 真机口径（2026-10-31，报文 pre/post 对照 5 段 session）：
+                 // 稽古成功**只在「槽满→升级」那一下清槽**；槽未满的成功稽古不动槽；
+                 // 合宿期成功稽古也不清槽（合宿结束统一全演目 +1，槽数原样继承）。
+-                self.act_gauge[idx] = 0;
++                // #52-B 臂B：收尾期稽古**不花槽**（真机窗内 gauge 5→5，§14 的 17/17 perk），
++                // Lv+1 照给；窗外仍按「槽满→升级那一下清槽」。
++                if !MATSURI_FINALE_TURNS.contains(&self.base.turn) {
++                    self.act_gauge[idx] = 0;
++                }
+                 let cap = self.act_level_cap;
+                 self.act_level[idx] = (self.act_level[idx] + 1).min(cap);
+                 // 演目Lv9/10 的「基礎能力上限 +20/+25」（act_effect 206）是**每级固定值**，

@@ -1,0 +1,34 @@
+diff --git a/crates/matsuri-core/src/game/mod.rs b/crates/matsuri-core/src/game/mod.rs
+index 3ab3853..a354647 100644
+--- a/crates/matsuri-core/src/game/mod.rs
++++ b/crates/matsuri-core/src/game/mod.rs
+@@ -811,15 +811,8 @@ impl MatsuriGame {
+         // 演目槽入账（官方 2026-10-31 口径）：该训练位每位「演目担当」+1、闪彩担当再 +1，
+         // 落点是**该担当对应的演目**，不是当前训练（原来只喂训练对口的演目，见 docs/mechanism.md §2）
+         self.gain_act_gauge_from_train(train);
+-        // URA 收尾期 perk（面板 73–78 = 引擎 72..=77）：所选训练对应演目 +1 级、干劲 +1。
+-        // 体力 +30 **不在这里加**：报文侧 327 个真结算手的手后体力残差≈+30 者 **0 手**
+-        // （≈0 有 310 手），+30 是收尾期训练**预告**里的账（同格台阶 ≈+30），
+-        // 原来这条分支是在预告之外又铺了一层。见同文档 §5。
+-        if MATSURI_FINALE_TURNS.contains(&self.base.turn) {
+-            let cap = self.act_level_cap;
+-            self.act_level[train.clamp(0, 4)] = (self.act_level[train.clamp(0, 4)] + 1).min(cap);
+-            self.uma_mut().add_motivation(1);
+-        }
++        // #52-B 臂A：收尾期 perk 从训练腿摘掉（真机窗内 27 手全是稽古 cmd，见 §15），
++        // 落点改到 do_keiko_impl 的升级分支。体力 +30 本来就不在此处。
+         Ok(())
+     }
+ 
+@@ -1499,6 +1492,11 @@ impl MatsuriGame {
+                 self.act_gauge[idx] = 0;
+                 let cap = self.act_level_cap;
+                 self.act_level[idx] = (self.act_level[idx] + 1).min(cap);
++                // #52-B 臂A：收尾期 perk 的落点。真机窗内每手 = 稽古格被点 ∧ Lv+1 ∧ 干劲+1
++                // （Lv+1 由本条升级分支给，不叠加第二次；见 §14 窗内 17/17 perk、§15 腿错位）。
++                if MATSURI_FINALE_TURNS.contains(&self.base.turn) {
++                    self.uma_mut().add_motivation(1);
++                }
+                 // 演目Lv9/10 的「基礎能力上限 +20/+25」（act_effect 206）是**每级固定值**，
+                 // 只能在升级那一刻结算「新旧等级之差」一次；每次稽古都加会把上限无限抬高。
+                 let limit_at = |lv: i32| -> i32 {

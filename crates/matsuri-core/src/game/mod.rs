@@ -811,15 +811,17 @@ impl MatsuriGame {
         // 演目槽入账（官方 2026-10-31 口径）：该训练位每位「演目担当」+1、闪彩担当再 +1，
         // 落点是**该担当对应的演目**，不是当前训练（原来只喂训练对口的演目，见 docs/mechanism.md §2）
         self.gain_act_gauge_from_train(train);
-        // URA 收尾期 perk（面板 73–78 = 引擎 72..=77）：所选训练对应演目 +1 级、干劲 +1。
-        // 体力 +30 **不在这里加**：报文侧 327 个真结算手的手后体力残差≈+30 者 **0 手**
-        // （≈0 有 310 手），+30 是收尾期训练**预告**里的账（同格台阶 ≈+30），
-        // 原来这条分支是在预告之外又铺了一层。见同文档 §5。
-        if MATSURI_FINALE_TURNS.contains(&self.base.turn) {
-            let cap = self.act_level_cap;
-            self.act_level[train.clamp(0, 4)] = (self.act_level[train.clamp(0, 4)] + 1).min(cap);
-            self.uma_mut().add_motivation(1);
-        }
+        // 收尾期 perk **不在训练腿上**（11-05 #52-B 落码）：真机窗内结算手 27 手全是稽古
+        // （面板 73/75/77＝引擎 72/74/76）、**0 手普通训练**，而 Lv+1 不花槽 ∧ 干劲+1
+        // 都挂在那一手上（`docs/URA收尾期窗口报文核对_20261104.md` §14/§15）。
+        // 原来这块在 `do_train` 里，等于给真机根本没打的那条腿发钱；落点见
+        // [`MatsuriGame::do_keiko_impl`] 的升级分支（`if level_up` 内）。
+        // 配对 CRN（基线 `1bbc40e` vs 臂A `3a935879`，8 种子 × 4,000 局）逐局比对 32,000 对：
+        // **`Σact` 0 局有差**——但这**不能**读成「这条分支无害」：门禁锚点卡组 `act_level_cap = 6`
+        // 且五格在窗内早已全 6，`Lv+1` 在本配置里结构上不可观测；cap 是大队量旋钮
+        // （#59 实测 10→6 单旋钮就抬五维和 +234／五维分 +2,214），换 cap 10 卡组就不是 0。
+        // **体力 +30 也不要往这里加回来**：327 个真结算手的手后体力残差 ≈+30 者 **0 手**，
+        // +30 是收尾期训练**预告**里的账（同文档 §13）。
         Ok(())
     }
 
@@ -1496,9 +1498,22 @@ impl MatsuriGame {
                 // 真机口径（2026-10-31，报文 pre/post 对照 5 段 session）：
                 // 稽古成功**只在「槽满→升级」那一下清槽**；槽未满的成功稽古不动槽；
                 // 合宿期成功稽古也不清槽（合宿结束统一全演目 +1，槽数原样继承）。
-                self.act_gauge[idx] = 0;
+                // 收尾期（URA 窗，面板 73–78）同样**不花槽**：#52 §14 窗内 27 手成功稽古
+                // **17/17 槽位不变**（5→5），同期窗外 116/116 升级手都清零 ⇒ 窗内升级不扣槽。
+                if !MATSURI_FINALE_TURNS.contains(&self.base.turn) {
+                    self.act_gauge[idx] = 0;
+                }
                 let cap = self.act_level_cap;
                 self.act_level[idx] = (self.act_level[idx] + 1).min(cap);
+                // 收尾期 perk 的落点（#52 §15）：真机窗内每手 = 稽古格被点 ∧ 演目 Lv+1 ∧ 干劲+1，
+                // 而窗内 0 手普通训练 ⇒ perk 挂在**稽古腿**，不在 `do_train`。
+                // 一手判据：@201–@204 窗内 **12/12 手 d_mot = +1**，且 `d_mot > 0` 在全部 13 局里
+                // **只**出现在面板 73 / 75 / 77（面板奇数回合才是可出手的稽古手＝引擎 72/74/76）。
+                // 与合宿开始的**干劲 +1**（`stage_body` 里 `camp_start_vitality` 分支，引擎 12/36/60）
+                // 是两条不同机制、不同触发条件，不并成一条。
+                if MATSURI_FINALE_TURNS.contains(&self.base.turn) {
+                    self.uma_mut().add_motivation(1);
+                }
                 // 演目Lv9/10 的「基礎能力上限 +20/+25」（act_effect 206）是**每级固定值**，
                 // 只能在升级那一刻结算「新旧等级之差」一次；每次稽古都加会把上限无限抬高。
                 let limit_at = |lv: i32| -> i32 {
@@ -2685,5 +2700,37 @@ mod tests {
                 "URA 场引擎 {turn} 不结算任何训练手"
             );
         }
+    }
+
+    /// 收尾期 perk 的落点（一手：`docs/URA收尾期窗口报文核对_20261104.md` §14/§15）：
+    /// 窗内 27 手**全是稽古**（0 手普通训练），窗内升级 **17/17 不花槽**
+    /// （窗外同期 116/116 升级手都清零）；干劲 @201–@204 窗内 **12/12 手 +1**，
+    /// 且全部 13 局里 `d_mot > 0` **只**出现在面板 73/75/77。
+    /// ⇒ Lv+1 由稽古升级分支给（不叠加第二次），窗内额外给「干劲 +1」且**不扣槽**。
+    #[test]
+    fn finale_window_keiko_keeps_gauge_and_lifts_motivation() {
+        let run = |turn: i32| -> (i32, i32, i32) {
+            let mut game = game_with_data(
+                Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap()),
+                &[(0, 3)],
+            );
+            game.base.turn = turn;
+            game.act_level_cap = 10; // 锚点卡组是 cap 6，窗内早已全 6 ⇒ Lv+1 结构上看不见
+            game.act_level[0] = 5;
+            game.act_gauge[0] = 5;
+            game.uma_mut().motivation = 3;
+            game.uma_mut().vital = 100;
+            game.do_keiko(0, &mut rand::rngs::StdRng::seed_from_u64(11))
+                .expect("稽古应可结算");
+            (game.act_gauge[0], game.act_level[0], game.uma().motivation)
+        };
+        // 引擎 74（＝面板 75）在窗内
+        assert_eq!(run(74), (5, 6, 4), "窗内：槽不花、Lv+1、干劲 +1");
+        // 引擎 70 在窗外 ⇒ 三条都按旧口径
+        assert_eq!(
+            run(70),
+            (0, 6, 3),
+            "窗外：槽满升级那一下清零、Lv+1、干劲不动"
+        );
     }
 }
