@@ -32,7 +32,6 @@ import sys
 
 COMPONENTS = ("五维和", "五维分", "PT")
 ANCHOR = ("1998,1470,1656,1344,1573", "8339", "42201")
-REAL = {"五维和": 1998 + 1470 + 1656 + 1344 + 1573, "五维分": 42201.0, "PT": 8339.0}
 NUM = r"[-+]?\d+(?:,\d{3})*(?:\.\d+)?"
 
 
@@ -74,10 +73,19 @@ def side(v, real):
     return 0 if abs(v - real) < 1e-9 else (1 if v > real else -1)
 
 
-def classify(d):
+def real_map(args):
+    """同侧降级用的真值必须跟着 `--five/--pt/--stat-score` 走。
+    写死 run179 的话，换锚点跑（如 run170）时判官算的是新锚点的贴近幅度，
+    脚本却拿旧锚点判「同侧」⇒ 会把该降级的「产出计」误标成「可结论」。"""
+    return {"五维和": float(sum(int(x) for x in args.five.split(","))),
+            "五维分": float(args.stat_score.replace(",", "")),
+            "PT": float(args.pt.replace(",", ""))}
+
+
+def classify(d, real):
     """判官原判定 + 同侧降级。返回 (方向, 标签, 可否作结论)。"""
-    real = REAL[d["comp"]]
-    same = side(d["mean_a"], real) == side(d["mean_b"], real) != 0
+    r = real[d["comp"]]
+    same = side(d["mean_a"], r) == side(d["mean_b"], r) != 0
     if d["lo"] > 0:
         direction = "更近"
     elif d["hi"] < 0:
@@ -162,6 +170,7 @@ def main(argv=None):
             raise SystemExit("--cwd-* 必须是有 data/ 的代码树：%s" % p)
 
     gate = exe(args.gate)
+    REAL = real_map(args)
     env_a, env_b = parse_kv(args.env_a), parse_kv(args.env_b)
     if replay and (env_a or env_b):
         raise SystemExit("--env-* 只在采样时有意义（重放没有子进程可传）")
@@ -195,7 +204,7 @@ def main(argv=None):
             d = got[comp]
             d["comp"] = comp
             d["seed"] = s
-            direction, label, ok = classify(d)
+            direction, label, ok = classify(d, REAL)
             print("%s %10.1f %10.1f  %+9.1f  [%+.1f, %+.1f]  %s"
                   % (comp.ljust(4), d["mean_a"], d["mean_b"], d["near"], d["lo"], d["hi"], label))
             rows.append((s, comp, d["mean_a"], d["mean_b"], d["near"], d["lo"], d["hi"], label))
@@ -205,7 +214,7 @@ def main(argv=None):
     decided = 0
     for comp in COMPONENTS:
         ds = [d for d in pairs if d["comp"] == comp]
-        judged = [classify(d) for d in ds]  # classify 读 d["comp"]，上面已写入
+        judged = [classify(d, REAL) for d in ds]  # classify 读 d["comp"]，上面已写入
         dirs = [j[0] for j in judged]
         usable = sum(1 for _, _, ok in judged if ok)
         plus, minus, cross = dirs.count("更近"), dirs.count("更远"), dirs.count("跨0")
