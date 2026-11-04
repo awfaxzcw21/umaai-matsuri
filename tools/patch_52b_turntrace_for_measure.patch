@@ -1,0 +1,97 @@
+diff --git a/crates/matsuri-cli/src/dist.rs b/crates/matsuri-cli/src/dist.rs
+index a96e68a..0217bcb 100644
+--- a/crates/matsuri-cli/src/dist.rs
++++ b/crates/matsuri-cli/src/dist.rs
+@@ -110,6 +110,9 @@ fn run() -> Result<()> {
+     // 逐样本明细（尾部诊断用）：`MC_DUMP=<path>` 时才落盘，避免默认输出变大。
+     let dump_path = std::env::var("MC_DUMP").ok();
+     let mut dump: Vec<Value> = Vec::new();
++    // 插桩（测量壳专用，永不并回）：`MC_TRACE=<path>` 落逐 turn 轨迹；不设则只清空缓冲、不拼字符串。
++    let trace_path = std::env::var("MC_TRACE").ok();
++    let mut trace: Vec<String> = Vec::new();
+     for i in 0..n {
+         // 与 mccli 2-ply 同族的种子散列：换 MC_SEED 不换抽样结构，只换基点
+         let seed = seed_base
+@@ -118,6 +121,10 @@ fn run() -> Result<()> {
+         let mut g = game.fork_for_rollout(seed);
+         let mut rng = StdRng::seed_from_u64(seed ^ 0xA1B2_C3D4_5E6F_7081);
+         g.run_full_game(&MatsuriRolloutTrainer, &mut rng)?;
++        let rows = matsuri_core::trainer::drain_turn_trace();
++        if trace_path.is_some() {
++            trace.extend(rows.into_iter().map(|r| format!("{i}\t{r}")));
++        }
+ 
+         native_scores.push(g.search_score(1.0)? as i32);
+ 
+@@ -160,6 +167,11 @@ fn run() -> Result<()> {
+         std::fs::write(path, body.join("\n")).context("写样本明细失败")?;
+     }
+ 
++    if let Some(path) = trace_path.as_deref() {
++        let head = "i\tturn\twin\tgauge0:1:2:3:4\tact0:1:2:3:4\tmot\tapplied";
++        std::fs::write(path, format!("{head}\n{}\n", trace.join("\n"))).context("写逐turn轨迹失败")?;
++    }
++
+     let result = json!({
+         "turn": turn,
+         "ok": true,
+diff --git a/crates/matsuri-core/src/trainer.rs b/crates/matsuri-core/src/trainer.rs
+index 44087ac..b7a12e5 100644
+--- a/crates/matsuri-core/src/trainer.rs
++++ b/crates/matsuri-core/src/trainer.rs
+@@ -11,6 +11,18 @@ use umasim::game::{Game, Trainer};
+ use crate::MatsuriConfig;
+ use crate::game::{Action, MatsuriGame};
+ 
++/// 测量壳插桩（**永不并回主仓**）：逐 turn 轨迹缓冲。
++/// 行格式（TAB 分隔）：`turn \t win(0/1) \t gauge0:..:gauge4 \t act0:..:act4 \t mot \t 被应用的动作`
++/// —— 记的是**这一手出手前**的快照；出手后的账由下一行的「出手前」给出（与报文同回合配对口径一致）。
++thread_local! {
++    static TURN_TRACE: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
++}
++
++/// 取走并清空当前线程的轨迹缓冲（`matsuri-dist` 每局结束后调用）。
++pub fn drain_turn_trace() -> Vec<String> {
++    TURN_TRACE.with(|t| std::mem::take(&mut *t.borrow_mut()))
++}
++
+ /// 样例训练员：按配置顺序轮转训练
+ pub struct MatsuriTrainer {
+     /// 剧本配置（训练优先顺序）
+@@ -193,10 +205,32 @@ impl Trainer<MatsuriGame> for MatsuriRolloutTrainer {
+         _rng: &mut StdRng,
+     ) -> Result<usize> {
+         let want = Self::desired(game);
+-        if let Some(i) = actions.iter().position(|a| *a == want) {
+-            return Ok(i);
+-        }
+-        Ok(0)
++        let idx = actions
++            .iter()
++            .position(|a| *a == want)
++            .unwrap_or(0);
++        // 插桩：只读快照 + 记账；不碰三条随机轴、不改返回值。
++        TURN_TRACE.with(|t| {
++            let mut buf = t.borrow_mut();
++            buf.push(format!(
++                "{}\t{}\t{}:{}:{}:{}:{}\t{}:{}:{}:{}:{}\t{}\t{}",
++                game.turn(),
++                i32::from(crate::game::MATSURI_FINALE_TURNS.contains(&game.turn())),
++                game.act_gauge[0],
++                game.act_gauge[1],
++                game.act_gauge[2],
++                game.act_gauge[3],
++                game.act_gauge[4],
++                game.act_level[0],
++                game.act_level[1],
++                game.act_level[2],
++                game.act_level[3],
++                game.act_level[4],
++                game.uma().motivation,
++                actions[idx]
++            ));
++        });
++        Ok(idx)
+     }
+ 
+     fn select_choice(
