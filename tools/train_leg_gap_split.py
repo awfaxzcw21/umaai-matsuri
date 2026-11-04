@@ -20,6 +20,7 @@ import argparse
 import collections
 import csv
 import json
+import os
 
 AXES = ("speed", "stamina", "power", "guts", "wiz")
 MIN_HANDS = 20  # 「完整局」门槛：段内训练手数低于它的是被截断的 run，不进合计
@@ -183,17 +184,22 @@ def real_offer(preview_path, keep_runs):
     return st
 
 
-def run_board(real_chosen, real_preview, eng_board, keep, n_runs):
+def run_board(real_chosen, real_preview, eng_board, keep, n_runs, strong_board=None):
     """盘面 offer / take 对照（`split3` 的「人头分布」项归责用）。
 
     两边可比的只有三个口径：**每板放卡总数**、**最满位站位人头**、**落子那人头**。
     「每条目人头」不可比：真机一块非合宿板报 ~7.3 条命令（点亮位的 10x 条目人头=0），
     引擎只有 5 个位。
+
+    `strong_board` = #41 的强策档臂（面板那一层 2-ply 搜索当整局决策者）。给它是为了把
+    「选位增益」按档分开：基策的 0.576 究竟是**策略没学**还是**估值看不见人头**，
+    只有换强策档重跑才知道。
     """
     import math
     real = real_board(real_chosen, real_preview, keep)
     off_r = real_offer(real_preview, {run for run, _ in keep})
     eng = {d["layer"]: d for d in eng_board["per_layer"]}
+    eng_b = ({d["layer"]: d for d in strong_board["per_layer"]} if strong_board else None)
     print("\n########## 盘面 offer / take（支援卡人头）##########")
     print("参与 = 站位（站在这条命令位上的卡）+ 追加（`sub_command_partner_array`，"
           "引擎里没有这个机制）；同一张卡可以既算自己位、又追加进别条命令。")
@@ -208,16 +214,18 @@ def run_board(real_chosen, real_preview, eng_board, keep, n_runs):
             "真机 %s %s" % (layer, "稽古" if kind == "keiko" else "训练"),
             n / n_runs, part, own, part - own,
             100.0 * a["ge2t"] / n, 100.0 * a["mx"] / max(a["b"], 1)))
-    for layer, tag in (("camp", "合宿"), ("non_camp", "非合宿")):
-        e = eng.get(layer)
-        if not e:
-            continue
-        n = e["train_decisions_per_run"]
-        hist = e["chosen_hist_per_run"]
-        hmean = sum(i * c for i, c in enumerate(hist)) / n if n else 0.0
-        print("%-24s %7.2f %9.3f %9.3f %9.3f %9.1f %8.1f" % (
-            "引擎 %s（训练+稽古混层）" % tag, n, hmean, hmean, 0.0,
-            100.0 * e["chosen_ge2_share"], 100.0 * e["take_max_share"]))
+    for label, board in ([("引擎 基策", eng)] if not eng_b else
+                         [("引擎 基策", eng), ("引擎 强策", eng_b)]):
+        for layer, tag in (("camp", "合宿"), ("non_camp", "非合宿")):
+            e = board.get(layer)
+            if not e:
+                continue
+            n = e["train_decisions_per_run"]
+            hist = e["chosen_hist_per_run"]
+            hmean = sum(i * c for i, c in enumerate(hist)) / n if n else 0.0
+            print("%-24s %7.2f %9.3f %9.3f %9.3f %9.1f %8.1f" % (
+                "%s %s（训练+稽古混层）" % (label, tag), n, hmean, hmean, 0.0,
+                100.0 * e["chosen_ge2_share"], 100.0 * e["take_max_share"]))
 
     print("\n%-20s %8s %10s %10s %9s" % ("盘面层", "板/局", "最满位站位", "每板放卡", "条目/板"))
     hand_c = collections.Counter()
@@ -234,38 +242,46 @@ def run_board(real_chosen, real_preview, eng_board, keep, n_runs):
     r_hands = sum(hand_c.values()) / n_runs
     r_off_max = sum(off_w[c][0] for c in off_w) / max(sum(hand_c.values()), 1)
     r_cards = sum(off_w[c][1] * hand_c[c] for c in off_w) / max(sum(hand_c.values()), 1)
-    e_dec = sum(e["decisions_per_run"] for e in eng.values())
-    e_hands = sum(e["train_decisions_per_run"] for e in eng.values())
-    e_off_max = sum(sum(i * c for i, c in enumerate(e["max_hist_per_run"])) / e["decisions_per_run"]
-                    * e["train_decisions_per_run"] for e in eng.values()) / e_hands
-    for camp in ("0", "1"):
-        e = eng.get("camp" if camp == "1" else "non_camp")
-        if not e:
-            continue
-        d = e["decisions_per_run"]
-        print("%-20s %8.2f %10.3f %10.2f %9s" % (
-            "引擎 %s" % ("合宿" if camp == "1" else "非合宿"), d,
-            sum(i * c for i, c in enumerate(e["max_hist_per_run"])) / d,
-            e["mean_slot_heads"] * 5.0, "5（固定）"))
+    def agg(board):
+        """一档引擎读数的三个可比量（都按手加权）：落子站位人头 / 最满位人头 / 每板放卡。"""
+        hands = sum(v["train_decisions_per_run"] for v in board.values())
+        take = sum(sum(i * c for i, c in enumerate(v["chosen_hist_per_run"]))
+                   for v in board.values()) / hands
+        off_max = sum(sum(i * c for i, c in enumerate(v["max_hist_per_run"]))
+                      / v["decisions_per_run"] * v["train_decisions_per_run"]
+                      for v in board.values()) / hands
+        cards = sum(v["mean_slot_heads"] * 5.0 * v["train_decisions_per_run"]
+                    for v in board.values()) / hands
+        return hands, take, off_max, cards
+
+    tiers = [("基策", eng)] + ([("强策", eng_b)] if eng_b else [])
+    for tag, board in tiers:
+        for camp in ("0", "1"):
+            e = board.get("camp" if camp == "1" else "non_camp")
+            if not e:
+                continue
+            d = e["decisions_per_run"]
+            print("%-20s %8.2f %10.3f %10.2f %9s" % (
+                "引擎 %s %s" % (tag, "合宿" if camp == "1" else "非合宿"), d,
+                sum(i * c for i, c in enumerate(e["max_hist_per_run"])) / d,
+                e["mean_slot_heads"] * 5.0, "5（固定）"))
     r_part = sum(a["h"] for a in real.values()) / max(r_hands * n_runs, 1)
     r_own = sum(a["own"] for a in real.values()) / max(r_hands * n_runs, 1)
-    e_take = sum(sum(i * c for i, c in enumerate(e["chosen_hist_per_run"])) for e in eng.values()) \
-        / e_hands
-    print("\n  落子参与人头 真机 %.3f vs 引擎 %.3f = %.2fx（手/局 真机 %.2f vs 引擎 %.2f）"
-          % (r_part, e_take, r_part / e_take, r_hands, e_hands))
-    f_arr = r_off_max / e_off_max
-    f_pick = (r_own / r_off_max) / (e_take / e_off_max)
     f_sub = r_part / r_own
-    lg = [math.log(f_arr), math.log(f_pick), math.log(f_sub)]
-    print("  乘法拆解 = 站位排布 %.3f × 选位增益 %.3f × 追加参与 %.3f = %.3f"
-          % (f_arr, f_pick, f_sub, f_arr * f_pick * f_sub))
-    print("  （落子站位/最满位：真机 %.2f vs 引擎 %.2f ⇒ 真机几乎必取最满，引擎只取到盘面的 %.0f%%）"
-          % (r_own / r_off_max, e_take / e_off_max, 100.0 * e_take / e_off_max))
-    print("  对数份额：站位 %.0f%%｜选位 %.0f%%｜追加 %.0f%%"
-          % tuple(100.0 * x / sum(lg) for x in lg))
-    print("  每板放卡（站位总数）真机加权 %.2f vs 引擎 %.2f"
-          % (r_cards, sum(e["mean_slot_heads"] * 5.0 * e["train_decisions_per_run"]
-                          for e in eng.values()) / e_hands))
+    for tag, board in tiers:
+        e_hands, e_take, e_off_max, e_cards = agg(board)
+        f_arr = r_off_max / e_off_max
+        f_pick = (r_own / r_off_max) / (e_take / e_off_max)
+        lg = [math.log(f_arr), math.log(f_pick), math.log(f_sub)]
+        share = tuple(100.0 * x / sum(lg) for x in lg)
+        print("\n  [%s档] 落子参与人头 真机 %.3f vs 引擎 %.3f = %.2fx（手/局 真机 %.2f vs 引擎 %.2f）"
+              % (tag, r_part, e_take, r_part / e_take, r_hands, e_hands))
+        print("         乘法拆解 = 站位排布 %.3f × 选位增益 %.3f × 追加参与 %.3f = %.3f"
+              % (f_arr, f_pick, f_sub, f_arr * f_pick * f_sub))
+        print("         （落子站位/最满位：真机 %.2f vs 引擎 %.2f ⇒ 引擎只取到盘面最满格的 %.0f%%）"
+              % (r_own / r_off_max, e_take / e_off_max, 100.0 * e_take / e_off_max))
+        print("         对数份额：站位 %.0f%%｜选位 %.0f%%｜追加 %.0f%%｜每板放卡 真机 %.2f vs 引擎 %.2f"
+              % (share[0], share[1], share[2], r_cards, e_cards))
 
 
 def run_metric(real, eng, metric):
@@ -299,13 +315,19 @@ def main():
     ap.add_argument("--engine", default="E:/HJM/_keileg/out_head4000/trainleg2_result.json")
     ap.add_argument("--engine-board",
                     default="E:/HJM/_keileg/out_head4000/trainboard_result.json")
+    ap.add_argument("--engine-board-strong",
+                    default="E:/HJM/_keileg/out/s41_k64_merged.json",
+                    help="#41 强策档臂（`merge_trainboard_arms.py` 的合成文件）；文件不存在就只出基策档")
     a = ap.parse_args()
     real, n_runs, dropped, keep = real_side(a.real)
     eng = engine_side(a.engine)
     print("真机完整局 run=%d（剔除段内训练手 <%d 的 %d 个 run）｜引擎 4,000 局" % (n_runs, MIN_HANDS, dropped))
+    strong = None
+    if a.engine_board_strong and os.path.exists(a.engine_board_strong):
+        strong = json.load(open(a.engine_board_strong, encoding="utf-8"))["train_board"]
     run_board(a.real, a.preview,
               json.load(open(a.engine_board, encoding="utf-8"))["train_board"],
-              keep, n_runs)
+              keep, n_runs, strong_board=strong)
     for metric in ("pt", "five"):
         run_metric(real, eng, metric)
 

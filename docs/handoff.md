@@ -139,5 +139,21 @@
   两臂门禁三分量逐位相同（7960.43 / 41067.04 / 7863.12）⇒ 插桩非侵入。
   主仓 `target/release/matsuri-dist.exe`
   已在 #39 跑完后从 HEAD 重编还原（`099e108b…`，#40 结束后复验仍是这个 sha）。
+- **当前测量壳（#41）**：同一壳 `E:/HJM/_keileg` 再加 `matsuri-cli/src/searcharm.rs`（把面板强策档
+  = mccli 2-ply + 终局 1-ply + 发表会兜底 复现成整局策略）与 `train_legs.rs` 的 30 列 `VALUE` 表
+  （逐根记「盘面最满人头 / 估值最优格人头 / 实际落子人头 / 人头-估值一致性」）。
+  插桩重存为 `tools/patch_searcharm_value_for_measure.patch`（**1019 行 / 7 文件，含未跟踪的 `searcharm.rs`**；
+  对当前壳树 `git apply --check --reverse` 通过 ⇒ 它才是壳相对 `282df51` 的全量差，旧的
+  `patch_train_legs_for_measure.patch`（592 行）只到 #40 为止）。
+  冻结臂：`_keileg/out/arm_strong41.exe`（`c93c5e84f97fca80dc6192b9b3237271d58033bf`，K=8/16/32 headline；
+  同 exe 不设 `MC_POLICY` 即基策臂，CRN 保证双臂 `offer` 逐位相同）与
+  `_keileg/out/arm_val41b.exe`（`7bf9342a25d92a22dab0e1af6aa969e3e9c47845`，多 `VALUE` 表；
+  基策路径与前者逐字节同、搜索 smoke 门禁同值 ⇒ 打点非侵入）。读数与裁决在 `docs/强策档盘面读数_20261104.md`。
+- **并行会话拓扑（2026-11-04 夜，同一 workspace）**：主线（#41，占 `_keileg`）之外另有四条独立线，
+  各自专属目录、互不碰 git 索引、互不碰 `_keileg`：共因检验（`tools/train_slot_confound.py`）、
+  #38 配置核验（`_wt_r50`）、高分局报文普查（`tools/lf_packet_scan.py`）、
+  #42 人头加强三臂（`_wt_hg`，私有 `CARGO_TARGET_DIR`）。它们**只写文件不提交**，
+  由主线核对口径与区间算法后统一成组提交。机器 16 核：引擎臂并发上限 6，
+  查占用要按 `arm_*.exe` 过滤（只按 `matsuri-dist.exe` 过滤会漏判成「空闲」）。
   上游缺陷只留本地文档、不外报；**任何出网写（push / PR / issue / 删远程分支）一次一动作、各自点头**；
   游戏接管永久关闭。
