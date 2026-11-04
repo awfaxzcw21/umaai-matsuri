@@ -10,10 +10,12 @@ pub mod traits;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-/// URA 收尾期的**引擎回合**闭区间（＝面板 73–77）。右沿刻意不到 77：
-/// 面板 74/76/78（引擎 73/75/77）全库 13 局 **0 条 `command_result`** ⇒ 77 拿不到收益，
-/// 扩沿只是多发 perk（同文档 §4/§6 + 主线独立复算 §11）。
-pub(crate) const MATSURI_FINALE_TURNS: std::ops::RangeInclusive<i32> = 72..=76;
+/// URA 收尾期的**引擎回合**闭区间（＝面板 73–78）。右沿取 77（11-04 主线裁决，一手两支）：
+/// 表侧 `master.mdb` `single_mode_turn(turn_set_id=15)` 的 `period=3` = turn **73–78**（恰好 6 行）；
+/// 报文形状在面板 73–78 **逐回合 9/9** 满足「收尾形状 ∧ 普通格=0」。
+/// 引擎 77（面板 78）上 0 条 `command_result` 是**收益不可观测**（那三回合真机不结算任何手），
+/// 不是窗口归属判据——把它当右沿判据是 v1 的方向错误，见 §4/§7/§18。
+pub(crate) const MATSURI_FINALE_TURNS: std::ops::RangeInclusive<i32> = 72..=77;
 
 use anyhow::{Result, anyhow};
 use rand::Rng;
@@ -678,7 +680,7 @@ impl MatsuriGame {
         // 成功结算的公式在 `training_leg`（稽古的 home 腿共用同一条，不各写一遍）
         let leg = self.training_leg(train);
         // 失败判定（引擎公式：训练等级阈值 × 体力）
-        // URA 收尾期（引擎 72..=76，＝面板 73–77）失败率固定 -100%。
+        // URA 收尾期（引擎 72..=77，＝面板 73–78）失败率固定 -100%。
         // 左沿 11-04 由 67 改 72：报文一手 K1/K2 两条签名在引擎 64–71 **逐回合 0/9 全违例**、
         // 72–77 9/9 全支持（9 局无例外），且 @202 在引擎 67 的板上直接报出 failure_rate=99%
         // ⇒ 本番当回合没有免失败。见 docs/URA收尾期窗口报文核对_20261104.md §3/§4。
@@ -809,7 +811,7 @@ impl MatsuriGame {
         // 演目槽入账（官方 2026-10-31 口径）：该训练位每位「演目担当」+1、闪彩担当再 +1，
         // 落点是**该担当对应的演目**，不是当前训练（原来只喂训练对口的演目，见 docs/mechanism.md §2）
         self.gain_act_gauge_from_train(train);
-        // URA 收尾期 perk（面板 73–77 = 引擎 72..=76）：所选训练对应演目 +1 级、干劲 +1。
+        // URA 收尾期 perk（面板 73–78 = 引擎 72..=77）：所选训练对应演目 +1 级、干劲 +1。
         // 体力 +30 **不在这里加**：报文侧 327 个真结算手的手后体力残差≈+30 者 **0 手**
         // （≈0 有 310 手），+30 是收尾期训练**预告**里的账（同格台阶 ≈+30），
         // 原来这条分支是在预告之外又铺了一层。见同文档 §5。
@@ -2651,7 +2653,7 @@ mod tests {
     }
     /// 收尾期窗口 + URA 三场动作面（一手报文钉住，`docs/URA收尾期窗口报文核对_20261104.md` §4/§6，
     /// 主线独立复算 §11 逐位对上）：
-    /// - 收尾期只算引擎 72–76（＝面板 73–77）；左沿 11-04 从 67 挪到 72，
+    /// - 收尾期算引擎 72–77（＝面板 73–78）；左沿 11-04 从 67 挪到 72，
     ///   因为 K1/K2 两条签名在引擎 64–71 **逐回合 0/9 全违例**、72–77 9/9 全支持。
     /// - 面板 74/76/78（引擎 73/75/77）真机**不结算任何手**（全库 13 局 0 条 `command_result`）
     ///   ⇒ 动作面只剩 Rest，否则收尾期 perk 从 3 个可出手回合涨到 6 个。
@@ -2661,11 +2663,11 @@ mod tests {
         let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
         let mut game =
             MatsuriGame::newgame(106301, &[], InheritInfo::default(), &[], data).unwrap();
-        assert_eq!(MATSURI_FINALE_TURNS, 72..=76, "收尾期＝引擎 72..=76");
+        assert_eq!(MATSURI_FINALE_TURNS, 72..=77, "收尾期＝引擎 72..=77");
         assert!(!MATSURI_FINALE_TURNS.contains(&67), "本番当回合不再免失败");
         assert!(
-            !MATSURI_FINALE_TURNS.contains(&77),
-            "右沿不扩 77：那回合拿不到收益"
+            MATSURI_FINALE_TURNS.contains(&77),
+            "右沿含 77（＝面板 78）：`period=3` 与报文形状两支一手都对齐；77 上收益不可观测属动作面"
         );
         for turn in [67, 68, 69, 70, 71] {
             game.base.turn = turn;
