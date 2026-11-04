@@ -306,3 +306,21 @@ CRN 三分量 95% 区间**不是同一个度量**。按规范 3 与「交接包�
 #58 外出落点；门禁流程两条升级（换 exe／换 config 批先做跨 commit 重放定标、权重与 GA 扫描引入
 holdout 分卷）；#55 读数口径加 CVaR 下尾 + P(≥LG15)；反向 RNG 审计项（列出尚未按
 `(rule_master, turn, tag)` 派生的随机点）。**本轮一律未接线、未写 `data/`、未出网写。**
+
+---
+
+## 2026-11-05：UmaViewer 探针 + 技能价表侧核 → [`skill_grade_value_20261105.md`](skill_grade_value_20261105.md)
+
+| 项 | 值 |
+|---|---|
+| 内容 | 8 个 Node 探针（直读 `master.mdb` + `text_data_dict.json`）+ 文本 cat 138 的 191 条活动名 tsv + 一篇表侧核 |
+| 产出线 | 廉价会话「这是什么」（`e5f590b4`），落点原在工作区 `工具/uaviewer_probe/` |
+| 取得 | 2026-11-05 06:32，用户指示「这里的文件你拿一下」⇒ **脚本逐字节原样复制**进 `tools/uaviewer_probe/`，未改写 |
+| 上游源包 | `D:/Downloads/standalone构建，老旧架构.zip`（93,167,043 B）；viewer 解包件已从 Temp 抢救到 `E:/HJM/_ref_uaviewer/uv3_out/`（5.2 MB，仓外） |
+| 定级 | **一手静态表读数**（凡我重跑过的格子）＋ **未定性**（`grade_value` 是不是技能分本身） |
+
+与上面 Hachimi 段的关系：**`grade_value` 不是新发现**（`:195-197` 早已记下并写过「替掉拟合 2.35」的路线）。
+本篇的增量只有两条，且都**未接线**：①`single_mode_skill_need_point` 与 `skill_data` **1195/1195 全 join**
+⇒ 「价」这列表侧完整；②`grade_value/need_skill_point` **按稀有度劈开**（rar1 `1.017`／rar2 `3.016`），
+我们 11-03 定的全局汇率 **2.61 恰落在两档之间** ⇒ 形态上是混合池平均、不是机制常数。
+硬规则：`grade_value` 未与任何一局真机技能侧对上之前**不进估值层**；`need_skill_point` 是否等于实扣 PT **未核**。
