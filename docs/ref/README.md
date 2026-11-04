@@ -256,3 +256,49 @@ CRN 三分量 95% 区间**不是同一个度量**。按规范 3 与「交接包�
 它整篇是**决策层/搜索层**，不涉及机制层逐手数值。本仓 PT 缺口 −21.6% 的主要部分
 （#22 非训练 PT、#25 自选比赛腿、#34 稽古演目腿高段因子）**在这份总结里一个都对不上** ⇒
 两线互补，不重复。
+
+---
+
+## 2026-11-04 一批：六份外部资料（五份新归档 + 一份判重）
+
+**取得方式**：同日均为 akis 提供，落在 `D:\Downloads\`。
+**归档约定**：五份副本**逐字节未改**（不加归档说明头，以免 sha1 不可比）——
+所以本节这张表就是它们唯一的 provenance 记录。sha1 已与 `D:\Downloads\` 原件逐一核对相同。
+**复核方法**：`git show HEAD:docs/ref/<归档名> | sha1sum` 应与上表逐位相同（已实测五份全对）。
+⚠ 别拿工作区检出文件比 sha1——本仓 `core.autocrlf=true`，新检出可能变成 CRLF；索引里存的是原字节。
+
+| 归档文件 | 原文件名 | sha1 | 字节 | 行数 | 定级 |
+|---|---|---|---|---|---|
+| [`algo_pitch_20261104.md`](algo_pitch_20261104.md) | `算法优化策略-ref.md` | `b05bdcb0e96b1ff061e8e0f667852dba0ccf4b03` | 8,217 | 77 | **AI 转述**（对 `perf_profiling` 规划的替代方案建议） |
+| [`algo_pitch_retry_20261104.md`](algo_pitch_retry_20261104.md) | `better.md` | `576b8469797608f66b2db72abdceda8c66082e70` | 6,949 | 66 | **AI 转述**（与上一份同题的改写版） |
+| [`softcap_reserve_port_20261104.md`](softcap_reserve_port_20261104.md) | `属性溢出软上限旋钮移植.md` | `f31ea729efc1d4462f054e00251c206fcb7f5394` | 17,975 | 316 | **AI 写的移植方案**，其引用的拉面源码**可一手核验**（见下） |
+| [`cn_walkthrough_videos_20261104.md`](cn_walkthrough_videos_20261104.md) | `赛马娘大祭攻略.md` | `1d49ed185ea02cb5a634bcb5c5533da210212d60` | 11,128 | 103 | **视频攻略摘要**（8 个中文实机视频的转述） |
+| [`annual_report_2025_2026.docx`](annual_report_2025_2026.docx) | `赛马娘育成AI年度报告2025-2026_手机阅读版.docx` | `beca5833d70fa75f189be02512830006c8289acd` | 28,308 | —（二进制） | **另一条 AI 线的年度自述**，口径与本仓门禁不同 |
+| —（**不新归档**） | `骏大祭AI-权重与搜索思考总结 (1).md` | `fd6532e8cc605aa7c4fa2bfd5562156d092efaf8` | 8,983 | 153 | 与 [`hjm_lab_weights_search_20261103.md`](hjm_lab_weights_search_20261103.md) 的**原文 sha1 逐位相同** ⇒ 判重复 |
+
+### 定级与使用规则
+
+**全部是二手及以下**，判据不变（`master.mdb` / 真机报文 > 本仓代码与配对 CRN > 官方文案 > 社区笔记与视频 > AI 转述）。
+逐条「可用／不可用」的裁决台账在 [`../外部资料六份评审_20261104.md`](../外部资料六份评审_20261104.md)，
+本节只登记来源，不重复裁决内容。三条跨份的硬规则：
+
+1. **这几份都描述过 `umaai-matsuri-lab` 或 `umaai-next` 的旋钮现状**（同一份内部还自相矛盾：
+   `status_halve_threshold` 一处写 1200、一处实测 0）。本仓没有该仓检出 ⇒ **凡它们写的「现状值」
+   一律先按「描述已失效」处理**，需要时重新取回源仓再看，不许照抄进 `data/`。
+2. **唯一升格为可核验的部分**：`softcap_reserve_port_20261104.md` 引用的拉面软上限代码在
+   `E:/HJM/umaai15-rs/crates/umasim/src/neural/handwritten_evaluator.rs`
+   （`status_soft_function` `:156-169`、`RESERVE_STATUS_FACTOR = 40.0` `:52`、
+   `FINAL_BONUS = 45+30+20+20` `:73`、`calc_status_gain` `:394-406`）已逐行比对，
+   该份的**拉面侧**是准确转述；它的**骏大祭侧结论**仍是待验证主张。
+   ⚠ 但「全部硬编码不可调」这句不准：同仓 `crates/umasim/src/bin/bench_base.rs:88` 有
+   `--tokens` 入口 `rgn1` / `rgn2` / `reserve20`。
+   （注意 `_probe_xf/umaai-rs` 是空目录，不可当作检出用。）
+3. **视频摘要那份的机制说法不进机制层**，只有一条被登记成可测问题：它三处讲「外出升当前等级
+   最低的演目」，与本仓 `crates/matsuri-core/src/game/mod.rs:385` 的
+   `rng.random_range(0..5)` 均匀随机不符 ⇒ 建 **#58**（先判实现偏离，判完才谈「根性锁」）。
+
+### 净产出（已进任务队列，不在本节展开）
+
+#58 外出落点；门禁流程两条升级（换 exe／换 config 批先做跨 commit 重放定标、权重与 GA 扫描引入
+holdout 分卷）；#55 读数口径加 CVaR 下尾 + P(≥LG15)；反向 RNG 审计项（列出尚未按
+`(rule_master, turn, tag)` 派生的随机点）。**本轮一律未接线、未写 `data/`、未出网写。**
