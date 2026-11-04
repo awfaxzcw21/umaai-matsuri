@@ -125,11 +125,19 @@
   + `dist.rs` 的 `gain_ledger` 输出，**不并回主仓**；它与主仓**共用 `CARGO_TARGET_DIR`**，
   跑完必须从主仓 `cargo build --release -p matsuri-cli` 还原 `target/release/matsuri-dist.exe`（本次已还原，
   三分量复验 7483.14075 / 17053.48175 / 6533.90075，与发布臂行为一致、sha 不同属正常）。
-  分腿打点壳 **`E:/HJM/_keileg`（detached @`282df51`，仍在，#39）**：只加 `game/keiko_legs.rs` +
-  `do_keiko_impl` 一处调用 + `dist.rs` 的 `keiko_legs` 输出（打点存档
-  `tools/patch_keiko_legs_for_measure.patch`）；它用**私有** `CARGO_TARGET_DIR=_keileg/target`，
-  不碰主仓产物。两壳的冻结二进制：`_keileg/out/arm_head_keileg.exe`（`46674ce3…`）、
-  `_srcledger/out/arm_keileg.exe`（`81b172cb…`）。主仓 `target/release/matsuri-dist.exe`
-  已在 #39 跑完后从 HEAD 重编还原（`099e108b…`）。
+  分腿打点壳 **`E:/HJM/_keileg`（detached @`282df51`，仍在，#39 + #40）**：#39 加 `game/keiko_legs.rs` +
+  `do_keiko_impl` 一处调用 + `dist.rs` 的 `keiko_legs` 输出；#40 再加 `game/train_legs.rs`
+  （`[腿][训练Lv][人头]` 分解表）与同文件的**盘面人头表** `BOARD`（`[非合宿/合宿][20 列]`，
+  在 `MatsuriRolloutTrainer::select_action` 里记 offer/take），`dist.rs` 输出 `train_legs` / `train_board`。
+  **插桩永不并回主仓**；存档 `tools/patch_train_legs_for_measure.patch`（592 行，对当前壳树
+  `git apply --check --reverse` 通过 ⇒ 就是壳相对 `282df51` 的全量差）。
+  它用**私有** `CARGO_TARGET_DIR=_keileg/target`，不碰主仓产物。
+  三壳/三臂的冻结二进制：`_keileg/out/arm_head_keileg.exe`（`46674ce3…`，#39）、
+  `_keileg/out/arm_board.exe`（`4917d52522c41fa2b584562e7e51a3e88ef2c8c4`，#40 盘面臂，
+  产出 `_keileg/out_head4000/trainboard_result.json`）、`_srcledger/out/arm_keileg.exe`（`81b172cb…`）。
+  #40 的腿分解臂 = 同一壳早先编的 `_keileg/out_head4000/trainleg2_result.json`；
+  两臂门禁三分量逐位相同（7960.43 / 41067.04 / 7863.12）⇒ 插桩非侵入。
+  主仓 `target/release/matsuri-dist.exe`
+  已在 #39 跑完后从 HEAD 重编还原（`099e108b…`，#40 结束后复验仍是这个 sha）。
   上游缺陷只留本地文档、不外报；**任何出网写（push / PR / issue / 删远程分支）一次一动作、各自点头**；
   游戏接管永久关闭。
