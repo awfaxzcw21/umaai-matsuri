@@ -1,0 +1,4 @@
+# 归档的测量插桩 patch 是证据：必须逐字节还原，不能被 autocrlf 改写行尾
+# （`core.autocrlf=true` 的机器上，`git apply` 会因上下文行尾不符而报 corrupt patch）
+*.patch -text
+*.diff  -text
