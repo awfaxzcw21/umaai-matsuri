@@ -270,6 +270,29 @@ def per_game(pa, pb):
         print("  %-8s 关兜底更高 %d 局 / 更低 %d 局 / 持平 %d"
               % (nm, up, dn, len(diffs) - up - dn))
 
+    # 档位（大成功 / 成功）是 0/1 终点 ⇒ 逐局配对的 McNemar 精确检验比「两片边缘率相减」有力。
+    # 规定判据仍是分片级配对区间；这段与上面同类，只作功效核对。
+    if "cp" not in A[ks[0]] or "cp" not in B[ks[0]]:
+        print("  （逐局明细无 `cp` 字段 ⇒ 跳过档位 McNemar：那对 exe 早于 #49 的逐局档位打点）")
+        return
+    nslot = len(A[ks[0]]["cp"])
+    print("\n  档位逐局配对（McNemar 精确；b=兜底赢、c=兜底输）：")
+    for s in range(nslot):
+        ga = sum(1 for k in ks if A[k]["cp"][s][1] > 0.5)
+        gb = sum(1 for k in ks if B[k]["cp"][s][1] > 0.5)
+        b = sum(1 for k in ks if A[k]["cp"][s][1] > 0.5 and not B[k]["cp"][s][1] > 0.5)
+        c = sum(1 for k in ks if B[k]["cp"][s][1] > 0.5 and not A[k]["cp"][s][1] > 0.5)
+        n = len(ks)
+        d = (gb - ga) / n
+        se = (b + c) ** 0.5 / n
+        ma, mb = min(b, c), b + c
+        p = float("nan")
+        if mb:
+            one = sum(math.comb(mb, i) for i in range(ma + 1)) / 2.0 ** mb
+            p = min(1.0, 2.0 * one)
+        print("    第 %d 场 n=%d  大成功率 A=%.3f B=%.3f  差(B−A)=%+.3f [±%.3f]  b=%d c=%d  McNemar p=%.4f"
+              % (s + 1, n, ga / n, gb / n, d, 1.96 * se, b, c, p))
+
 
 if __name__ == "__main__":
     main()
