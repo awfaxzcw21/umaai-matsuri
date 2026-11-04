@@ -1,0 +1,476 @@
+diff --git a/crates/matsuri-cli/Cargo.toml b/crates/matsuri-cli/Cargo.toml
+index a9499d4..6bd97c2 100644
+--- a/crates/matsuri-cli/Cargo.toml
++++ b/crates/matsuri-cli/Cargo.toml
+@@ -27,6 +27,10 @@ path = "src/dist.rs"
+ name = "matsuri-gate"
+ path = "src/gate.rs"
+ 
++[[bin]]
++name = "matsuri-board"
++path = "src/board.rs"
++
+ [dependencies]
+ matsuri-core.workspace = true
+ matsuri-sim.workspace = true
+diff --git a/crates/matsuri-cli/src/state.rs b/crates/matsuri-cli/src/state.rs
+index a731c05..7f35d1d 100644
+--- a/crates/matsuri-cli/src/state.rs
++++ b/crates/matsuri-cli/src/state.rs
+@@ -169,6 +169,8 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
+         .cloned()
+         .unwrap_or_default();
+     let mut dist: Vec<Vec<i32>> = vec![Vec::new(); 5];
++    // 每格里被报文标为**分身（追加参与）**的人头下标（#56 的剂量实验输入）
++    let mut clones: [Vec<i32>; 5] = Default::default();
+     let mut guests: HashMap<i64, usize> = HashMap::new();
+     for c in &cmds {
+         let Some(name) = c.get("train").and_then(|x| x.as_str()) else {
+@@ -224,8 +226,32 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
+                 dist[t].push(idx as i32);
+             }
+         }
++        // 分身（追加参与）：`sub_partner_ids` 是 `sub_command_partner_array` 里的**卡组站位序号**
++        // （与上面 1..=6 那段同一套 id，`packet_to_state.py` 原样挂进来的，不走名字反查——
++        // SSR/R 吾妻同名会撞）。只在本格 `partner_ids` 也认它时才登记：分身必须先在格上出现。
++        for id in c
++            .get("sub_partner_ids")
++            .and_then(|x| x.as_array())
++            .into_iter()
++            .flatten()
++        {
++            let Some(idv) = id.as_i64() else { continue };
++            if !(1..=6).contains(&idv) {
++                continue; // 报文里 3 位数 NPC 枠不会给分身，给了也不认
++            }
++            let idx = (idv - 1) as i32;
++            if dist[t].contains(&idx) && !clones[t].contains(&idx) {
++                clones[t].push(idx);
++            }
++        }
+     }
+     game.base.distribution = dist;
++    let clone_slots: usize = clones.iter().map(|v| v.len()).sum();
++    game.clone_marks = clones;
++    if clone_slots > 0 {
++        // 档位由调用方在装配**之后**设（`matsuri-board --dose`），这里不报档位免得读成装配时的值
++        eprintln!("报文分身标记 {clone_slots} 处（#56 剂量实验输入）");
++    }
+ 
+     // 羁绊快照 → 人头 → 卡组（支援卡固有「羁绊 ≥ 80 触发词条」吃卡面羁绊）
+     for (k, val) in &bonds {
+diff --git a/crates/matsuri-core/src/game/mod.rs b/crates/matsuri-core/src/game/mod.rs
+index 3ab3853..7245012 100644
+--- a/crates/matsuri-core/src/game/mod.rs
++++ b/crates/matsuri-core/src/game/mod.rs
+@@ -270,6 +270,30 @@ pub struct MatsuriGame {
+     ///
+     /// 只用于查 `race_reward.cards` 的**逐卡赛后奖励终值表**；0 = 未知 ⇒ 走兜底档。
+     pub uma_id: u32,
++    /// 每格里被报文标为**分身（追加参与）**的人头下标（`clone_marks[cell] = [person_index]`）
++    ///
++    /// 一手来源：报文 `home_info.command_info_array[cell].sub_command_partner_array`
++    /// （面板侧渲染成 `commands[].sub_partners`，是**名字**不是 id ⇒ `state.rs` 按卡组名反查槽位）。
++    /// 全程自走模拟里恒空（剧本侧不生成分身，见 `docs/分身剂量与引擎缺口_20261104.md` §3），
++    /// 只有宿主装配真实局面（#56 的逐格残差实验）才注入。
++    pub clone_marks: [Vec<i32>; 5],
++    /// 分身那一格**值多少**——#56 的三档假设，判据是逐格残差，不引入任何新常数
++    ///
++    /// 默认 `CardEffects` ＝ 现状行为（分身进人数、吃该卡词条、友情归零），
++    /// 因为「不改行为」是这档实验的对照组。
++    pub clone_dose: CloneDose,
++}
++
++/// 分身（追加参与）在训练结算里吃几条腿——#56 要测的就是这三档谁对真值
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub enum CloneDose {
++    /// 只算一个人头，**不吃该卡任何词条**（上游 `count_training_persons` 的注释口径 +
++    /// `default_calc_training_buff` 跳过负数的实现口径，两边本身就互相矛盾，见缺口文档 §3）
++    HeadsOnly,
++    /// 人头 + 该卡词条，**友情归零**（＝现行为：分身格上 `is_shining_at` 为假）
++    CardEffects,
++    /// 人头 + 该卡词条 + **友情**（分身视作该卡在该格彩圈）
++    CardEffectsFriendship,
+ }
+ 
+ impl Deref for MatsuriGame {
+@@ -353,6 +377,8 @@ impl MatsuriGame {
+             practice_bad: false,
+             assist_support: 0,
+             act_level_cap: 6,
++            clone_marks: [Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()],
++            clone_dose: CloneDose::CardEffects,
+             persons: Vec::new(),
+             stage: Stage::Begin,
+             strategy: None,
+@@ -562,6 +588,17 @@ impl MatsuriGame {
+         1.0
+     }
+ 
++    /// #56 逐格残差实验的公开口子：引擎**自己的**普通训练预告（不含报文锚点、不含失败分支）
++    ///
++    /// 与面板 `commands[].stat_gains` 同口径可比（面板那个也是结算前的预告）。
++    /// 分身剂量 [`MatsuriGame::clone_dose`] 只通过 `calc_training_buff` 影响这里，
++    /// 所以「换一档 ⇒ 该格预告动多少」就是那一档给分身定的价——不引入任何新常数。
++    /// 返回 `(五轴增量[已套 1200 软上限], 技能Pt, 体力消费)`。
++    pub fn train_preview(&self, train: usize) -> ([i32; 5], i32, i32) {
++        let leg = self.training_leg(train);
++        (leg.five, leg.pt, leg.vital)
++    }
++
+     /// 普通训练**成功结算**的那条腿（表值 → 教诲分乘区 → 彩圈/友情 → 软上限）。
+     ///
+     /// `do_train` 用它；稽古的 home 腿也用它——报文两腿恒等式实测
+@@ -2686,4 +2723,77 @@ mod tests {
+             );
+         }
+     }
++
++    /// 带真实卡组的一手局面（分身实验要用卡组词条，`game_with_data` 那套只造 NPC 人头）
++    fn deck_game(deck_ids: &[u32]) -> MatsuriGame {
++        let _ = Data::init(crate::testing::data_dir());
++        let data = Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap());
++        MatsuriGame::newgame(106301, deck_ids, InheritInfo::default(), &[], data).unwrap()
++    }
++
++    #[test]
++    fn clone_dose_is_inert_without_clone_marks() {
++        // 守门：全程自走模拟里 `clone_marks` 恒空（剧本侧不生成分身），所以三档都必须与
++        // 上游默认实现**逐字段相等**——否则这个实验会悄悄改掉所有没有分身的板，
++        // 而门禁锚点 `_state_t30.json` 正是这种板。
++        let mut game = deck_game(&[302874]);
++        game.clone_marks = Default::default();
++        for dose in [
++            CloneDose::HeadsOnly,
++            CloneDose::CardEffects,
++            CloneDose::CardEffectsFriendship,
++        ] {
++            game.clone_dose = dose;
++            for t in 0..5 {
++                assert_eq!(
++                    game.calc_training_buff(t).unwrap(),
++                    game.default_calc_training_buff(t).unwrap(),
++                    "{dose:?} 档在无分身板上改了 buff（训练位 {t}）"
++                );
++            }
++        }
++    }
++
++    #[test]
++    fn clone_dose_tiers_are_heads_then_effects_then_friendship() {
++        // 302874 ＝ 新宇宙◆4：得意＝力量（`cardType` 2）、友情组 35%、训练 +20%、干劲 +20。
++        // 把它标成**耐力格**的分身（报文里分身就落在非得意格，#47）。
++        let mut game = deck_game(&[302874]);
++        game.base.distribution = vec![vec![], vec![0], vec![], vec![], vec![]];
++        game.clone_marks = [Vec::new(), vec![0], Vec::new(), Vec::new(), Vec::new()];
++        assert!(
++            !game.is_shining_at(0, 1),
++            "非得意格不该判成彩圈（这正是默认实现把友情归零的那一步）"
++        );
++
++        // 档 2 ＝ 现行为：吃词条、友情归零 ⇒ 必须与上游默认实现逐字段相等
++        game.clone_dose = CloneDose::CardEffects;
++        let effects = game.calc_training_buff(1).unwrap();
++        assert_eq!(
++            effects,
++            game.default_calc_training_buff(1).unwrap(),
++            "CardEffects 档就是现状行为，不该比默认实现多 anything"
++        );
++        assert_eq!(effects.youqing, 0.0, "分身不是本格彩圈 ⇒ 友情归零");
++        assert_ne!(effects, CardTrainingEffect::default(), "但词条要吃到");
++
++        // 档 1 ＝ 只算人头：词条整条丢掉（人头那条腿走 `count_training_persons`，不在这里）
++        game.clone_dose = CloneDose::HeadsOnly;
++        assert_eq!(
++            game.calc_training_buff(1).unwrap(),
++            CardTrainingEffect::default(),
++            "HeadsOnly 档：那一格只留人头"
++        );
++        assert_eq!(game.count_training_persons(1), 1, "人头照旧算 1");
++
++        // 档 3 ＝ 人头 + 词条 + 友情：分身视作本格彩圈
++        game.clone_dose = CloneDose::CardEffectsFriendship;
++        let friend = game.calc_training_buff(1).unwrap();
++        assert_eq!(
++            friend.youqing,
++            game.deck()[0].card_value().youqing,
++            "友情档该吃到该卡友情组的原值（从卡面读，不写死常数）"
++        );
++        assert!(friend.youqing > effects.youqing, "三档的大小轴：人头 < 词条 < 词条+友情");
++    }
+ }
+diff --git a/crates/matsuri-core/src/game/traits.rs b/crates/matsuri-core/src/game/traits.rs
+index 41647d1..0742217 100644
+--- a/crates/matsuri-core/src/game/traits.rs
++++ b/crates/matsuri-core/src/game/traits.rs
+@@ -8,11 +8,12 @@ use rand::rngs::StdRng;
+ use umaai_core::gamedata::EventData;
+ use umasim::game::base::BasePerson;
+ use umasim::game::{
+-    Game, StageId, SupportCard, Trainer, TrainingBasicTable, TrainingValueSource, Uma,
++    CardTrainingEffect, Game, StageId, SupportCard, Trainer, TrainingBasicTable,
++    TrainingValueSource, Uma,
+ };
+ use umasim::search::FlatSearchGame;
+ 
+-use super::{ACT_GAUGE_MAX, Action, MatsuriGame, Stage};
++use super::{ACT_GAUGE_MAX, Action, CloneDose, MatsuriGame, Stage};
+ use crate::MAX_TURN;
+ 
+ impl TrainingValueSource for MatsuriGame {
+@@ -262,6 +263,56 @@ impl Game for MatsuriGame {
+     fn deck(&self) -> &Vec<SupportCard> {
+         &self.base.deck
+     }
++
++    /// 分身（追加参与）那一格**值多少**——#56 的三档假设在这里生效
++    ///
++    /// 上游默认实现（[`umasim::game::Game::default_calc_training_buff`]）对「本体格」和
++    /// 「分身格」用同一条规则：只要人头下标在 `distribution[cell]` 里且是卡组前缀，就吃
++    /// 该卡词条，再用 `is_shining_at`（要求 `train_type == cell`）把非本格的友情归零。
++    /// 也就是说**现状行为已经是 `CloneDose::CardEffects`**，不是报文侧的「只算人头」。
++    /// 上游自己的注释是矛盾的：`count_training_persons` 写「分身不新建人头而是再放占位」
++    /// 并把负数当哨兵跳过，而重建器把分身当**正数人头下标**塞进另一格
++    /// （见 `docs/分身剂量与引擎缺口_20261104.md` §3）。这里把三档做成可切换的，
++    /// 用逐格残差判谁对真值，不引入任何新常数。
++    ///
++    /// `clone_marks[cell]` 为空 ⇒ 直接回上游默认实现，**逐字段相等**（守门用例
++    /// `calc_training_buff_without_clones_matches_default`）。
++    fn calc_training_buff(&self, train: usize) -> Result<CardTrainingEffect> {
++        let marks = match self.clone_marks.get(train) {
++            Some(m) if !m.is_empty() => m,
++            _ => return self.default_calc_training_buff(train),
++        };
++        let mut ret = CardTrainingEffect::default();
++        let Some(indices) = self.distribution().get(train) else {
++            return Ok(ret);
++        };
++        for &index in indices {
++            // 负数为分身占位或空位（与上游同一哨兵口径）
++            if index < 0 {
++                continue;
++            }
++            let person_index = index as usize;
++            // 布局契约：卡片人头占 persons 前缀，前缀之外（理事长/记者/嘉宾/NPC）不贡献卡加成
++            if person_index >= self.deck().len() {
++                continue;
++            }
++            let mut effect = self.deck()[person_index].calc_training_effect(self, train as i32);
++            if marks.contains(&index) {
++                match self.clone_dose {
++                    // 只算人头：词条整条丢掉（人头加成走 `count_training_persons`，不在这里）
++                    CloneDose::HeadsOnly => effect = CardTrainingEffect::default(),
++                    // ＝现行为：吃词条、友情归零
++                    CloneDose::CardEffects => effect.youqing = 0.0,
++                    // 视作本格彩圈：连友情一起吃
++                    CloneDose::CardEffectsFriendship => {}
++                }
++            } else if !self.is_shining_at(person_index, train) {
++                effect.youqing = 0.0;
++            }
++            ret = ret.add(&effect);
++        }
++        Ok(ret)
++    }
+ }
+ 
+ impl FlatSearchGame for MatsuriGame {
+diff --git a/crates/matsuri-cli/src/board.rs b/crates/matsuri-cli/src/board.rs
+new file mode 100644
+index 0000000..80f8960
+--- /dev/null
++++ b/crates/matsuri-cli/src/board.rs
+@@ -0,0 +1,193 @@
++//! 逐格残差实验 bin `matsuri-board`（#56 分身定价）
++//!
++//! 一块报文决策板 × 一档分身剂量 → 每个训练位一行 TSV：**引擎自己的训练预告**
++//! 对**面板自报的 `stat_gains`**。分身剂量只通过 `calc_training_buff` 进预告，
++//! 所以「换一档 ⇒ 该格残差动多少」＝ 那一档给分身定的价。不引入任何新常数。
++//!
++//! 用法（仓根跑，`data/` 按当前目录解析）：
++//!   matsuri-board --dose heads_only   out/clone_states/*.json > out/board_headsonly.tsv
++//!   matsuri-board --dose card_effects out/clone_states/*.json > out/board_cardeffects.tsv
++//!   matsuri-board --dose card_effects_friendship out/clone_states/*.json > out/board_friendship.tsv
++//!
++//! 判读在 `tools/clone_dose_did.py`（同板内分身格 vs 非分身格的双差分）。
++//! 退出码：0 正常；2 参数或状态文件不合法。
++
++use std::process::ExitCode;
++
++use anyhow::Result;
++use matsuri_core::game::CloneDose;
++use umasim::game::Game;
++
++use matsuri_cli::state;
++
++/// 面板训练名 → 引擎下标（与 `state.rs` 同一套）
++const TRAINS: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
++
++fn parse_dose(s: &str) -> Option<CloneDose> {
++    Some(match s {
++        "heads_only" => CloneDose::HeadsOnly,
++        "card_effects" => CloneDose::CardEffects,
++        "card_effects_friendship" => CloneDose::CardEffectsFriendship,
++        _ => return None,
++    })
++}
++
++/// TSV 里用的稳定列值（不要用 `Debug`，重命名枚举会变列内容）
++fn dose_tag(d: CloneDose) -> &'static str {
++    match d {
++        CloneDose::HeadsOnly => "heads_only",
++        CloneDose::CardEffects => "card_effects",
++        CloneDose::CardEffectsFriendship => "card_effects_friendship",
++    }
++}
++
++fn run(dose: CloneDose, paths: &[String]) -> Result<()> {
++    println!(
++        "dose\tboard\tturn\tcell\ttrain\tcid\tkind\theads\tclone_slots\tclone_cards\t\
++         eng0\teng1\teng2\teng3\teng4\tengPt\tengVital\t\
++         pkt0\tpkt1\tpkt2\tpkt3\tpkt4\tpktPt\tpktVital\tfailRate\tlevel\tgauge"
++    );
++    for path in paths {
++        let raw = match std::fs::read_to_string(path) {
++            Ok(r) => r,
++            Err(e) => {
++                eprintln!("跳过 {path}：读不到（{e}）");
++                continue;
++            }
++        };
++        let v: serde_json::Value = match serde_json::from_str(&raw) {
++            Ok(v) => v,
++            Err(e) => {
++                eprintln!("跳过 {path}：解析失败（{e}）");
++                continue;
++            }
++        };
++        let loaded = match state::assemble_game(&raw) {
++            Ok(l) => l,
++            Err(e) => {
++                eprintln!("跳过 {path}：装配失败（{e}）");
++                continue;
++            }
++        };
++        if loaded.deck_fallback {
++            eprintln!("跳过 {path}：卡组走了兜底，报文人头无可比性");
++            continue;
++        }
++        let mut game = loaded.game;
++        game.clone_dose = dose;
++        let board = path.rsplit(['/', '\\']).next().unwrap_or(path).to_string();
++        let turn = loaded.panel_turn;
++
++        // 报文侧：同一格可能同时有普通行（101..）与稽古行（5101..），只取普通行做残差
++        let cmds = v
++            .get("commands")
++            .and_then(|x| x.as_array())
++            .cloned()
++            .unwrap_or_default();
++        for t in 0..5 {
++            let Some(cmd) = cmds.iter().find(|c| {
++                c.get("train").and_then(|x| x.as_str()) == Some(TRAINS[t])
++                    && !c.get("is_keiko").and_then(|x| x.as_bool()).unwrap_or(false)
++            }) else {
++                continue;
++            };
++            let cid = cmd.get("command_id").and_then(|x| x.as_i64()).unwrap_or(0);
++            let gains = cmd.get("stat_gains").and_then(|x| x.as_object());
++            let gain = |name: &str| -> i64 {
++                gains
++                    .and_then(|g| g.get(name))
++                    .and_then(|x| x.as_i64())
++                    .unwrap_or(-1)
++            };
++            let (five, pt, vital) = game.train_preview(t);
++            let clones = &game.clone_marks[t];
++            let clone_cards: Vec<String> = clones
++                .iter()
++                .map(|&i| {
++                    let i = i as usize;
++                    match game.deck().get(i) {
++                        Some(c) => format!("{}:{}", i + 1, c.card_id),
++                        None => format!("{i}"),
++                    }
++                })
++                .collect();
++            let level = game.train_level(t);
++            let gauge = game.act_gauge[t];
++            let fail_rate = cmd.get("failure_rate").and_then(|x| x.as_i64()).unwrap_or(0);
++            println!(
++                "{}\t{}\t{}\t{}\t{}\t{}\tplain\t{}\t{}\t{}\t\
++                 {}\t{}\t{}\t{}\t{}\t{}\t{}\t\
++                 {}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
++                dose_tag(dose),
++                board,
++                turn,
++                t,
++                TRAINS[t],
++                cid,
++                game.count_training_persons(t),
++                clones.len(),
++                if clone_cards.is_empty() { "-".to_string() } else { clone_cards.join("|") },
++                five[0],
++                five[1],
++                five[2],
++                five[3],
++                five[4],
++                pt,
++                vital,
++                gain("速度"),
++                gain("耐力"),
++                gain("力量"),
++                gain("根性"),
++                gain("智力"),
++                cmd.get("skill_point").and_then(|x| x.as_i64()).unwrap_or(-1),
++                cmd.get("vital_delta").and_then(|x| x.as_i64()).unwrap_or(-9999),
++                fail_rate,
++                level,
++                gauge,
++            );
++        }
++    }
++    Ok(())
++}
++
++fn main() -> ExitCode {
++    let mut dose: Option<CloneDose> = None;
++    let mut paths: Vec<String> = Vec::new();
++    let mut args = std::env::args().skip(1);
++    while let Some(a) = args.next() {
++        if let Some(v) = a.strip_prefix("--dose=") {
++            match parse_dose(v) {
++                Some(d) => dose = Some(d),
++                None => return bad(&format!("不认识的分身剂量：{v}")),
++            }
++        } else if a == "--dose" {
++            let Some(v) = args.next() else {
++                return bad("缺 --dose 的值");
++            };
++            match parse_dose(&v) {
++                Some(d) => dose = Some(d),
++                None => return bad(&format!("不认识的分身剂量：{v}")),
++            }
++        } else {
++            paths.push(a);
++        }
++    }
++    let Some(dose) = dose else {
++        return bad("用法：matsuri-board --dose <heads_only|card_effects|card_effects_friendship> <state.json ...>");
++    };
++    if paths.is_empty() {
++        return bad("没有状态文件");
++    }
++    match run(dose, &paths) {
++        Ok(()) => ExitCode::SUCCESS,
++        Err(e) => {
++            eprintln!("失败：{e}");
++            ExitCode::from(1)
++        }
++    }
++}
++
++fn bad(msg: &str) -> ExitCode {
++    eprintln!("{msg}");
++    ExitCode::from(2)
++}
