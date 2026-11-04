@@ -293,9 +293,13 @@ CRN 三分量 95% 区间**不是同一个度量**。按规范 3 与「交接包�
    ⚠ 但「全部硬编码不可调」这句不准：同仓 `crates/umasim/src/bin/bench_base.rs:88` 有
    `--tokens` 入口 `rgn1` / `rgn2` / `reserve20`。
    （注意 `_probe_xf/umaai-rs` 是空目录，不可当作检出用。）
-3. **视频摘要那份的机制说法不进机制层**，只有一条被登记成可测问题：它三处讲「外出升当前等级
-   最低的演目」，与本仓 `crates/matsuri-core/src/game/mod.rs:385` 的
-   `rng.random_range(0..5)` 均匀随机不符 ⇒ 建 **#58**（先判实现偏离，判完才谈「根性锁」）。
+3. **视频摘要那份的机制说法不进机制层**。它三处讲「外出升当前等级最低的演目」，看着像新线索，
+   其实**本仓早已定案并已实现**：U07（`../matsuri_memo_cn.md`，`user` 2026-10-30 定案
+   「① 演目Lv 最低 → ② 槽最低 → ③ 速/耐/力/根/智」）＋
+   `crates/matsuri-core/src/game/mod.rs:1261` `push_act_gauge` ＋ `:1289` `bump_lowest_act_level`。
+   **这份材料的真实价值是照出一个占位**：`Action::Outing`（`game/action.rs:53-59`）连做三件事，
+   除上面两条外还夹了 `mod.rs:385` 的 `rng.random_range(0..5)` **随机 Lv+1**（S1 期写、无出处、
+   与 U07 冲突）⇒ 引擎一次外出加**两级** Lv。#58 量的就是真机究竟动几格，判完才谈「根性锁」。
 
 ### 净产出（已进任务队列，不在本节展开）
 
