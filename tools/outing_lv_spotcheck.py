@@ -64,6 +64,8 @@ def scan_all():
     n_board = n_f0 = n_f1 = n_fmore = 0
     n_agree = n_disagree = n_nocompare = 0
     dis, shape = [], collections.Counter()
+    lv_max = collections.defaultdict(int)     # 逐演目格看实测天花板（判「7 级锁」那类二手说法）
+    lv_n = collections.Counter()
     for p in paths:
         try:
             b = board(os.path.basename(p))
@@ -74,6 +76,10 @@ def scan_all():
         lv, gg, fl = b[0], b[1], b[2]
         n_board += 1
         shape[len(lv)] += 1
+        for t, v in lv.items():
+            if isinstance(v, int):
+                lv_max[t] = max(lv_max[t], v)
+                lv_n[t] += 1
         if len(fl) == 0:
             n_f0 += 1
             continue
@@ -102,6 +108,9 @@ def scan_all():
     print(f"  F 标记 1 格    : {n_f1}   → **指针不是计数器**")
     print(f"  F 标记 >1 格   : {n_fmore}")
     print(f"  F == argmin(Lv,槽,下标) : 支持 {n_agree} / 违例 {n_disagree} / 不可比 {n_nocompare}")
+    print("  逐格实测 Lv 天花板（判「某格锁在 7 级」这类二手说法；act_type↔五维 未证，故只按格报）：")
+    for t in sorted(lv_max):
+        print(f"    act{t}  观测 max={lv_max[t]}  帧数={lv_n[t]}")
     for d in dis:
         print("    ", d)
 
