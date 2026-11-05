@@ -44,6 +44,10 @@
   仍未提交且不该提交的残留：`data/cardDB.json.bak_20261031`、`sweep_friend.py`、`sweep_vs.py`（历史遗留，未动）。
   ~~⚠️ 黑板的后端落后两格~~ **已发布（11-03 深夜，经点头）**：面板 `rust/` 的 `backend_build.json`
   现在 `git_commit = 4d2de28`，2 exe + 10 个 `data/` 全刷新，exe 与 `target/release/` 逐字节同 sha。
+  > **11-06 更新（本条已被覆盖）**：现 `git_commit = 4abcce6`（`search_score` 补 `revise`），
+  > 且发现 **`rust/data/scenario_matsuri.json` 自 11-03 起就与引擎那份漂移**（差 `check_points`／`race_reward`
+  > 两个顶层键 ⇒ #16 与 #33/#35 在线上一直没生效），已同步平。发布记录与备份见
+  > `docs/panel_backend_20261102.md` §11。
   发布前后做了三臂 CRN 配对（`docs/后端发布前后配对_20261103.md`）：
   **旧后端是虚高的**——它把演目平摊 10 也算进了四个非主属性的乘区，比新口径高 ~1,560 五维和 /
   ~19,096 五维分；补上 home 腿只回来 +664 / +7,934 ⇒ **净效果离单局锚点更远**（五维分 −17%），

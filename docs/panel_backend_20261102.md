@@ -103,3 +103,49 @@ hachimi（`E:/steam/.../UmamusumePrettyDerby_Jpn/hachimi/config.json`）两个�
   - 他们**补上我们缺的**：`check_point_rewards` 6 行（ファン数没有，理事長絆 / 演目负责人 / ヒント技名+Lv 有）、`career_end_rewards` 2 行、`finals_act = {vital 30, motivation 1, fail_rate_drop 100, extra_member 1}`、`check_points` 累计 buff（deyilv 20/40/60/80 + hint_rate 0→150）、`advice_windows [2,11,23,35,47,59]`、`acts` 的 `npc_chara_id`、`rules.friendship_gain{friend 4, card 7, lesson 3, charm 2}`、`[trainer]` 权重表（vital 1.2 / motivation 30 / friendship 0.6 / hint 1 / gauge 25 / act_level 120 / checkpoint 800 / fat 120）
   - **别直接搬的两处**：① `training.keiko` Junior 主属性 16/14/14/15/12 = 就是 `日文调查备忘 20261101` 那份 memo 的数，我们真机读数 11~17 对不上 ⇒ 上游也引的二手，不是独立证据；② `limits.five_status_limit_base [2200,1850,1800,1700,1800]` 与我们报文口径的 `default_max_* = 1200` 不在同一层，语义没钉死前不接。
 - 解压副本在 `D:/Downloads/_simtest_ref/Matsuri_Sim_Test/`（临时，随时可删）。Windows 自带 `C:/Windows/System32/tar.exe`（bsdtar 3.8.4 / libarchive）能直接读 RAR5，**不用装 7-Zip**。
+
+---
+
+## 11. 11-06 发布记录：后端推到 `4abcce6`（revise 进搜索层）＋**顺手结掉一处数据漂移**
+
+经用户两次分别点头（先「发布到黑板」，再「同步 data 里的 `check_points` 和 `race_reward`」）。
+
+### 11.1 代码件
+
+| 件 | 新 sha256 | 大小 | 旧件（备份位置） |
+|---|---|---|---|
+| `rust/matsuri-mccli.exe` | `67b9b943650a359c…28f0e0` | 1,974,272 | `f7b0f52c8b17d838…`（11-03 05:05） |
+| `rust/matsuri-dist.exe` | `7ab0eedd2c58a187…c25436` | 1,788,928 | `f42236ea3d963a32…`（11-03 04:39） |
+
+旧件（含旧 `rust/data/scenario_matsuri.json`）全部备份在
+`E:/HJM/umaai-matsuri/out/backend_backup_20261106/`——**必须备份**，因为 `rust/` 被面板仓
+`.gitignore:19` 整目录忽略，覆盖即不可回滚。`backend_build.json` 现记
+`git_commit = 4abcce61ef45…`／`git_branch = feat/panel-backend`，两个 exe 的 sha256 与 size **逐件校验匹配**。
+
+### 11.2 数据同步（本次的实质发现之一）
+
+同步前 `rust/data/scenario_matsuri.json`（sha1 `bb941d56d0`）与引擎那份（`bef504e75a`）**只差两个顶层键**：
+
+| 键 | 对应已落地但线上未生效的改动 |
+|---|---|
+| `check_points` | #16 发表会语义钉死 ＋ 第 4 场 t78（现 4 场） |
+| `race_reward` | #33／#35 赛后奖励按等级分档 ＋ 逐卡终值表（现 3 张卡） |
+
+其余四个数据文件（`constants.json`／`cardDB.json`／`umaDB.json`／`events.json`）本来就逐字节相同。
+⇒ **面板后端此前一直在跑 11-02/03 的旧表**，#16 与 #33/#35 在线上没生效。
+现整份拷平（同步后与引擎那份 sha1 相同，剩余不同顶层键 = 无）。
+
+### 11.3 验证
+
+- `paths.rust_exe()` 两个 exe 都解析到，且 cwd 正确给成 `rust/`（exe 按相对 `data/` 找表）。
+- 真环境冒烟 5 个局面全部 `ok=True`：t15 训练速度／t30 训练力量（排序 力量>根性>稽古流鏑馬>智力>休息>耐力）／
+  t29 休息／t48 训练根性／t78 休息。新表能被加载（`check_points` 第 4 场的 `success/great` 为 null 不触发校验拒绝）。
+- 面板仓 `git status` 干净 ⇒ 发布物全在 ignore 内，**不需要在面板仓提交**。
+
+### 11.4 一条限定与一条旁证
+
+- 冒烟里新件分数比旧件高约 9.7k，但**旧件落后三个代码提交**（`4b49604`/`26a84de`/`7d67a15`），
+  该差值**不能**当 revise 的隔离量；隔离量在 `docs/S7定价2x2_20261103.md` §11 的 A/B pilot（同基线只差 `7b6d0bc`）。
+- 旁证（二手，不升级为结论）：上游配置里 `finals_act = {vital 30, motivation 1, …}`
+  与我方 §25 用报文一手钉住的「收尾期稽古 体力+30 ∧ 干劲+1」同形——上游也是这么写的，
+  但那是他们的配置声明，**不替代**我们的一手判据。
