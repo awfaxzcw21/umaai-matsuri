@@ -323,4 +323,38 @@ holdout 分卷）；#55 读数口径加 CVaR 下尾 + P(≥LG15)；反向 RNG �
 本篇的增量只有两条，且都**未接线**：①`single_mode_skill_need_point` 与 `skill_data` **1195/1195 全 join**
 ⇒ 「价」这列表侧完整；②`grade_value/need_skill_point` **按稀有度劈开**（rar1 `1.017`／rar2 `3.016`），
 我们 11-03 定的全局汇率 **2.61 恰落在两档之间** ⇒ 形态上是混合池平均、不是机制常数。
-硬规则：`grade_value` 未与任何一局真机技能侧对上之前**不进估值层**；`need_skill_point` 是否等于实扣 PT **未核**。
+硬规则：`grade_value` 未与任何一局真机技能侧对上之前**不进估值层**；`need_skill_point` 是否等于实扣 PT ——
+**11-05 下午已核：不等于**。三局 `single_mode_gain_skills_request_common`（t78）实扣
+**8,449／8,354／8,331**，而同局终局 `skill_array` 的表价合计 **11,060／10,730／10,280**（三局全部表价 > 实扣）
+⇒ 表价与实扣**不是 1:1**；候选解释是 scen15 `gimmick_discount_rate=5000`（50%）与不吃 PT 的免费项
+（固有／进化／提示获得）混在同一份终局列表里，**两条腿尚未拆开**，不许据此反推汇率。
+
+---
+
+## 2026-11-05 下午一批：手机版 hachimi 插件（`hipatch` 线）三件 → 裁决在 [`../URA收尾期窗口报文核对_20261104.md`](../URA收尾期窗口报文核对_20261104.md) §25
+
+| 项 | 值 |
+|---|---|
+| 内容 | `libhachimi_ura_festa_v32816_perf-opt.so`（ARM64，内版 3.28.16）＋ `祭典杯_SO与手机版AI_源码全文_20261105.zip`（42 文件：v32816／v32817 两套 SO 源＋Kotlin＋HTML 面板＋CMake/Cargo/workflow＋全文 txt＋查看 html）＋ 第三变体 `lib.rs`（25,590 行） |
+| 原文件名 | 同名，落 `D:\Downloads`（16:30） |
+| sha1 | `.so` `a3b48cfcb029dc5ee583dc27a69d3e83ff891f39`（4,660,896 B）／zip `00b7017a969a9bb454de51a93f0f481d09ff0f98`（3,028,697 B）／`lib.rs` `6a24242cb3cd86591d5647a7cc933f68ad51259f`（1,049,887 B） |
+| 解包件 | `E:/HJM/_ref_hipatch/`（42 文件／12 MB，**仓外只读**） |
+| 自述来源 | `xf8410/hipatch` 分支 `workbench/v32816-merged-scenario15-20261101`，commit `95d23881`；剧本 15 只存在于这条**没发版**的线（现役 Release 3.28.4–3.28.15 的 `lib.rs` 里 festa 字节级零命中） |
+| 定级 | **二手**（第三方实现），但其中**字段名＋偏移**属可核验的客户端结构转述 |
+
+**裁决要点**（三条，全部我方自己重跑）：
+
+1. **对「预告」零增量**——`festa_probe_gauge_array`（`源码_SO_v32816_lib.rs:3961`）只做指针链＋hex dump，
+   作者自己在 `:3957-3958` 写明叶类 `ObscuredSingleModeFestaPredictGainActGauge` 布局
+   「has never had its layout measured」⇒ 这条线**没解出预告数值**；
+   而我方 `tools/outing_act_level_scan.py:16/82` 早已把报文 `command_gain_act_gauge_array` 当主判据。
+2. **唯一净产出＝同构核对通过**——插件读的内存字段名／偏移与报文 `festa_data_set` 的键**逐一对上**
+   （DataSet 顶层 9 键 × 4,197 包；`CommandInfo` 五字段 `0x10/0x24/0x38/0x40/0x48` ↔ 元素键恰 5 个，5,191 元素／799 包非空）
+   ⇒ 我方报文侧 festa 解码可信度升一档。
+3. **副产品才是干货**——预告面里 `target_type=20 value=1` **只挂稽古 5101–5105、只在面板 73–78**（385 条），
+   而**表侧 5101–5105 无 `tt=20` 行**；但 265/385 条发生在 motivation 已顶格时 ⇒ **预告是名义值**，不计入实得。
+   详见 `../URA收尾期窗口报文核对_20261104.md` §25。
+
+**禁令**：`hipatch` 不是 `umaai-rs`／`umaai_next`，也不是本仓 ⇒ 只读、缺陷不外报、不许照抄进 `data/`；
+第三变体 `lib.rs` 与 `.so` 的对应**未证实**（无 BUILD-MANIFEST／sha），引用必须带这句。
+
