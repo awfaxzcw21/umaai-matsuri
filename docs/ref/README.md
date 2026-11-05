@@ -363,3 +363,34 @@ holdout 分卷）；#55 读数口径加 CVaR 下尾 + P(≥LG15)；反向 RNG �
 **禁令**：`hipatch` 不是 `umaai-rs`／`umaai_next`，也不是本仓 ⇒ 只读、缺陷不外报、不许照抄进 `data/`；
 第三变体 `lib.rs` 与 `.so` 的对应**未证实**（无 BUILD-MANIFEST／sha），引用必须带这句。
 
+---
+
+## 2026-11-06 凌晨一批：凯旋门时期 UmaAi v0.9.5（双档）→ [`umaai_kaishengmen_v095_20261106.md`](umaai_kaishengmen_v095_20261106.md)
+
+| 项 | 值 |
+|---|---|
+| 内容 | `D:/Downloads/UmaAi_v0.9.5.7z`（251,630,235 B，16 文件）＋ `凯旋门db目录.zip`（4,650,839 B）；解包件落 `E:/HJM/_ref_kaishengmen/`（仓外只读） |
+| 定级 | **二手·外部实现**（exe 未反编译，可读的是两份 `aiConfig*.json`、`说明.txt` 与明文权重 `db/model.txt`） |
+| 自述来源 | 源代码 `github.com/hzyhhzy/UmaAi`；署名 Sigmoid／**库兰**／离披（小黑板作者）——**与本项目用户同名，是否同一人未核**，只当署名 |
+
+**两档的差异只在估值函数，搜索都是蒙特卡洛**：CPU 版 `modelPath=""` ＋ `searchDepth=67`（注释原话
+「非神经网络**必须直接搜到游戏结束**＝游戏回合数 67」）＝全 horizon rollout＋手写终端估值；
+神经网络版 `modelPath=db/model.txt` ＋ `searchDepth=5`／`searchN=2000`／`batchSize=512`＝截断 rollout＋价值网络补剩余局面。
+`model.txt` 已逐块读出（17 块、声明数与实际浮点逐块相等）：4 个输入头（global1/global2/card/person）＋
+**1 层** Q/V 注意力 encoder ＋ 3 层 256×256 MLP ＋ **21 维**输出头，约 **75 万参数**。
+
+**唯一直接可用的一条**（接 **#38**）：原文给 `radicalFactor` 的量程是「**平时 0~5，冲刺高分 5~20**（cuda）／5~10（CPU）」；
+而我方上游实现是 `crates/umasim/src/search/result.rs:134` 的 `weight = rank_ratio.powf(radical_factor)`
+（`rank_ratio ∈ (0,1]`，再乘 `(剩余/总)^0.5`）⇒ 它是**无量纲形状指数、不是分数尺度**，量程可比。
+我方生产档 `data/ai_config.toml:57` 的 **50.0** 比原文上界还高 2.5~10 倍（rank 0.5 的样本权重被压到 1.8e-16
+＝几乎只取最优那一小撮）；旧仓的 **1.4** 反而落在原文量程内。
+⇒ 判据：**#38 该扫的是 `{1,2,5,10,20}` 这一族，不是「50 还是 1.4」二选一**。
+⚠ 不许假定 UmaAi 的 `radicalFactor` 与我们的是同一个公式——同名同语义、公式未对过。
+
+**明确不能用**：凯旋门（剧本 6／67 回合）训出的权重与 `db/` 旧表（包内 cardDB 987,020 B 2023-12-28、
+zip 那份 1,245,335 B 2024-09-30，两份同名不同版本，且都早于现用 `master.mdb`）；
+`outputhead` 21 维语义、训练数据与损失、两个 exe 的实现——全部未证。
+另两条只作接口参考：`eventStrength`（支援卡事件强度单旋钮，「调高提高估分且更倾向控属性」）、
+显示口径「此训练相比**休息/外出**的收益」（＝我们 #17 的相对基线读法）。
+
+
