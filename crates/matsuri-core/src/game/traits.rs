@@ -286,4 +286,33 @@ impl FlatSearchGame for MatsuriGame {
         game.set_rule_master(rollout_seed);
         game
     }
+
+    /// 搜索排序口径：五维腿按**官方算法**过 `revise` 再查表，其余两腿沿用 `score_parts()`。
+    ///
+    /// 上游默认实现（`umasim/src/search/searchable.rs:71` → `game/uma.rs:233`）拿**原值**直接查表，
+    /// 而一手官方分是 `Σ five_status_final_score[revise(v)]`——395 张终局快照反解技能系数时用的就是
+    /// 这个口径（中位 1.0705、±0.6% 对得上 `rank_score`，见 `docs/ref/skill_grade_value_20261105.md` §8）。
+    /// 差多少：属性 2328 一档，原值查表 10,328、`revise` 后查表 **20,481** ⇒ 不补这层，
+    /// 搜索会把五维系统性低估近一倍，排序偏向攒 PT／技能而不是练属性。
+    /// 显示层 `matsuri-cli/src/dist.rs:125` 早就在替搜索层兜这个错（注释原话「引擎 `score_parts`
+    /// 少了 revise，这里补上」），两边口径不一致已存在很久。
+    fn search_score(&self, pt_favor_rate: f64) -> Result<f64> {
+        let parts = self.uma().score_parts()?;
+        let pt = (parts.pt as f32 * pt_favor_rate as f32) as i32;
+        let consts = &umaai_core::Data::get()?.consts;
+        let five: i32 = self
+            .uma()
+            .five_status
+            .iter()
+            .zip(self.uma().five_status_limit.iter())
+            .map(|(&status, &limit)| consts.status_final_score(revise(status.min(limit))))
+            .sum();
+        Ok((parts.skill + pt + five) as f64)
+    }
+}
+
+/// 游戏客户端 `ScoreUtils` 的逆：>1200 的属性按 `(v+1200)/2` 减半计分，
+/// 查终局评分表前先还原成「等效未衰减值」`2v-1200`。与 `dist.rs` 同名函数逐字一致。
+fn revise(v: i32) -> i32 {
+    if v <= 1200 { v } else { 2 * v - 1200 }
 }

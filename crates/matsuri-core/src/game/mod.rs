@@ -2733,4 +2733,52 @@ mod tests {
             "窗外：槽满升级那一下清零、Lv+1、干劲不动"
         );
     }
+
+    /// #24：搜索排序的五维腿必须**先 `revise` 再查表**。
+    ///
+    /// 一手依据：官方 `rank_score` 的五维腿就是 `Σ five_status_final_score[revise(v)]`——
+    /// 395 张终局快照按它反解技能系数得到中位 `1.0705`、±0.6% 对得上（`docs/ref/skill_grade_value_20261105.md` §8）。
+    /// 上游默认实现按**原值**查表（`umasim/src/game/uma.rs:233`），属性 2328 那一轴
+    /// 原值查表 10,328、`revise` 后 20,481 ⇒ 不补这层，搜索会把五维低估近一倍。
+    #[test]
+    fn search_score_indexes_stats_table_with_revise() {
+        use umasim::search::FlatSearchGame;
+        umaai_core::Data::init(crate::testing::data_dir()).ok();
+        let mut game = game_with_data(
+            Arc::new(MatsuriData::load(crate::testing::data_dir()).unwrap()),
+            &[(0, 3)],
+        );
+        for (i, v) in [2328, 1600, 1200, 1000, 800].iter().enumerate() {
+            game.base.uma.five_status[i] = *v;
+            game.base.uma.five_status_limit[i] = 2500;
+        }
+        game.base.uma.skill_pt = 0;
+        game.base.uma.total_hints = 0;
+        game.base.uma.skill_score = 0;
+
+        let consts = &umaai_core::Data::get().unwrap().consts;
+        let halved: i32 = game
+            .base
+            .uma
+            .five_status
+            .iter()
+            .map(|&v| consts.status_final_score(if v <= 1200 { v } else { 2 * v - 1200 }))
+            .sum();
+        let raw: i32 = game
+            .base
+            .uma
+            .five_status
+            .iter()
+            .map(|&v| consts.status_final_score(v))
+            .sum();
+
+        let got = game.search_score(1.0).unwrap() as i32;
+        assert_eq!(got, halved, "五维腿必须按 revise 后的索引查表");
+        // 差值可手算：2328 轴 20481−10328＝10,153，1600 轴 8013−5665＝2,348，其余三轴 ≤1200 不补
+        assert_eq!(
+            got - raw,
+            12_501,
+            "补上的量级应逐轴可算（10,153 + 2,348），不是拍出来的阈值"
+        );
+    }
 }
