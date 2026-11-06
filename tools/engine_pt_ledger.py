@@ -57,26 +57,29 @@ def num(x):
         return None
 
 
-def windows(rows):
-    """一局的 ptrace 行 → **窗口序列** [(turn, 窗口号, source, delta)]（按回合、按结算顺序）。
+def src_of(stage, fam, race):
+    """插桩腿 → 源名（**引擎侧唯一实现**，`export_attribution.py` 也走这里）。
 
     窗口号（插桩给的 stage 码）：0=Begin 回合事件腿 / 3=Begin 比赛+赛后腿 /
     4=Begin 発表会腿 / 5=Begin 收尾腿（恒 0，只为让账连续）/ 1=Train 落子腿 / 2=End 回合结算腿。
+    ⚠ 这是**结构对应** R1–R8，不是逐字照抄：引擎侧没有 cid/event_id 判据，隐藏事件被折进比赛腿。
     """
+    if stage == 1:                                      # 落子窗口：R1/R2/R3/R8 按动作族
+        return FAM_SRC.get(fam, "未归因") if fam else "未归因"
+    if stage == 4:
+        return "发表会"
+    if stage == 3:
+        return "比赛" if race else "事件"
+    if stage == 0:
+        return "事件"
+    return "其他命令"                                    # 2=End、5=Begin 收尾
+
+
+def windows(rows):
+    """一局的 ptrace 行 → **窗口序列** [(turn, 窗口号, source, delta)]（按回合、按结算顺序）。"""
     out = []
     for turn, stage, fam, _pre, post, race, _cp in sorted(rows):
-        d = post - _pre
-        if stage == 1:                                  # 落子窗口：R1/R2/R3/R8 按动作族
-            src = FAM_SRC[fam] if fam else "未归因"
-        elif stage == 4:
-            src = "发表会"
-        elif stage == 3:
-            src = "比赛" if race else "事件"
-        elif stage == 0:
-            src = "事件"
-        else:                                           # 2=End、5=Begin 收尾
-            src = "其他命令"
-        out.append((turn, stage, src, d))
+        out.append((turn, stage, src_of(stage, fam, race), post - _pre))
     return out
 
 

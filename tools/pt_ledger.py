@@ -74,6 +74,33 @@ def race_ids_by_rate(rows, race_turns):
     return {eid for eid, n in pos.items() if n and onr[eid] == n}, pos, onr
 
 
+def source_of(r, race_ids):
+    """R1–R8 归因（**唯一实现**，`tools/export_attribution.py` 也走这里，别再抄第二份）。
+    判据见本文件顶注；`race_ids` 由 `race_ids_by_rate()` 在全语料上算出（R5 是比率判定，不能按单窗口判）。"""
+    if r["d"] is not None and r["d"] < 0:
+        return "支出(技能购入等)"
+    ch = r["channel"]
+    if ch == "cmd":
+        ctype, cid, cg = num(r["ctype"]), num(r["cid"]), num(r["cgroup"])
+        if ctype == 1 and cid in TRAIN_IDS:
+            return "训练手"
+        if ctype == 1 and cid in KEIKO_IDS:
+            return "稽古/演目"
+        if ctype == 3 and cg in OUTING_GROUPS:
+            return "外出"
+        return "其他命令"
+    if ch == "event":
+        eid = num(r["event_id"])
+        if eid in CP_IDS and (r["T"] in CP_TURNS or r["Treq"] in CP_TURNS):
+            return "发表会"
+        if eid in race_ids:
+            return "比赛"
+        return "事件"
+    if ch == "start":
+        return "其他命令"
+    return "其他通道"
+
+
 def main():
     rows, race_turns = load()
     RACE_IDS, pos_all, onr_all = race_ids_by_rate(rows, race_turns)
@@ -82,30 +109,7 @@ def main():
         # 三种键实测（残差回合数 / |残差|）：post 15/11,634；pre 213/20,699；req 213/20,699
         # ⇒ 取 post（见 ledger.py 顶注与 E:/HJM/_pttrace/join_test.py 复现）。
         r["Tjoin"] = r["T"]
-
-    def classify(r):
-        if r["d"] is not None and r["d"] < 0:
-            return "支出(技能购入等)"
-        ch = r["channel"]
-        if ch == "cmd":
-            ctype, cid, cg = num(r["ctype"]), num(r["cid"]), num(r["cgroup"])
-            if ctype == 1 and cid in TRAIN_IDS:
-                return "训练手"
-            if ctype == 1 and cid in KEIKO_IDS:
-                return "稽古/演目"
-            if ctype == 3 and cg in OUTING_GROUPS:
-                return "外出"
-            return "其他命令"
-        if ch == "event":
-            eid = num(r["event_id"])
-            if eid in CP_IDS and (r["T"] in CP_TURNS or r["Treq"] in CP_TURNS):
-                return "发表会"
-            if eid in RACE_IDS:
-                return "比赛"
-            return "事件"
-        if ch == "start":
-            return "其他命令"
-        return "其他通道"
+        r["source"] = source_of(r, RACE_IDS)
 
     traj = list(csv.DictReader(open(os.path.join(D, "traj.csv"), encoding="utf-8")))
     for t in traj:
@@ -125,7 +129,7 @@ def main():
     for r in rows:
         if not r["run"] or r["same_run"] != "1" or r["d"] is None or r["T"] is None:
             continue
-        src = classify(r)
+        src = r["source"]
         per_all[(r["run"], src)][0] += 1
         per_all[(r["run"], src)][1] += r["d"]
         if r["run"] in full_runs:
