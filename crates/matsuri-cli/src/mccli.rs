@@ -253,41 +253,13 @@ fn run() -> Result<()> {
         let (rows, total) = one_ply_rows(&game, &actions, search_n)?;
         (rows, Value::Null, total, 1usize)
     };
-    // 発表会兜底（S2 排程规则）：临近检查点且演目未达标时，
-    // 优先推「最接近达标」的那个演目的训练/稽古（不是改搜索，只是候选排序约束）
-    let mut rows = rows;
-    if let Some(cp) = game
-        .data
-        .check_points
-        .iter()
-        .find(|c| c.turn >= game.turn)
-        .cloned()
-    {
-        let deadline = cp.turn - game.turn;
-        let deficit: Vec<(usize, i32, i32)> = (0..5usize)
-            .filter(|i| game.act_level[*i] < cp.need)
-            .map(|i| (i, cp.need - game.act_level[i], game.act_gauge[i]))
-            .collect();
-        if deadline <= 15 && !deficit.is_empty() {
-            let idx = deficit
-                .iter()
-                .min_by_key(|(_, gap, gauge)| (*gap, -*gauge))
-                .map(|(i, _, _)| *i)
-                .unwrap_or(0);
-            const NAMES: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
-            let targets = [
-                format!("训练 {}", NAMES[idx]),
-                format!("稽古 {}", NAMES[idx]),
-            ];
-            if let Some(pos) = rows
-                .iter()
-                .position(|(label, _, _, _)| targets.contains(label))
-            {
-                let pick = rows.remove(pos);
-                rows.insert(0, pick);
-            }
-        }
-    }
+    // 発表会兜底（旧「S2 排程规则」）已删除 —— 见 docs/PT缺口逐源_20261106.md §22 与 #97。
+    // 三条实测理由：① t30 锚点上开着它和关掉它，三场发表会大成功率都是 150/150＝100%（没买到档）；
+    // ② from-t1 锚点（#49）开着反而把 CP2 大成功率从 73.6% 压到 29.9%（McNemar p=0.0000），
+    //    且每局改写 35 次落子（45% 的手），三分量显著更差；
+    // ③ 真机侧对应物是 `auto_setting_info`（玩家**声明**的演目配置，#50），没有「逐回合改落位」的一手出处；
+    //    而本剧本发表会**到回合必结算、未达标也发成功档**，
+    //    ⇒ 不存在「不兜底就育成失败」这个前提。
     let ranked: Vec<Value> = rows
         .iter()
         .map(|(label, mean, se, n)| {
