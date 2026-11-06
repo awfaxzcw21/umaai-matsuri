@@ -12,10 +12,10 @@ index a9499d4..6e61e46 100644
 +path = "src/cpcensus.rs"
 diff --git a/crates/matsuri-cli/src/cpcensus.rs b/crates/matsuri-cli/src/cpcensus.rs
 new file mode 100644
-index 0000000..376ccf9
+index 0000000..821c57a
 --- /dev/null
 +++ b/crates/matsuri-cli/src/cpcensus.rs
-@@ -0,0 +1,215 @@
+@@ -0,0 +1,217 @@
 +//! 【#100 测量壳专用，永不并回主仓】整局按**面板建议**打，量発表会档位会不会退化。
 +//!
 +//! 为什么需要它：#98 删掉的那条兜底只活在 `mccli` 的**候选重排**（建议层）。
@@ -186,6 +186,7 @@ index 0000000..376ccf9
 +        g.run_full_game(&trainer, &mut rng)?;
 +        let (five_sum, stat_score, pt) = gate_triple(&g)?;
 +        let cp_log = g.cp_log.clone();
++        let keiko_probe = g.keiko_probe.clone();
 +        let picks: Vec<String> = if trace_on() {
 +            std::mem::take(&mut *trainer.picks.borrow_mut())
 +        } else {
@@ -200,6 +201,7 @@ index 0000000..376ccf9
 +            "seed": seed,
 +            "from_t1": std::env::var("MC_FROM_T1").map(|v| v == "1").unwrap_or(false),
 +            "cp_log": cp_log,
++            "keiko_probe": keiko_probe,
 +            "five_sum": five_sum,
 +            "stat_score": stat_score,
 +            "pt": pt,
@@ -792,28 +794,36 @@ index a731c05..14a493a 100644
      // 报文 `training_partner_array`（= 面板 `commands[].partner_ids`）混着三套 id：
      //   1..=6      支援卡位置（`persons` 前缀，与 `deck` 逐槽同序）
 diff --git a/crates/matsuri-core/src/game/mod.rs b/crates/matsuri-core/src/game/mod.rs
-index d8c704a..697625a 100644
+index d8c704a..b3e71d1 100644
 --- a/crates/matsuri-core/src/game/mod.rs
 +++ b/crates/matsuri-core/src/game/mod.rs
-@@ -270,6 +270,9 @@ pub struct MatsuriGame {
+@@ -270,6 +270,16 @@ pub struct MatsuriGame {
      ///
      /// 只用于查 `race_reward.cards` 的**逐卡赛后奖励终值表**；0 = 未知 ⇒ 走兜底档。
      pub uma_id: u32,
 +    /// 【测量壳 #100】本局每一次発表会结算的 `(schedule, 是否大成功)`，由
 +    /// `apply_check_point` 自己写（不是外部按 act_level 折算），随局面 clone。
 +    pub cp_log: Vec<(i32, bool)>,
++    /// 【测量壳 #92③】每一手稽古记一条 `(演目idx, 演目Lv, festa腿该轴到账收益, festa腿SP, 是否失败)`。
++    /// 分母用 `festa[idx]`（已套 1200 软上限的那一腿，与报文预告同口径），分子用
++    /// `value.status_pt[5] × pt_mult`（**只有 festa 腿**的 SP，不含 home 腿），
++    /// 为的是和真机 `tt30 ÷ 该轴收益` 同式对表。
++    /// 再加两个数：`festa` 腿**套软上限之前**的值与当前该轴属性值，
++    /// 这样「比值随 Lv 涨」到底是真结构还是分母被 1200 砍出来的，就能同口径判。
++    pub keiko_probe: Vec<(i32, i32, i32, i32, bool, i32, i32)>,
  }
  
  impl Deref for MatsuriGame {
-@@ -330,6 +333,7 @@ impl MatsuriGame {
+@@ -330,6 +340,8 @@ impl MatsuriGame {
      ) -> Result<Self> {
          let mut game = Self {
              uma_id,
 +            cp_log: Vec::new(),
++            keiko_probe: Vec::new(),
              base: BaseGame::new(
                  uma_id,
                  deck_ids,
-@@ -842,6 +846,8 @@ impl MatsuriGame {
+@@ -842,6 +854,8 @@ impl MatsuriGame {
      }
  
      fn apply_check_point(&mut self, cp: &CheckPointDef, great: bool) {
@@ -822,9 +832,93 @@ index d8c704a..697625a 100644
          // buff 行可为 `null`（第 4 场没有一手来源）⇒ 不改，也不许拿前一场的值顶
          if let Some(buff) = if great { &cp.great } else { &cp.success } {
              self.gain_pct = buff.gain_pct as f64 / 100.0;
+@@ -1460,6 +1474,21 @@ impl MatsuriGame {
+             vital: value.vital + vital_delta,
+             ..Default::default()
+         };
++        // 【测量壳 #92③】同一条式子：festa 腿收益 vs festa 腿 SP
++        {
++            let sp_leg = (value.status_pt[5] as f64 * pt_mult) as i32;
++            // 套 soft_cap 之前的那一腿（同一个闭包，同口径）
++            let pre = festa_axis(idx);
++            self.keiko_probe.push((
++                idx as i32,
++                self.act_level[idx],
++                festa[idx],
++                sp_leg,
++                failed,
++                pre,
++                self.uma().five_status[idx],
++            ));
++        }
+         if failed {
+             // 稽古失败与普通训练失败同一套「無茶は厳禁！」口径（2026-10-31 真机）：
+             // 体力 +10（回复）、干劲 −1、该演目维度 −10 + 随机 2 项各 −10、
+diff --git a/crates/matsuri-core/src/trainer.rs b/crates/matsuri-core/src/trainer.rs
+index 44087ac..b3e434b 100644
+--- a/crates/matsuri-core/src/trainer.rs
++++ b/crates/matsuri-core/src/trainer.rs
+@@ -151,6 +151,8 @@ impl MatsuriRolloutTrainer {
+             }
+         }
+         // 4) 発表会截止：练未达标的演目（等级低优先，同等级优先 gauge 高的，更接近稽古）
++        // 【测量壳 #101】`UMA_NO_TRAINER_CP_RULE=1` ⇒ 跳过这条（与 #98 删掉的 mccli 重排同族）。
++        let skip_cp_rule = std::env::var("UMA_NO_TRAINER_CP_RULE").is_ok();
+         let need = game
+             .data
+             .check_points
+@@ -158,6 +160,7 @@ impl MatsuriRolloutTrainer {
+             .find(|c| c.turn >= game.turn)
+             .cloned();
+         if let Some(cp) = need
++            && !skip_cp_rule
+             && cp.turn - game.turn <= 15
+             && let Some(idx) = (0..5usize)
+                 .filter(|i| game.act_level[*i] < cp.need)
+diff --git a/kill_stray.ps1 b/kill_stray.ps1
+new file mode 100644
+index 0000000..f30cd3d
+--- /dev/null
++++ b/kill_stray.ps1
+@@ -0,0 +1,35 @@
++# Kill ONLY the accidentally launched batch (cpcensus writing out/cp98/run_[AB]_*).
++# Never touches the t1K1024 jobs, never touches wait_K1024.sh.
++$ErrorActionPreference = 'SilentlyContinue'
++
++$procs = @(Get-CimInstance Win32_Process -Filter "name='matsuri-cpcensus.exe'")
++$keep = @(); $kill = @()
++foreach ($p in $procs) {
++    $c = $p.CommandLine
++    if ($null -ne $c -and $c -match 't1K1024') { $keep += $p }
++    elseif ($null -ne $c -and $c -match 'run_[AB]_') { $kill += $p }
++    else { $kill += $p }
++}
++Write-Output ("total cpcensus = {0}  keep(t1K1024) = {1}  kill = {2}" -f $procs.Count, $keep.Count, $kill.Count)
++
++# first stop the spawner so no new jobs are launched
++$spawn = @(Get-CimInstance Win32_Process -Filter "name='bash.exe'" |
++    Where-Object { $_.CommandLine -match 'run_cp98\.sh' -and $_.CommandLine -match 'check' })
++foreach ($s in $spawn) {
++    Write-Output ("kill spawner PID {0}" -f $s.ProcessId)
++    Stop-Process -Id $s.ProcessId -Force
++}
++
++foreach ($p in $kill) {
++    Write-Output ("kill worker PID {0}" -f $p.ProcessId)
++    Stop-Process -Id $p.ProcessId -Force
++}
++
++Start-Sleep -Seconds 3
++$left = @(Get-CimInstance Win32_Process -Filter "name='matsuri-cpcensus.exe'")
++Write-Output ("after kill: {0} processes left" -f $left.Count)
++foreach ($p in $left) {
++    $c = $p.CommandLine
++    $tag = if ($null -ne $c -and $c -match 't1K1024') { 'K1024-OK' } elseif ($null -ne $c -and $c -match 'run_[AB]_') { 'STILL-STRAY' } else { 'UNKNOWN' }
++    Write-Output ("  PID {0} {1}" -f $p.ProcessId, $tag)
++}
 diff --git a/run_cp98.sh b/run_cp98.sh
 new file mode 100644
-index 0000000..d1cdbb2
+index 0000000..85ae903
 --- /dev/null
 +++ b/run_cp98.sh
 @@ -0,0 +1,33 @@
@@ -848,7 +942,7 @@ index 0000000..d1cdbb2
 +rm -f "$OUT/${TAG}"_*.jsonl "$OUT/${TAG}"_*.log
 +
 +echo "== $TAG: K=$K FROM_T1=$T1 shards=$SHARDS n/片=$NPER 并发=$JOBS =="
-+echo "   exe sha $("$EXE" >/dev/null; sha1sum "$EXE" | cut -c1-12)  state=$STATE"
++echo "   exe sha $(sha1sum "$EXE" | cut -c1-12)  state=$STATE"
 +t0=$(date +%s)
 +for s in $(seq 1 "$SHARDS"); do
 +  for arm in A B; do
@@ -861,3 +955,46 @@ index 0000000..d1cdbb2
 +wait
 +n=$(cat "$OUT/${TAG}"_*.jsonl | grep -c .)
 +echo "== $TAG 完：$n 局，墙钟 $(( $(date +%s) - t0 ))s =="
+diff --git a/wait_K1024.sh b/wait_K1024.sh
+new file mode 100644
+index 0000000..fad25f4
+--- /dev/null
++++ b/wait_K1024.sh
+@@ -0,0 +1,37 @@
++#!/usr/bin/env bash
++# #100 K=1024 收尾守望：等 24 片全落地，然后出「档位配对 McNemar ＋ 三分量配对差 ＋ 仪器读数」。
++# 结果同时写 out/cp98/K1024_result.txt（含时间戳），本脚本自身的 stdout 只报进度。
++set -u
++cd "$(dirname "$0")"
++OUT=out/cp98
++RES=$OUT/K1024_result.txt
++T0=$(date +%s)
++while :; do
++  n=$(ls "$OUT"/t1K1024_*.jsonl 2>/dev/null | wc -l)
++  g=$(grep -ho '局 [0-9]*/4' "$OUT"/t1K1024_*.log 2>/dev/null | awk -F'[ /]' '{s+=$2} END{print s+0}')
++  if [ "$n" -ge 24 ]; then
++    echo "[$(( ($(date +%s)-T0)/60 )) 分] 24 片齐，开始出读数"
++    break
++  fi
++  if [ $(( $(date +%s) - T0 )) -gt 9000 ]; then
++    echo "[$(( ($(date +%s)-T0)/60 )) 分] 超时保护：只有 $n/24 片（局 $g/96），用现有片出读数"
++    break
++  fi
++  sleep 60
++done
++
++A="$OUT/t1K1024_A_s*.jsonl"
++B="$OUT/t1K1024_B_s*.jsonl"
++MT=/e/HJM/umaai-matsuri/tools/cp98_tiers.py
++MI=/e/HJM/umaai-matsuri/tools/cp98_instrument.py
++{
++  echo "# #100 K=1024（面板真实预算）双臂读数 — $(date -Is)"
++  echo
++  echo "## 三分量 ＋ 逐场大成功率"
++  python "$MT" --a "$A" --b "$B" --tag "K=1024 面板真实预算（整局按面板建议打）"
++  echo
++  echo "## 仪器（确定性／CRN 用料／A 臂剂量／B 臂终值）"
++  python "$MI" --a "$A" --b "$B" --workdir "E:/HJM/_wt_cp98"
++} > "$RES" 2>&1
++echo "读数已写入 $RES"
++tail -n 40 "$RES"
