@@ -117,21 +117,23 @@ def cells(arm, base):
 def main():
     base = sys.argv[1] if len(sys.argv) > 1 else "out/legcell_ab"
     arms = {}
-    for tag, arm in (("A 现行", "AB_fail"), ("B 不掷失败", "AB_nofail"), ("C 掷而不罚", "C")):
+    for tag, arm in (("A 现行", "AB_fail"), ("B 不掷失败", "AB_nofail"),
+                     ("C 掷而不罚", "C"), ("A2 同 exe 对照", "A2")):
         m = load(arm, base)
         if m:
             arms[tag] = m
         else:
             print(f"（{tag}：{base}/dump_{arm}_s*.jsonl 还没有，跳过）")
     print(f"== 稽古腿自身（{base}/res_*.json）==")
-    for tag, arm in (("A 现行", "AB_fail"), ("B 不掷失败", "AB_nofail"), ("C 掷而不罚", "C")):
+    for tag, arm in (("A 现行", "AB_fail"), ("B 不掷失败", "AB_nofail"),
+                     ("C 掷而不罚", "C"), ("A2 同 exe 对照", "A2")):
         c = cells(arm, base)
         if c:
             print(f"  {tag:<10} {c['runs']} 局  稽古全手 {c['hands']:.2f}/局 "
                   f"失败 {c['failed']:.2f}/局（{c['rate']*100:.1f}%） "
                   f"成功腿均值 home {c['home']:.1f} + festa {c['festa']:.1f} "
                   f"⇒ 腿 PT {c['legpt']:,.0f}/局")
-    keys = list(arms)
+    keys = [k for k in ("A 现行", "B 不掷失败", "C 掷而不罚", "A2 同 exe 对照") if k in arms]
     for i in range(len(keys)):
         for j in range(i + 1, len(keys)):
             paired(arms[keys[i]], arms[keys[j]], keys[i], keys[j])
