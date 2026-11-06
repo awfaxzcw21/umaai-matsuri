@@ -1,0 +1,863 @@
+diff --git a/crates/matsuri-cli/Cargo.toml b/crates/matsuri-cli/Cargo.toml
+index a9499d4..6e61e46 100644
+--- a/crates/matsuri-cli/Cargo.toml
++++ b/crates/matsuri-cli/Cargo.toml
+@@ -38,3 +38,7 @@ anyhow.workspace = true
+ rand.workspace = true
+ serde_json.workspace = true
+ serde.workspace = true
++
++[[bin]]
++name = "matsuri-cpcensus"
++path = "src/cpcensus.rs"
+diff --git a/crates/matsuri-cli/src/cpcensus.rs b/crates/matsuri-cli/src/cpcensus.rs
+new file mode 100644
+index 0000000..376ccf9
+--- /dev/null
++++ b/crates/matsuri-cli/src/cpcensus.rs
+@@ -0,0 +1,215 @@
++//! 【#100 测量壳专用，永不并回主仓】整局按**面板建议**打，量発表会档位会不会退化。
++//!
++//! 为什么需要它：#98 删掉的那条兜底只活在 `mccli` 的**候选重排**（建议层）。
++//! `matsuri-dist` 用 `MatsuriRolloutTrainer` 基策跑整局，**根本不经过那段代码**，
++//! 所以「主树门禁 +0.0」对它是恒等式（见 `docs/PT缺口逐源_20261106.md` §24.1）。
++//! 想问「照着面板打，发表会档位会不会变差」，只能让整局的**每一手都取自面板的 top-1**，
++//! 而且必须调 `matsuri_cli::rank` 那份代码——历史上 `_wt_legcell/searcharm.rs` 是
++//! 照着另写一遍估值，那种壳对主树没有约束力。
++//!
++//! 用法：`matsuri-cpcensus <state.json> <out.jsonl> [--arm A|B]`
++//!
++//! 环境变量：
++//!   - `MC_ARM=A` ⇒ 把 #98 删掉那条重排**原样挂回**（＝发布前面板的行为）；
++//!     不设或 `B` ⇒ 不挂（＝现在发布的这个）。**同一颗 exe，只差这一个变量。**
++//!   - `MC_N` 局数、`MC_SEED` 种子基、`MC_K` 2-ply 预算、`MC_PLY`、`MC_FROM_T1=1` 停在开局
++//!   - `MC_TRACE=1` 每手落子序列也写进 jsonl
++//!
++//! 输出（jsonl，一行一局）：`i/seed/cp_log[[schedule,great],..]/five_sum/stat_score/pt/real/
++//! train_decisions/overridden/act_level_at_end`
++
++use std::cell::Cell;
++use std::sync::OnceLock;
++
++use anyhow::{Context, Result};
++use rand::SeedableRng;
++use rand::rngs::StdRng;
++use serde_json::json;
++
++use matsuri_core::game::{Action, MatsuriGame};
++use matsuri_core::trainer::MatsuriRolloutTrainer;
++use umasim::game::{Game, Trainer};
++use umasim::search::FlatSearchGame;
++
++use matsuri_cli::rank;
++use matsuri_cli::state;
++
++const GOLDEN_A: u64 = 0x5DEE_CE66_D1CE_4A1F;
++const GOLDEN_B: u64 = 0xD1B5_4A32_D192_ED03;
++
++/// A 臂＝把删掉的重排挂回去（`MC_ARM=A`）。不设＝B 臂＝发布后的行为。
++fn arm_a() -> bool {
++    static ON: OnceLock<bool> = OnceLock::new();
++    *ON.get_or_init(|| std::env::var("MC_ARM").map(|v| v.eq_ignore_ascii_case("A")).unwrap_or(false))
++}
++
++/// 【仪器自检】`MC_POLICY=base` ⇒ 训练决策也交给基策，整局应与 `matsuri-dist` 逐局相同
++/// （同种子散列、同 rng 派生、同三分量算法）。用来证明这台仪器本身的读数口径没跑偏。
++fn base_mode() -> bool {
++    static ON: OnceLock<bool> = OnceLock::new();
++    *ON.get_or_init(|| std::env::var("MC_POLICY").map(|v| v == "base").unwrap_or(false))
++}
++
++fn trace_on() -> bool {
++    static ON: OnceLock<bool> = OnceLock::new();
++    *ON.get_or_init(|| std::env::var("MC_TRACE").map(|v| v == "1").unwrap_or(false))
++}
++
++/// 每个训练决策点做一次与面板**同一段代码**的排序，取 top-1。
++/// 非训练决策点与事件选项全部委托基策 ⇒ 两臂只差在训练落位。
++struct PanelTrainer {
++    search_n: usize,
++    decisions: Cell<usize>,
++    overridden: Cell<usize>,
++    picks: std::cell::RefCell<Vec<String>>,
++}
++
++impl PanelTrainer {
++    fn pick_index(&self, game: &MatsuriGame, actions: &[Action]) -> Result<usize> {
++        let (acts, rows, ..) = rank::panel_rows(game, self.search_n)?;
++        let _ = &acts;
++        let mut rows = rows;
++        let bare = rows.first().map(|r| r.0.clone());
++        if arm_a() {
++            rank::legacy_cp_fallback_reorder(game, &mut rows);
++        }
++        let chosen = rows
++            .first()
++            .context("候选行为空")?
++            .0
++            .clone();
++        self.decisions.set(self.decisions.get() + 1);
++        if Some(chosen.as_str()) != bare.as_deref() {
++            self.overridden.set(self.overridden.get() + 1);
++        }
++        if trace_on() {
++            self.picks.borrow_mut().push(format!("t{}:{chosen}", game.turn));
++        }
++        // 按标签回到 actions 的下标（不假设 list_actions 的次序稳定）
++        actions
++            .iter()
++            .position(|a| rank::label_of(a) == chosen)
++            .with_context(|| format!("面板 top-1「{chosen}」不在本回合动作表里"))
++    }
++}
++
++impl Trainer<MatsuriGame> for PanelTrainer {
++    fn select_action(
++        &self,
++        game: &MatsuriGame,
++        actions: &[Action],
++        rng: &mut StdRng,
++    ) -> Result<usize> {
++        if base_mode() || game.stage().get() != rank::STAGE_TRAIN {
++            return MatsuriRolloutTrainer.select_action(game, actions, rng);
++        }
++        self.pick_index(game, actions)
++    }
++
++    fn select_choice(
++        &self,
++        game: &MatsuriGame,
++        choices: &[Vec<umaai_core::gamedata::EventChoice>],
++        rng: &mut StdRng,
++    ) -> Result<usize> {
++        MatsuriRolloutTrainer.select_choice(game, choices, rng)
++    }
++}
++
++fn revise(v: i32) -> i32 {
++    if v <= 1200 { v } else { 2 * v - 1200 }
++}
++
++/// 与 `dist.rs` 同一行口径（`consts.status_final_score(revise(v))`）；
++/// 一致性由 `tools/cp98_selfcheck.py` 拿基策档对 `matsuri-dist` 核。
++fn gate_triple(g: &MatsuriGame) -> Result<(i32, i32, i32)> {
++    let data = umaai_core::Data::get()?;
++    let consts = &data.consts;
++    let uma = g.uma();
++    let stat = uma
++        .five_status
++        .iter()
++        .map(|&v| consts.status_final_score(revise(v)))
++        .sum();
++    Ok((uma.five_status.iter().sum(), stat, uma.skill_pt))
++}
++
++fn main() {
++    if let Err(e) = run() {
++        eprintln!("错误: {e:#}");
++        std::process::exit(1);
++    }
++}
++
++fn run() -> Result<()> {
++    let args: Vec<String> = std::env::args().collect();
++    let state_path = args.get(1).cloned().unwrap_or("_state_t30.json".into());
++    let out_path = args.get(2).cloned().unwrap_or("out/cp98.jsonl".into());
++    let search_n: usize = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(200);
++    let n: usize = std::env::var("MC_N").ok().and_then(|s| s.parse().ok()).unwrap_or(4);
++    let seed_base: u64 = std::env::var("MC_SEED").ok().and_then(|s| s.parse().ok()).unwrap_or(0);
++    let raw = std::fs::read_to_string(&state_path).context("读状态失败")?;
++
++    let arm = if arm_a() { "A" } else { "B" };
++    let mut lines: Vec<String> = Vec::with_capacity(n);
++    let t0 = std::time::Instant::now();
++    for i in 0..n {
++        let seed = seed_base.wrapping_mul(GOLDEN_A).wrapping_add((i as u64).wrapping_mul(GOLDEN_B));
++        // 每局都重新装配：assemble_game 会改 game 状态，CRN 靠 seed 而不是靠复用局面
++        let loaded = state::assemble_game(&raw)?;
++        let mut g = loaded.game.fork_for_rollout(seed);
++        let trainer = PanelTrainer {
++            search_n,
++            decisions: Cell::new(0),
++            overridden: Cell::new(0),
++            picks: std::cell::RefCell::new(Vec::new()),
++        };
++        let mut rng = StdRng::seed_from_u64(seed ^ 0xA1B2_C3D4_5E6F_7081);
++        g.run_full_game(&trainer, &mut rng)?;
++        let (five_sum, stat_score, pt) = gate_triple(&g)?;
++        let cp_log = g.cp_log.clone();
++        let picks: Vec<String> = if trace_on() {
++            std::mem::take(&mut *trainer.picks.borrow_mut())
++        } else {
++            Vec::new()
++        };
++        let overridden = trainer.overridden.get();
++        let decisions = trainer.decisions.get();
++        let rec = json!({
++            "arm": arm,
++            "policy": if base_mode() { "base" } else { "panel" },
++            "i": i,
++            "seed": seed,
++            "from_t1": std::env::var("MC_FROM_T1").map(|v| v == "1").unwrap_or(false),
++            "cp_log": cp_log,
++            "five_sum": five_sum,
++            "stat_score": stat_score,
++            "pt": pt,
++            "train_decisions": decisions,
++            "overridden": overridden,
++            "act_level": g.act_level,
++            "act_gauge": g.act_gauge,
++            "picks": picks,
++        });
++        lines.push(serde_json::to_string(&rec)?);
++        eprintln!(
++            "[{arm}] 局 {}/{} seed={seed} cp={:?} 五维和={five_sum} 五维分={stat_score} PT={pt} 兜底改写={} / 训练决策={}",
++            i + 1,
++            n,
++            cp_log,
++            overridden,
++            decisions,
++        );
++    }
++    if let Some(dir) = std::path::Path::new(&out_path).parent() {
++        let _ = std::fs::create_dir_all(dir);
++    }
++    std::fs::write(&out_path, lines.join("\n") + "\n").context("写 jsonl 失败")?;
++    eprintln!(
++        "[{arm}] 完成 {} 局，用时 {:.1}s（{:.1}s/局）→ {out_path}",
++        n,
++        t0.elapsed().as_secs_f64(),
++        t0.elapsed().as_secs_f64() / n.max(1) as f64
++    );
++    Ok(())
++}
+diff --git a/crates/matsuri-cli/src/lib.rs b/crates/matsuri-cli/src/lib.rs
+index 77bd085..87ae2d2 100644
+--- a/crates/matsuri-cli/src/lib.rs
++++ b/crates/matsuri-cli/src/lib.rs
+@@ -3,4 +3,5 @@
+ //! `matsuri-mccli`（动作搜索）与 `matsuri-dist`（终局分布）共用同一套装配，
+ //! 保证两个后端对「当前局面」的理解逐字一致；回归测试也从这里进。
+ 
++pub mod rank;
+ pub mod state;
+diff --git a/crates/matsuri-cli/src/mccli.rs b/crates/matsuri-cli/src/mccli.rs
+index ea24562..7ab8e49 100644
+--- a/crates/matsuri-cli/src/mccli.rs
++++ b/crates/matsuri-cli/src/mccli.rs
+@@ -5,190 +5,12 @@
+ //! 状态字段与黑板现有的 `_mc_state.json` 对齐（turn/vital/stats/stat_caps/skill_point/acts）。
+ 
+ use anyhow::{Context, Result};
+-use rand::SeedableRng;
+-use rand::rngs::StdRng;
+ use serde_json::{Value, json};
+ 
+-use matsuri_core::game::{Action, MatsuriGame};
+-use matsuri_core::trainer::MatsuriRolloutTrainer;
+-use umasim::game::Game;
+-use umasim::search::{FlatSearch, FlatSearchGame, SearchConfig};
+ 
++use matsuri_cli::rank;
+ use matsuri_cli::state;
+ 
+-/// 动作 → 面板用的中文标签（与黑板规则引擎同口径）
+-fn label_of(a: &Action) -> String {
+-    const TRAIN: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
+-    const ACT: [&str; 5] = ["流鏑馬", "神旗争奪戦", "納舞", "大曳神輿", "飛駆"];
+-    match a {
+-        Action::Train(i) => format!("训练 {}", TRAIN[(*i as usize).min(4)]),
+-        Action::Keiko(i) => format!("稽古 {}", ACT[(*i as usize).min(4)]),
+-        Action::Outing => "出行".to_string(),
+-        Action::Rest => "休息".to_string(),
+-        Action::Clinic => "保健室".to_string(),
+-        Action::Race => "自选比赛".to_string(),
+-    }
+-}
+-
+-/// 剧本阶段机里「训练 / 比赛决策点」的编号（见 `matsuri-core/src/game/stage.rs`：Begin=0/Train=1/End=2）。
+-const STAGE_TRAIN: u64 = 1;
+-
+-/// 从当前 Train 阶段推进到**下一个** Train 阶段（中间的 End / 下回合 Begin 一并跑完）。
+-///
+-/// 返回 `false` = 已经到终局，后面没有决策点了。
+-fn to_next_train(g: &mut MatsuriGame, seed: u64) -> Result<bool> {
+-    while g.next() {
+-        if g.stage().get() == STAGE_TRAIN {
+-            return Ok(true);
+-        }
+-        let mut rr = StdRng::seed_from_u64(seed ^ 0x51ED_2701_9E37_79B9);
+-        g.run_stage(&MatsuriRolloutTrainer, &mut rr)?;
+-    }
+-    Ok(false)
+-}
+-
+-/// 2-ply：根动作的价值 = 「下一步最优子动作」的期望分，而不是根动作自己的单步均值。
+-///
+-/// CRN 做法：同一次 `fork_for_rollout(seed)` + 根动作 + 推进到下一个决策点，得到 `base`；
+-/// 各子动作都从 `base.clone()` 分叉，因此子动作之间的差异不含「未来事件抽签」的噪声。
+-/// 单步（1-ply）：官方 FlatSearch 只在根节点评估每个动作（UCB + rollout）。
+-/// 一行搜索结果：动作标签 / 均值 / 标准误 / 采样数
+-type Row = (String, f64, f64, u32);
+-
+-fn one_ply_rows(
+-    game: &MatsuriGame,
+-    actions: &[Action],
+-    search_n: usize,
+-) -> Result<(Vec<Row>, u32)> {
+-    // 上限从 800 抬到 5000：官方核心约 12,000 rollout/秒，800 远低于可承受预算
+-    // 探索项标准差（cpuct × 本值 × √total / n）。实测本剧本单次 rollout σ≈4,800，
+-    // 内核默认 2200 只有一半 → UCB 过早收敛（n=5000 时仍有动作只分到 256 次）。env 可覆盖以便扫描。
+-    let cfg_search = SearchConfig {
+-        search_n: search_n.clamp(50, 5000),
+-        max_depth: 0,
+-        expected_search_stdev: std::env::var("MC_EXPECTED_STDEV")
+-            .ok()
+-            .and_then(|s| s.parse::<f64>().ok())
+-            .unwrap_or(4800.0),
+-        ..SearchConfig::default()
+-    };
+-    let search = FlatSearch::<MatsuriGame>::new(cfg_search);
+-    let mut rng = StdRng::seed_from_u64(20261028);
+-
+-    let out = search.search_with(game, actions, &mut rng, |g, a, seed| {
+-        let mut g = g.fork_for_rollout(seed);
+-        let mut r = StdRng::seed_from_u64(seed ^ 0x9E37_79B9_7F4A_7C15);
+-        g.apply_root_action(a, &mut r)?;
+-        while g.next() {
+-            let mut rr = StdRng::seed_from_u64(seed ^ 0x51ED_2701);
+-            g.run_stage(&MatsuriRolloutTrainer, &mut rr)?;
+-        }
+-        g.search_score(1.0)
+-    })?;
+-
+-    let mut rows: Vec<Row> = out
+-        .actions
+-        .iter()
+-        .zip(out.action_results.iter())
+-        .map(|(a, ar)| {
+-            let n = ar.count();
+-            let mean = ar.mean();
+-            let se = if n > 1 {
+-                ar.stdev() / (n as f64).sqrt()
+-            } else {
+-                0.0
+-            };
+-            (label_of(a), mean, se, n)
+-        })
+-        .collect();
+-    rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+-    let total = out.action_results.iter().map(|a| a.count()).sum::<u32>();
+-    Ok((rows, total))
+-}
+-
+-/// 两步（2-ply）：每个根动作先下，再推到下一个训练回合，然后对子动作逐个 rollout 到终局。
+-/// 根动作价值 = 子动作均值里最好的那个（等价「下一步也选对」的可达值）。
+-/// 子动作共享同一个 fork 点（CRN），所以子动作之间的差是配对差，噪声被抵消掉。
+-fn two_ply_rows(
+-    game: &MatsuriGame,
+-    actions: &[Action],
+-    k: usize,
+-) -> Result<(Vec<Row>, Value, u32)> {
+-    let mut rows: Vec<Row> = Vec::new();
+-    let mut plan: Vec<Value> = Vec::new();
+-    let mut total: u32 = 0;
+-    // 种子基（MC_SEED）：换一次就能检验「结论是不是这套抽样序列碰巧跑出来的」
+-    let seed_base: u64 = std::env::var("MC_SEED")
+-        .ok()
+-        .and_then(|s| s.parse::<u64>().ok())
+-        .unwrap_or(0);
+-    for (ai, a) in actions.iter().enumerate() {
+-        // 子局面候选动作：推进的回合数只由根动作决定（与种子无关）→ 探一次即可
+-        let mut probe = game.fork_for_rollout(0x5555_0001_0000 ^ ai as u64);
+-        let mut pr = StdRng::seed_from_u64(0x1234_5678_9ABC_DEF0 ^ ai as u64);
+-        probe.apply_root_action(a, &mut pr)?;
+-        let child_actions = if to_next_train(&mut probe, 0x5555_0001_0000 ^ ai as u64)? {
+-            probe.list_actions()?
+-        } else {
+-            Vec::new()
+-        };
+-
+-        let mut sums = vec![0.0f64; child_actions.len()];
+-        let mut sqs = vec![0.0f64; child_actions.len()];
+-        let mut cnt = 0usize;
+-        for ki in 0..k {
+-            let seed = seed_base
+-                .wrapping_mul(0x5DEE_CE66_D1CE_4A1F)
+-                .wrapping_add((ai as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15))
+-                .wrapping_add((ki as u64).wrapping_mul(0xD1B5_4A32_D192_ED03));
+-            let mut base = game.fork_for_rollout(seed);
+-            let mut r = StdRng::seed_from_u64(seed ^ 0xA1B2_C3D4_5E6F_7081);
+-            base.apply_root_action(a, &mut r)?;
+-            if !to_next_train(&mut base, seed)? {
+-                break;
+-            }
+-            for (j, b) in child_actions.iter().enumerate() {
+-                let mut g = base.clone();
+-                let mut r2 = StdRng::seed_from_u64(seed ^ 0xB00B_5EED_0000_0001 ^ j as u64);
+-                g.apply_root_action(b, &mut r2)?;
+-                while g.next() {
+-                    let mut rr = StdRng::seed_from_u64(seed ^ 0x51ED_2701_9E37_79B9);
+-                    g.run_stage(&MatsuriRolloutTrainer, &mut rr)?;
+-                }
+-                let sc = g.search_score(1.0)?;
+-                sums[j] += sc;
+-                sqs[j] += sc * sc;
+-            }
+-            cnt += 1;
+-        }
+-
+-        let mut best: (f64, usize, f64) = (f64::NEG_INFINITY, usize::MAX, 0.0);
+-        if cnt > 0 {
+-            for j in 0..child_actions.len() {
+-                let m = sums[j] / cnt as f64;
+-                if m > best.0 {
+-                    let var = (sqs[j] / cnt as f64 - m * m).max(0.0);
+-                    best = (m, j, (var / cnt as f64).sqrt());
+-                }
+-            }
+-        }
+-        // cnt == 0（没有下一训练 / 推进失败）：给 0 分占位，别把 ±inf 写进 JSON
+-        let score = if best.0.is_finite() { best.0 } else { 0.0 };
+-        rows.push((label_of(a), score, best.2, cnt as u32));
+-        total += (cnt * child_actions.len()) as u32;
+-        plan.push(json!({
+-            "action": label_of(a),
+-            "next": child_actions.get(best.1).map(label_of),
+-            "score": score,
+-            "se": best.2,
+-            "n": cnt,
+-            "no_next_train": child_actions.is_empty(),
+-        }));
+-    }
+-    rows.sort_by(|x, y| y.1.partial_cmp(&x.1).unwrap_or(std::cmp::Ordering::Equal));
+-    Ok((rows, json!(plan), total))
+-}
+-
+ fn main() {
+     if let Err(e) = run() {
+         eprintln!("错误: {e:#}");
+@@ -217,42 +39,9 @@ fn run() -> Result<()> {
+     let deck_fallback = loaded.deck_fallback;
+     let schedule_note = loaded.schedule_note;
+ 
+-    let actions = game.list_actions()?;
+-    // 搜索形态：MC_PLY=2（默认）两步搜索；MC_PLY=1 退回官方 FlatSearch 根节点评估。
+-    let want_ply: usize = std::env::var("MC_PLY")
+-        .ok()
+-        .and_then(|s| s.parse::<usize>().ok())
+-        .unwrap_or(2);
+-    // 先探一下「有没有下一个训练」：终局回合两步没有意义，直接单步（省掉 2.5 万次 rollout）
+-    let want_ply = if want_ply >= 2 {
+-        let probe_seed = 0x2B1E_0000_0000_0001u64;
+-        let mut probe = game.fork_for_rollout(probe_seed);
+-        if to_next_train(&mut probe, probe_seed)? {
+-            want_ply
+-        } else {
+-            1
+-        }
+-    } else {
+-        want_ply
+-    };
+-    let (rows, plan, rollouts, ply) = if want_ply >= 2 {
+-        // 2-ply：根动作价值 = 「下一步最优子动作」的期望分，子动作之间由 CRN 配对（见 two_ply_rows）
+-        let k: usize = std::env::var("MC_K")
+-            .ok()
+-            .and_then(|s| s.parse::<usize>().ok())
+-            .unwrap_or(512);
+-        let (rows, plan, total) = two_ply_rows(&game, &actions, k)?;
+-        if rows.iter().all(|r| r.3 == 0) {
+-            // 子局面全都推进不动（极端终局）：退回单步，别让面板拿到一排 0 分
+-            let (rows, total) = one_ply_rows(&game, &actions, search_n)?;
+-            (rows, Value::Null, total, 1usize)
+-        } else {
+-            (rows, plan, total, 2usize)
+-        }
+-    } else {
+-        let (rows, total) = one_ply_rows(&game, &actions, search_n)?;
+-        (rows, Value::Null, total, 1usize)
+-    };
++    // 排序本体已搬到 `matsuri_cli::rank`（#100），面板与测量驱动共用那一份。
++    let (_actions, rows, plan, rollouts, ply) = rank::panel_rows(&game, search_n)?;
++
+     // 発表会兜底（旧「S2 排程规则」）已删除 —— 见 docs/PT缺口逐源_20261106.md §22 与 #97。
+     // 三条实测理由：① t30 锚点上开着它和关掉它，三场发表会大成功率都是 150/150＝100%（没买到档）；
+     // ② from-t1 锚点（#49）开着反而把 CP2 大成功率从 73.6% 压到 29.9%（McNemar p=0.0000），
+diff --git a/crates/matsuri-cli/src/rank.rs b/crates/matsuri-cli/src/rank.rs
+new file mode 100644
+index 0000000..c243481
+--- /dev/null
++++ b/crates/matsuri-cli/src/rank.rs
+@@ -0,0 +1,278 @@
++//! 面板建议的**排序本体**（#100：从 `mccli.rs` 原样搬来，2026-11-06）。
++//!
++//! 搬出来的唯一理由：要量「面板同学照着建议打整局」的后果，驱动必须调**同一份**排序代码。
++//! 照着另写一遍估值（历史上 `_wt_legcell/searcharm.rs` 就是这么干的）会带来壳与主树的漂移，
++//! 那种壳上读数对主树没有约束力。
++//!
++//! `legacy_cp_fallback_reorder` 是 #98 从 `mccli.rs` 删掉那条发表会兜底重排的**原文**，
++//! 只挂在这个测量驱动上，不在面板路径上。
++
++use anyhow::Result;
++use rand::SeedableRng;
++use rand::rngs::StdRng;
++use serde_json::{Value, json};
++
++use matsuri_core::game::{Action, MatsuriGame};
++use matsuri_core::trainer::MatsuriRolloutTrainer;
++use umasim::game::Game;
++use umasim::search::{FlatSearch, FlatSearchGame, SearchConfig};
++
++/// 动作 → 面板用的中文标签（与黑板规则引擎同口径）
++pub fn label_of(a: &Action) -> String {
++    const TRAIN: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
++    const ACT: [&str; 5] = ["流鏑馬", "神旗争奪戦", "納舞", "大曳神輿", "飛駆"];
++    match a {
++        Action::Train(i) => format!("训练 {}", TRAIN[(*i as usize).min(4)]),
++        Action::Keiko(i) => format!("稽古 {}", ACT[(*i as usize).min(4)]),
++        Action::Outing => "出行".to_string(),
++        Action::Rest => "休息".to_string(),
++        Action::Clinic => "保健室".to_string(),
++        Action::Race => "自选比赛".to_string(),
++    }
++}
++
++/// 剧本阶段机里「训练 / 比赛决策点」的编号（见 `matsuri-core/src/game/stage.rs`：Begin=0/Train=1/End=2）。
++pub const STAGE_TRAIN: u64 = 1;
++
++/// 从当前 Train 阶段推进到**下一个** Train 阶段（中间的 End / 下回合 Begin 一并跑完）。
++///
++/// 返回 `false` = 已经到终局，后面没有决策点了。
++pub fn to_next_train(g: &mut MatsuriGame, seed: u64) -> Result<bool> {
++    while g.next() {
++        if g.stage().get() == STAGE_TRAIN {
++            return Ok(true);
++        }
++        let mut rr = StdRng::seed_from_u64(seed ^ 0x51ED_2701_9E37_79B9);
++        g.run_stage(&MatsuriRolloutTrainer, &mut rr)?;
++    }
++    Ok(false)
++}
++
++/// 2-ply：根动作的价值 = 「下一步最优子动作」的期望分，而不是根动作自己的单步均值。
++///
++/// CRN 做法：同一次 `fork_for_rollout(seed)` + 根动作 + 推进到下一个决策点，得到 `base`；
++/// 各子动作都从 `base.clone()` 分叉，因此子动作之间的差异不含「未来事件抽签」的噪声。
++/// 单步（1-ply）：官方 FlatSearch 只在根节点评估每个动作（UCB + rollout）。
++/// 一行搜索结果：动作标签 / 均值 / 标准误 / 采样数
++pub type Row = (String, f64, f64, u32);
++
++pub fn one_ply_rows(
++    game: &MatsuriGame,
++    actions: &[Action],
++    search_n: usize,
++) -> Result<(Vec<Row>, u32)> {
++    // 上限从 800 抬到 5000：官方核心约 12,000 rollout/秒，800 远低于可承受预算
++    // 探索项标准差（cpuct × 本值 × √total / n）。实测本剧本单次 rollout σ≈4,800，
++    // 内核默认 2200 只有一半 → UCB 过早收敛（n=5000 时仍有动作只分到 256 次）。env 可覆盖以便扫描。
++    let cfg_search = SearchConfig {
++        search_n: search_n.clamp(50, 5000),
++        max_depth: 0,
++        expected_search_stdev: std::env::var("MC_EXPECTED_STDEV")
++            .ok()
++            .and_then(|s| s.parse::<f64>().ok())
++            .unwrap_or(4800.0),
++        ..SearchConfig::default()
++    };
++    let search = FlatSearch::<MatsuriGame>::new(cfg_search);
++    let mut rng = StdRng::seed_from_u64(20261028);
++
++    let out = search.search_with(game, actions, &mut rng, |g, a, seed| {
++        let mut g = g.fork_for_rollout(seed);
++        let mut r = StdRng::seed_from_u64(seed ^ 0x9E37_79B9_7F4A_7C15);
++        g.apply_root_action(a, &mut r)?;
++        while g.next() {
++            let mut rr = StdRng::seed_from_u64(seed ^ 0x51ED_2701);
++            g.run_stage(&MatsuriRolloutTrainer, &mut rr)?;
++        }
++        g.search_score(1.0)
++    })?;
++
++    let mut rows: Vec<Row> = out
++        .actions
++        .iter()
++        .zip(out.action_results.iter())
++        .map(|(a, ar)| {
++            let n = ar.count();
++            let mean = ar.mean();
++            let se = if n > 1 {
++                ar.stdev() / (n as f64).sqrt()
++            } else {
++                0.0
++            };
++            (label_of(a), mean, se, n)
++        })
++        .collect();
++    rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
++    let total = out.action_results.iter().map(|a| a.count()).sum::<u32>();
++    Ok((rows, total))
++}
++
++/// 两步（2-ply）：每个根动作先下，再推到下一个训练回合，然后对子动作逐个 rollout 到终局。
++/// 根动作价值 = 子动作均值里最好的那个（等价「下一步也选对」的可达值）。
++/// 子动作共享同一个 fork 点（CRN），所以子动作之间的差是配对差，噪声被抵消掉。
++pub fn two_ply_rows(
++    game: &MatsuriGame,
++    actions: &[Action],
++    k: usize,
++) -> Result<(Vec<Row>, Value, u32)> {
++    let mut rows: Vec<Row> = Vec::new();
++    let mut plan: Vec<Value> = Vec::new();
++    let mut total: u32 = 0;
++    // 种子基（MC_SEED）：换一次就能检验「结论是不是这套抽样序列碰巧跑出来的」
++    let seed_base: u64 = std::env::var("MC_SEED")
++        .ok()
++        .and_then(|s| s.parse::<u64>().ok())
++        .unwrap_or(0);
++    for (ai, a) in actions.iter().enumerate() {
++        // 子局面候选动作：推进的回合数只由根动作决定（与种子无关）→ 探一次即可
++        let mut probe = game.fork_for_rollout(0x5555_0001_0000 ^ ai as u64);
++        let mut pr = StdRng::seed_from_u64(0x1234_5678_9ABC_DEF0 ^ ai as u64);
++        probe.apply_root_action(a, &mut pr)?;
++        let child_actions = if to_next_train(&mut probe, 0x5555_0001_0000 ^ ai as u64)? {
++            probe.list_actions()?
++        } else {
++            Vec::new()
++        };
++
++        let mut sums = vec![0.0f64; child_actions.len()];
++        let mut sqs = vec![0.0f64; child_actions.len()];
++        let mut cnt = 0usize;
++        for ki in 0..k {
++            let seed = seed_base
++                .wrapping_mul(0x5DEE_CE66_D1CE_4A1F)
++                .wrapping_add((ai as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15))
++                .wrapping_add((ki as u64).wrapping_mul(0xD1B5_4A32_D192_ED03));
++            let mut base = game.fork_for_rollout(seed);
++            let mut r = StdRng::seed_from_u64(seed ^ 0xA1B2_C3D4_5E6F_7081);
++            base.apply_root_action(a, &mut r)?;
++            if !to_next_train(&mut base, seed)? {
++                break;
++            }
++            for (j, b) in child_actions.iter().enumerate() {
++                let mut g = base.clone();
++                let mut r2 = StdRng::seed_from_u64(seed ^ 0xB00B_5EED_0000_0001 ^ j as u64);
++                g.apply_root_action(b, &mut r2)?;
++                while g.next() {
++                    let mut rr = StdRng::seed_from_u64(seed ^ 0x51ED_2701_9E37_79B9);
++                    g.run_stage(&MatsuriRolloutTrainer, &mut rr)?;
++                }
++                let sc = g.search_score(1.0)?;
++                sums[j] += sc;
++                sqs[j] += sc * sc;
++            }
++            cnt += 1;
++        }
++
++        let mut best: (f64, usize, f64) = (f64::NEG_INFINITY, usize::MAX, 0.0);
++        if cnt > 0 {
++            for j in 0..child_actions.len() {
++                let m = sums[j] / cnt as f64;
++                if m > best.0 {
++                    let var = (sqs[j] / cnt as f64 - m * m).max(0.0);
++                    best = (m, j, (var / cnt as f64).sqrt());
++                }
++            }
++        }
++        // cnt == 0（没有下一训练 / 推进失败）：给 0 分占位，别把 ±inf 写进 JSON
++        let score = if best.0.is_finite() { best.0 } else { 0.0 };
++        rows.push((label_of(a), score, best.2, cnt as u32));
++        total += (cnt * child_actions.len()) as u32;
++        plan.push(json!({
++            "action": label_of(a),
++            "next": child_actions.get(best.1).map(label_of),
++            "score": score,
++            "se": best.2,
++            "n": cnt,
++            "no_next_train": child_actions.is_empty(),
++        }));
++    }
++    rows.sort_by(|x, y| y.1.partial_cmp(&x.1).unwrap_or(std::cmp::Ordering::Equal));
++    Ok((rows, json!(plan), total))
++}
++
++/// 面板一次请求的全部排序工作：`list_actions` → 探有没有下一个训练 → 2-ply（或退回 1-ply）
++/// → 按值排序的候选行。返回 `(动作, 行, plan, rollout 数, 实际 ply)`。
++///
++/// 这段是 `mccli::run` 里原样搬过来的，**mccli 现在也调这里** ⇒ 面板看到的 top-1
++/// 与测量驱动挑的 top-1 是同一段代码给的。
++pub fn panel_rows(
++    game: &MatsuriGame,
++    search_n: usize,
++) -> Result<(Vec<Action>, Vec<Row>, Value, u32, usize)> {
++    let actions = game.list_actions()?;
++    // 搜索形态：MC_PLY=2（默认）两步搜索；MC_PLY=1 退回官方 FlatSearch 根节点评估。
++    let want_ply: usize = std::env::var("MC_PLY")
++        .ok()
++        .and_then(|s| s.parse::<usize>().ok())
++        .unwrap_or(2);
++    // 先探一下「有没有下一个训练」：终局回合两步没有意义，直接单步（省掉 2.5 万次 rollout）
++    let want_ply = if want_ply >= 2 {
++        let probe_seed = 0x2B1E_0000_0000_0001u64;
++        let mut probe = game.fork_for_rollout(probe_seed);
++        if to_next_train(&mut probe, probe_seed)? {
++            want_ply
++        } else {
++            1
++        }
++    } else {
++        want_ply
++    };
++    let (rows, plan, rollouts, ply) = if want_ply >= 2 {
++        // 2-ply：根动作价值 = 「下一步也选对」的期望分，子动作之间由 CRN 配对（见 two_ply_rows）
++        let k: usize = std::env::var("MC_K")
++            .ok()
++            .and_then(|s| s.parse::<usize>().ok())
++            .unwrap_or(512);
++        let (rows, plan, total) = two_ply_rows(game, &actions, k)?;
++        if rows.iter().all(|r| r.3 == 0) {
++            // 子局面全都推进不动（极端终局）：退回单步，别让面板拿到一排 0 分
++            let (rows, total) = one_ply_rows(game, &actions, search_n)?;
++            (rows, Value::Null, total, 1usize)
++        } else {
++            (rows, plan, total, 2usize)
++        }
++    } else {
++        let (rows, total) = one_ply_rows(game, &actions, search_n)?;
++        (rows, Value::Null, total, 1usize)
++    };
++    Ok((actions, rows, plan, rollouts, ply))
++}
++
++/// 【#98 删掉的那条重排·原文照抄，只供 A 臂（＝发布前面板行为）使用】
++///
++/// 発表会兜底（S2 排程规则）：临近检查点且演目未达标时，
++/// 优先推「最接近达标」的那个演目的训练/稽古（不是改搜索，只是候选排序约束）
++pub fn legacy_cp_fallback_reorder(game: &MatsuriGame, rows: &mut Vec<Row>) {
++    if let Some(cp) = game
++        .data
++        .check_points
++        .iter()
++        .find(|c| c.turn >= game.turn)
++        .cloned()
++    {
++        let deadline = cp.turn - game.turn;
++        let deficit: Vec<(usize, i32, i32)> = (0..5usize)
++            .filter(|i| game.act_level[*i] < cp.need)
++            .map(|i| (i, cp.need - game.act_level[i], game.act_gauge[i]))
++            .collect();
++        if deadline <= 15 && !deficit.is_empty() {
++            let idx = deficit
++                .iter()
++                .min_by_key(|(_, gap, gauge)| (*gap, -*gauge))
++                .map(|(i, _, _)| *i)
++                .unwrap_or(0);
++            const NAMES: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
++            let targets = [
++                format!("训练 {}", NAMES[idx]),
++                format!("稽古 {}", NAMES[idx]),
++            ];
++            if let Some(pos) = rows
++                .iter()
++                .position(|(label, _, _, _)| targets.contains(label))
++            {
++                let pick = rows.remove(pos);
++                rows.insert(0, pick);
++            }
++        }
++    }
++}
+diff --git a/crates/matsuri-cli/src/state.rs b/crates/matsuri-cli/src/state.rs
+index a731c05..14a493a 100644
+--- a/crates/matsuri-cli/src/state.rs
++++ b/crates/matsuri-cli/src/state.rs
+@@ -150,6 +150,19 @@ pub fn assemble_game(raw: &str) -> Result<LoadedState> {
+         }
+     }
+ 
++    // 【测量壳 #100】`MC_FROM_T1=1` ⇒ 装配停在开局：只带报文卡组，不吃报文的五维 /
++    // 演目 Lv / 人头分布 / 赛程，让第 1 场发表会（t23/need3）变成**可失败**的。
++    // 与 `_keileg` 那版同语义；这一臂没有报文锚点 ⇒ 三分量只作配对差用，不作「离锚点多近」。
++    if std::env::var("MC_FROM_T1").map(|v| v == "1").unwrap_or(false) {
++        eprintln!("[MC_FROM_T1] 停在开局：只用报文卡组，不覆盖五维/演目 Lv/人头分布/赛程");
++        return Ok(LoadedState {
++            game,
++            panel_turn: 0,
++            deck_fallback,
++            schedule_note: Value::Null,
++        });
++    }
++
+     // ---- 人头与分布：按报文的 partner_id 重建 ----
+     // 报文 `training_partner_array`（= 面板 `commands[].partner_ids`）混着三套 id：
+     //   1..=6      支援卡位置（`persons` 前缀，与 `deck` 逐槽同序）
+diff --git a/crates/matsuri-core/src/game/mod.rs b/crates/matsuri-core/src/game/mod.rs
+index d8c704a..697625a 100644
+--- a/crates/matsuri-core/src/game/mod.rs
++++ b/crates/matsuri-core/src/game/mod.rs
+@@ -270,6 +270,9 @@ pub struct MatsuriGame {
+     ///
+     /// 只用于查 `race_reward.cards` 的**逐卡赛后奖励终值表**；0 = 未知 ⇒ 走兜底档。
+     pub uma_id: u32,
++    /// 【测量壳 #100】本局每一次発表会结算的 `(schedule, 是否大成功)`，由
++    /// `apply_check_point` 自己写（不是外部按 act_level 折算），随局面 clone。
++    pub cp_log: Vec<(i32, bool)>,
+ }
+ 
+ impl Deref for MatsuriGame {
+@@ -330,6 +333,7 @@ impl MatsuriGame {
+     ) -> Result<Self> {
+         let mut game = Self {
+             uma_id,
++            cp_log: Vec::new(),
+             base: BaseGame::new(
+                 uma_id,
+                 deck_ids,
+@@ -842,6 +846,8 @@ impl MatsuriGame {
+     }
+ 
+     fn apply_check_point(&mut self, cp: &CheckPointDef, great: bool) {
++        // 【测量壳 #100】档位在这里定，就在这里记（唯一真值点）
++        self.cp_log.push((cp.schedule, great));
+         // buff 行可为 `null`（第 4 场没有一手来源）⇒ 不改，也不许拿前一场的值顶
+         if let Some(buff) = if great { &cp.great } else { &cp.success } {
+             self.gain_pct = buff.gain_pct as f64 / 100.0;
+diff --git a/run_cp98.sh b/run_cp98.sh
+new file mode 100644
+index 0000000..d1cdbb2
+--- /dev/null
++++ b/run_cp98.sh
+@@ -0,0 +1,33 @@
++#!/usr/bin/env bash
++# #100 主树侧大成功率复核：整局按面板建议打，A=挂回 #98 删掉的重排，B=不挂（＝现在发布的）。
++# 同一颗 exe，只差 MC_ARM 一个环境变量。
++#   用法：bash run_cp98.sh <K> <FROM_T1> <shards> <n_per_shard> <tag> [jobs]
++#   例：  bash run_cp98.sh 32 1 16 12 t1K32
++set -u
++cd "$(dirname "$0")"
++K=${1:-32}
++T1=${2:-1}
++SHARDS=${3:-16}
++NPER=${4:-12}
++TAG=${5:-run}
++JOBS=${6:-14}
++STATE=${STATE:-E:/HJM/umaai-matsuri/_state_t30.json}
++EXE=${EXE:-./target/release/matsuri-cpcensus.exe}
++OUT=out/cp98
++mkdir -p "$OUT"
++rm -f "$OUT/${TAG}"_*.jsonl "$OUT/${TAG}"_*.log
++
++echo "== $TAG: K=$K FROM_T1=$T1 shards=$SHARDS n/片=$NPER 并发=$JOBS =="
++echo "   exe sha $("$EXE" >/dev/null; sha1sum "$EXE" | cut -c1-12)  state=$STATE"
++t0=$(date +%s)
++for s in $(seq 1 "$SHARDS"); do
++  for arm in A B; do
++    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n; done
++    MC_ARM=$arm MC_FROM_T1=$T1 MC_K=$K MC_PLY=2 MC_SEED=$s MC_N=$NPER \
++      "$EXE" "$STATE" "$OUT/${TAG}_${arm}_s${s}.jsonl" 200 \
++      > "$OUT/${TAG}_${arm}_s${s}.log" 2>&1 &
++  done
++done
++wait
++n=$(cat "$OUT/${TAG}"_*.jsonl | grep -c .)
++echo "== $TAG 完：$n 局，墙钟 $(( $(date +%s) - t0 ))s =="
