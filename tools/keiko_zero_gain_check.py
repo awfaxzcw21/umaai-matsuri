@@ -54,7 +54,7 @@ def main():
         key=PS.sort_key,
     )
     # 先过一遍，只留「带 chara_info.turn 的快照」和「稽古请求」两类事件
-    snaps = []          # (pos, file_idx, run_key, turn, skill_point, pt_present)
+    snaps = []          # (pos, file_idx, run_key, turn, skill_point, pt_present, vital, motivation, 五维和)
     reqs = []           # (file_idx, pre_snapshot, cid, basename)
     last_snap = None
     for i, path in enumerate(files):
@@ -80,9 +80,10 @@ def main():
         if not isinstance(ci, dict) or ci.get("turn") is None:
             continue
         pt = ci.get("skill_point")
+        five = sum(ci.get(k) or 0 for k in ("speed", "stamina", "power", "guts", "wiz"))
         last_snap = (len(snaps), i, (ci.get("single_mode_chara_id"), ci.get("start_time")),
                      ci.get("turn"), pt if isinstance(pt, int) else None,
-                     isinstance(pt, int))
+                     isinstance(pt, int), ci.get("vital"), ci.get("motivation"), five)
         snaps.append(last_snap)
 
     print(f"报文 {len(files)} ｜带 turn 快照 {len(snaps)} ｜稽古请求 {len(reqs)}")
@@ -102,7 +103,7 @@ def main():
     for idx, pre, cid, name, vital in reqs:
         if pre is None:
             continue
-        s_pos, s_idx, key, turn, pt0, present = pre
+        s_pos, s_idx, key, turn, pt0, present, vit0, mot0, five0 = pre
         if not present or pt0 is None:
             continue
         cand = {k: None for k in CALIBERS}
@@ -121,7 +122,7 @@ def main():
             if sn[3] is not None and turn is not None and sn[3] > turn:
                 cand["nextturn"] = sn
                 break
-        rows.append((key, turn, cid, pt0, cand, name, vital))
+        rows.append((key, turn, cid, pt0, cand, name, vital, vit0, mot0, five0))
 
     def delta(row, name):
         sn = row[4][name]
@@ -211,7 +212,26 @@ def main():
         print(f"  {name:<10} n={tot:>4} Δturn=0 占 {zero_d} ({zero_d/tot*100 if tot else 0:.1f}%)"
               f" ｜分布 {sorted(g.items())[:6]}")
 
+    shape_table(rows, pred)
     vital_table(rows, pred)
+
+
+def shape_table(rows, pred):
+    """PT<=0 那几手的**完整形状**：失败若有惩罚，应体现在体力/干劲/五维上。"""
+    print()
+    print("PT<=0 的手逐手形状（引擎「無茶は厳禁！」口径预测：体力 +10／干劲 −1／三轴共 −30）：")
+    print("  请求文件                              回合 演目  ΔPT   Δ体力  Δ干劲  Δ五维和")
+    for r in rows:
+        sn = r[4]["samirun"]
+        if sn is None or not sn[5]:
+            continue
+        d = sn[4] - r[3]
+        if d > 0:
+            continue
+        print(f"  {r[5]:<35} t{r[1]:<4} {r[2]} {d:>+6}"
+              f"   {sn[6] - r[7] if isinstance(sn[6], int) else -1:+4}"
+              f"    {sn[7] - r[8] if isinstance(sn[7], int) else -1:+4}"
+              f"     {sn[8] - r[9]:+6}")
 
 
 def vital_table(rows, pred):
