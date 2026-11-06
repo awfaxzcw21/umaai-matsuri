@@ -1,0 +1,77 @@
+# #98 主树 patch：删掉発表会兜底（面板实际走的这条候选排序约束）
+#
+# 依据（不是"关它分高"，是这三条；全文 docs/PT缺口逐源_20261106.md §22 ＋ #97/#49/#50）：
+#   ① t30/cap-10 锚点 150 局：开着与关掉，第 2/3/4 场发表会大成功率都是 150/150＝100% ⇒ 一场档都没买到；
+#      而它每局改写 9.8 次训练决策去逼低体力稽古，关掉配对 real +5,244 [+4,440, +6,047]、
+#      五维和 +391、五维分 +4,592、PT +232（区间全不跨 0），且稽古失败率 12.6%→2.0%
+#      ≈ 真机盘面自报失败率的期望 2.4%（两条独立对上 ⇒ 机制原因，不是凑分）。
+#   ② from-t1 锚点（#49，docs/from_t1兜底代价_20261104.md）：触发 35.04 次/局＝45% 的手被改写，
+#      CP2 大成功率 开着 29.9% vs 关掉 73.6%（McNemar p=0.0000），三分量显著更差 ⇒ 开着还砸档。
+#   ③ 真机侧对应物是 `auto_setting_info`（玩家**声明**的演目配置，#50），
+#      没有「逐回合改落位」的一手出处；且本剧本发表会到回合必结算、未达标也发成功档
+#      ⇒「不兜底就会育成失败」这个前提不存在，能买的只是档位差额。
+#
+# 验证状态：本 diff 在 E:/HJM/umaai-matsuri 上 `cargo check -p matsuri-cli` 与
+#           `cargo test -p matsuri-cli` 通过；通过后已从工作树还原，主树保持干净（未提交）。
+# 不在本 patch 内的同源规则：`crates/matsuri-core/src/trainer.rs:153-167`
+#           （基策 rollout 的第 4 优先级"発表会截止"）与本约束同族，
+#           但 H/H10 两臂只关过决策层这一条 ⇒ 那条**没有实测支持**，别顺手一起删。
+#
+# 应用与门禁（合入前必须跑）：
+#   git -C E:/HJM/umaai-matsuri apply tools/patch_98_remove_cp_fallback.patch
+#   python E:/HJM/umaai-matsuri/tools/crn_gate.py     # 三分量配对 95% 区间（主树口径，不是测量壳）
+#   另需：大成功率不退化的主树侧读数（cp_tiers 打点目前只在测量壳里）
+#
+diff --git a/crates/matsuri-cli/src/mccli.rs b/crates/matsuri-cli/src/mccli.rs
+index 844d940..ea24562 100644
+--- a/crates/matsuri-cli/src/mccli.rs
++++ b/crates/matsuri-cli/src/mccli.rs
+@@ -253,41 +253,13 @@ fn run() -> Result<()> {
+         let (rows, total) = one_ply_rows(&game, &actions, search_n)?;
+         (rows, Value::Null, total, 1usize)
+     };
+-    // 発表会兜底（S2 排程规则）：临近检查点且演目未达标时，
+-    // 优先推「最接近达标」的那个演目的训练/稽古（不是改搜索，只是候选排序约束）
+-    let mut rows = rows;
+-    if let Some(cp) = game
+-        .data
+-        .check_points
+-        .iter()
+-        .find(|c| c.turn >= game.turn)
+-        .cloned()
+-    {
+-        let deadline = cp.turn - game.turn;
+-        let deficit: Vec<(usize, i32, i32)> = (0..5usize)
+-            .filter(|i| game.act_level[*i] < cp.need)
+-            .map(|i| (i, cp.need - game.act_level[i], game.act_gauge[i]))
+-            .collect();
+-        if deadline <= 15 && !deficit.is_empty() {
+-            let idx = deficit
+-                .iter()
+-                .min_by_key(|(_, gap, gauge)| (*gap, -*gauge))
+-                .map(|(i, _, _)| *i)
+-                .unwrap_or(0);
+-            const NAMES: [&str; 5] = ["速度", "耐力", "力量", "根性", "智力"];
+-            let targets = [
+-                format!("训练 {}", NAMES[idx]),
+-                format!("稽古 {}", NAMES[idx]),
+-            ];
+-            if let Some(pos) = rows
+-                .iter()
+-                .position(|(label, _, _, _)| targets.contains(label))
+-            {
+-                let pick = rows.remove(pos);
+-                rows.insert(0, pick);
+-            }
+-        }
+-    }
++    // 発表会兜底（旧「S2 排程规则」）已删除 —— 见 docs/PT缺口逐源_20261106.md §22 与 #97。
++    // 三条实测理由：① t30 锚点上开着它和关掉它，三场发表会大成功率都是 150/150＝100%（没买到档）；
++    // ② from-t1 锚点（#49）开着反而把 CP2 大成功率从 73.6% 压到 29.9%（McNemar p=0.0000），
++    //    且每局改写 35 次落子（45% 的手），三分量显著更差；
++    // ③ 真机侧对应物是 `auto_setting_info`（玩家**声明**的演目配置，#50），没有「逐回合改落位」的一手出处；
++    //    而本剧本发表会**到回合必结算、未达标也发成功档**，
++    //    ⇒ 不存在「不兜底就育成失败」这个前提。
+     let ranked: Vec<Value> = rows
+         .iter()
+         .map(|(label, mean, se, n)| {
