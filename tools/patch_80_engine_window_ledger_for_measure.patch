@@ -1,0 +1,253 @@
+diff --git a/crates/matsuri-cli/src/dist.rs b/crates/matsuri-cli/src/dist.rs
+index 6dfcb48..9660e11 100644
+--- a/crates/matsuri-cli/src/dist.rs
++++ b/crates/matsuri-cli/src/dist.rs
+@@ -137,6 +137,9 @@ fn run() -> Result<()> {
+         } else {
+             g.run_full_game(&MatsuriRolloutTrainer, &mut rng)?;
+         }
++        // #80 测量壳打点：取走本局的**窗口账本**（逐 (回合,阶段) 的 PT 前后值）。
++        // 必须在下一局的 `fork_for_rollout` 之前 drain —— fork 会清空账本。
++        let trace = g.take_pt_trace();
+ 
+         native_scores.push(g.search_score(1.0)? as i32);
+ 
+@@ -170,6 +173,22 @@ fn run() -> Result<()> {
+                 "act": g.act_level.to_vec(),
+                 "gauge": g.act_gauge.to_vec(),
+                 "gain": g.gain_pct,
++                // #80 新增列（**只加列，不改任何现有列的含义/名字**）：
++                // 每条 = [回合, 阶段号(Begin0/Train1/End2), 动作族码, 结算前PT, 结算后PT, 比赛回合?, 发表会落点?]
++                // 动作族码：1=训练(101..106) 2=稽古/演目(5101..5105) 3=外出 4=休息 5=自选赛 6=保健室 0=非决策阶段
++                "ptrace": trace
++                    .iter()
++                    .map(|r| {
++                        vec![
++                            r.turn as i64,
++                            r.stage as i64,
++                            r.fam as i64,
++                            r.pre as i64,
++                            r.post as i64,
++                            i64::from(u8::from(r.race)),
++                            i64::from(u8::from(r.cp)),
++                        ]                    })
++                    .collect::<Vec<_>>(),
+             }));
+         }
+     }
+diff --git a/crates/matsuri-core/src/game/mod.rs b/crates/matsuri-core/src/game/mod.rs
+index 9176dbb..184ce0c 100644
+--- a/crates/matsuri-core/src/game/mod.rs
++++ b/crates/matsuri-core/src/game/mod.rs
+@@ -175,6 +175,29 @@ fn advice_scope(row: &AdviceRow) -> (bool, bool) {
+     }
+ }
+ 
++/// #80 测量壳打点：引擎侧**窗口账本**的一行（一个 (回合, 阶段) 窗口结算前后的 skill_pt）
++///
++/// 口径对齐真机 `tools/pt_ledger.py` 的 R1–R8：一个窗口 = 相邻两个结算请求之间的全部 PT 差分，
++/// 整笔记给该窗口的动作（同窗口自动触发的事件 / 教诲 / 演目升级一并计入）。
++/// 引擎一个回合有三个阶段（Begin/Train/End），逐阶段各出一行，Python 侧按回合聚合成窗口。
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub struct PtTraceRow {
++    /// 回合（0 基，= 面板回合 − 1）
++    pub turn: i32,
++    /// 阶段号：Begin=0 / Train=1 / End=2（与 `Stage`→`StageId` 投影同值）
++    pub stage: u8,
++    /// 本回合 Train 阶段所选动作的**命令号族**（见 `MatsuriGame::pt_family`；非 Train 行为 0）
++    pub fam: u8,
++    /// 结算前 skill_pt
++    pub pre: i32,
++    /// 结算后 skill_pt
++    pub post: i32,
++    /// 该回合是否生涯比赛回合（R5 判据之一）
++    pub race: bool,
++    /// 该回合是否発表会落点（R4 判据：`check_points` 里 `turn` 命中）
++    pub cp: bool,
++}
++
+ /// 剧本资源快照（给前端的纯数据 View）
+ ///
+ /// 形态 A 五条纪律（见引擎仓 `docs/scenario/contracts.md`）：**单一取数口** / 只放引擎不知道的字段 /
+@@ -270,6 +293,10 @@ pub struct MatsuriGame {
+     ///
+     /// 只用于查 `race_reward.cards` 的**逐卡赛后奖励终值表**；0 = 未知 ⇒ 走兜底档。
+     pub uma_id: u32,
++    /// #80 测量壳打点：本局累计的窗口账本行（`fork_for_rollout` 里清空，不参与克隆携带）
++    pub pt_trace: Vec<PtTraceRow>,
++    /// #80 打点用：本回合 Train 阶段选中的动作族码（`pt_family` 的返回值）
++    pub pt_fam: u8,
+ }
+ 
+ impl Deref for MatsuriGame {
+@@ -357,6 +384,8 @@ impl MatsuriGame {
+             stage: Stage::Begin,
+             strategy: None,
+             data,
++            pt_trace: Vec::new(),
++            pt_fam: 0,
+         };
+         game.init_persons()?;
+         game.act_level_cap = act_level_cap_for(&game.base.deck);
+@@ -369,6 +398,49 @@ impl MatsuriGame {
+         self.persons.push(person);
+     }
+ 
++    /// #80 测量壳打点：把玩家所选动作映射到真机账本 R1–R8 的**命令号族**码
++    ///
++    /// 1=训练(101..106) / 2=稽古·演目(5101..5105) / 3=外出 / 4=休息 / 5=比赛(自选赛) / 6=其他命令(保健室)。
++    /// 合宿回合的 `Train` 在引擎里走 `do_keiko_impl`（官方「合宿训练与演目稽古同一 ID」）⇒ 记 2。
++    #[must_use]
++    pub fn pt_family(&self, action: &Action) -> u8 {
++        match action {
++            Action::Train(_) => {
++                if self.is_camp_turn() {
++                    2
++                } else {
++                    1
++                }
++            }
++            Action::Keiko(_) => 2,
++            Action::Outing => 3,
++            Action::Rest => 4,
++            Action::Race => 5,
++            Action::Clinic => 6,
++        }
++    }
++
++    /// #80 测量壳打点：取走并清空本局的窗口账本（宿主在跑完一局后调用）
++    pub fn take_pt_trace(&mut self) -> Vec<PtTraceRow> {
++        std::mem::take(&mut self.pt_trace)
++    }
++
++    /// #80 测量壳打点：Begin 内部一条**子窗口**落账（`leg` 0=回合事件 / 3=比赛+赛后 / 4=発表会）
++    ///
++    /// 真机侧这三件事各自是一条请求 ⇒ 各自一个窗口；合成一个回合窗口会把落子 PT 记到比赛/发表会名下。
++    pub(crate) fn pt_leg(&mut self, pre: i32, post: i32, leg: u8) {
++        let turn = self.turn;
++        self.pt_trace.push(PtTraceRow {
++            turn,
++            stage: leg,
++            fam: 0,
++            pre,
++            post,
++            race: self.base.uma.is_race_turn(turn),
++            cp: leg == 4,
++        });
++    }
++
+     /// 取剧本资源快照（**单一取数口**；何时取由宿主决定）
+     #[must_use]
+     pub fn view(&self) -> MatsuriView {
+@@ -1582,6 +1654,10 @@ impl MatsuriGame {
+     ) -> Result<()> {
+         match self.stage {
+             Stage::Begin => {
++                // #80 打点：Begin 里三条腿各自成一个窗口（真机侧「事件请求」「race 请求」「発表会
++                // 请求」就是三个窗口，合成一回合会把落子 PT 混进比赛/发表会，两边不可减）。
++                // 子窗口号：0=回合事件腿 / 3=比赛+赛后腿 / 4=発表会腿。
++                let b0 = self.base.uma.skill_pt;
+                 // 回合事件（与 BasicGame 同口径）
+                 let turn_events = self.generate_events(&mut streams.event);
+                 if self.turn == 77
+@@ -1593,6 +1669,8 @@ impl MatsuriGame {
+                 for event in &turn_events {
+                     self.run_event(event, trainer, decision, &mut streams.event)?;
+                 }
++                let b1 = self.base.uma.skill_pt;
++                self.pt_leg(b0, b1, 0);
+                 // 生涯比赛：引擎按回合生成比赛事件（与 BasicGame 同口径）
+                 if self.base.uma.is_race_turn(self.base.turn) {
+                     // 赛后奖励：优先逐卡**终值表**（报文一手，不再乘任何系数）；
+@@ -1632,6 +1710,9 @@ impl MatsuriGame {
+                 if self.base.uma.is_race_turn(self.base.turn) {
+                     self.apply_hidden_event(&mut streams.event);
+                 }
++                // #80 打点：这一腿在真机侧＝「race 请求 + 赛后自动触发」的同一个窗口（R5）
++                let b2 = self.base.uma.skill_pt;
++                self.pt_leg(b1, b2, 3);
+                 // 人头分配 + 提示（hint）：走回合固定流（seed 可复现）
+                 self.distribute_all(&mut streams.turn_fixed)?;
+                 self.distribute_hint(&mut streams.turn_fixed)?;
+@@ -1698,6 +1779,7 @@ impl MatsuriGame {
+                 }
+                 // 発表会：**到回合必结算**，档只由「全演目 Lv 是否都 ≥ need」决定
+                 // （报文 28/28 样本：min(Lv) ≥ need ⇒ 大成功，否则成功档；不存在「不结算」）
++                let cp_here = self.data.check_points.iter().any(|c| c.turn == self.turn);
+                 if let Some(cp) = self
+                     .data
+                     .check_points
+@@ -1708,11 +1790,16 @@ impl MatsuriGame {
+                     let great = self.check_point_is_great(&cp);
+                     self.apply_check_point(&cp, great);
+                 }
++                // #80 打点：発表会腿＝真机 R4 的那个事件窗口；无発表会的回合这条记 5（恒 0 差分，
++                // 只保证 Begin 三条腿首尾相接、窗口账不吞掉任何 PT）。
++                self.pt_leg(b2, self.base.uma.skill_pt, if cp_here { 4 } else { 5 });
+                 // 事件链留待后续（`streams.event`）
+             }
+             Stage::Train => {
+                 let actions = self.list_actions()?;
+                 let selection = trainer.select_action(self, &actions, decision)?;
++                // #80 打点：先把这手落的动作族记下来，`run_stage` 出口按窗口取 PT 差分
++                self.pt_fam = self.pt_family(&actions[selection]);
+                 // 动作结算走**策略流**：与决策抽签分开，改决策流消耗不会位移结算随机
+                 self.apply_action(&actions[selection], strategy)?;
+             }
+diff --git a/crates/matsuri-core/src/game/traits.rs b/crates/matsuri-core/src/game/traits.rs
+index daa991e..07e7392 100644
+--- a/crates/matsuri-core/src/game/traits.rs
++++ b/crates/matsuri-core/src/game/traits.rs
+@@ -12,7 +12,7 @@ use umasim::game::{
+ };
+ use umasim::search::FlatSearchGame;
+ 
+-use super::{ACT_GAUGE_MAX, Action, MatsuriGame, Stage};
++use super::{ACT_GAUGE_MAX, Action, MatsuriGame, PtTraceRow, Stage};
+ use crate::MAX_TURN;
+ 
+ impl TrainingValueSource for MatsuriGame {
+@@ -72,7 +72,32 @@ impl Game for MatsuriGame {
+                 "策略流缺失：主种子已注入但策略流未派生，应先调用 set_rule_master"
+             ));
+         };
+-        let res = self.stage_body(trainer, decision, &mut streams, &mut strategy);
++        let res = {
++            // #80 测量壳打点：窗口 = 本阶段结算前后；回合号 / 阶段号 / 动作族在入口取快照
++            let turn = self.turn;
++            let stage_no: StageId = self.stage.into();
++            let pre_pt = self.base.uma.skill_pt;
++            let run = self.stage_body(trainer, decision, &mut streams, &mut strategy);
++            if run.is_ok() && !matches!(self.stage, Stage::Begin) {
++                // Begin 的账由 `stage_body` 里的三条子窗口（事件 / 比赛+赛后 / 発表会）各自落，
++                // 这里只记 Train（落子窗口）与 End（回合结算窗口），否则 Begin 会被记两遍。
++                let fam = if matches!(self.stage, Stage::Train) {
++                    self.pt_fam
++                } else {
++                    0
++                };
++                self.pt_trace.push(PtTraceRow {
++                    turn,
++                    stage: stage_no.get() as u8,
++                    fam,
++                    pre: pre_pt,
++                    post: self.base.uma.skill_pt,
++                    race: self.base.uma.is_race_turn(turn),
++                    cp: self.data.check_points.iter().any(|c| c.turn == turn),
++                });
++            }
++            run
++        };
+         self.base.put_rule_streams(streams);
+         self.strategy = Some(strategy);
+         res
+@@ -284,6 +309,9 @@ impl FlatSearchGame for MatsuriGame {
+         // 分支 = 克隆 + 注入 rollout 主种子；任何不由传入 rng 驱动的流都必须在这里重置
+         let mut game = self.clone();
+         game.set_rule_master(rollout_seed);
++        // #80 打点：分支（含 2-ply 搜索的探针局）不携带母局的账本，否则会污染真实跑局的窗口
++        game.pt_trace.clear();
++        game.pt_fam = 0;
+         game
+     }
+ 
