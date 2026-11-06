@@ -78,7 +78,9 @@ def src_of(stage, fam, race):
 def windows(rows):
     """一局的 ptrace 行 → **窗口序列** [(turn, 窗口号, source, delta)]（按回合、按结算顺序）。"""
     out = []
-    for turn, stage, fam, _pre, post, race, _cp in sorted(rows):
+    for row in sorted(rows):
+        # 插桩列数会长：#80 是 7 列，#84 加了 act_lv 变 8 列 ⇒ 按位置取前 7 项，多出来的忽略。
+        turn, stage, fam, _pre, post, race = row[0], row[1], row[2], row[3], row[4], row[5]
         out.append((turn, stage, src_of(stage, fam, race), post - _pre))
     return out
 
