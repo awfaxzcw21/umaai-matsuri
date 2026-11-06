@@ -142,6 +142,27 @@ def main():
     if cf:
         print(f"  客户端字段：中位 {st.median(cf)}  最大 {max(cf)}  >0 的手数 "
               f"{sum(1 for v in cf if v > 0)}/{len(cf)}")
+    # 落子时体力直方图（与引擎侧 `keiko_vital_hist` 同档宽，10 点一档）
+    print("\n真机稽古手落子时体力分布（10 点一档；对表引擎 out/legcell_vital 的 keiko_vital_hist）：")
+    print("  档        手数  板子警告  警告率   Σ板子fr(百分点)")
+    hist = collections.defaultdict(lambda: [0, 0, 0])
+    for r in rows:
+        if not isinstance(r["vital"], int):
+            continue
+        bk = min(max(r["vital"] // 10, 0), 11)
+        hist[bk][0] += 1
+        if isinstance(r["client_fr"], int) and r["client_fr"] > 0:
+            hist[bk][1] += 1
+            hist[bk][2] += r["client_fr"]
+    for bk in sorted(hist):
+        n, w, frs = hist[bk]
+        print(f"  {bk*10:>3}-{bk*10+9:<3} {n:>6} {w:>8}  {w/n*100 if n else 0:>5.1f}%  {frs:>8}")
+    tot = sum(v[0] for v in hist.values())
+    warn = sum(v[1] for v in hist.values())
+    frs = sum(v[2] for v in hist.values())
+    print(f"  合计    {tot:>6} {warn:>8}  {warn/tot*100 if tot else 0:>5.1f}%  {frs:>8}"
+          f"  ⇒ 期望失败 {frs/100:.2f} 手 ＝ 稽古手的 {frs/100/tot*100 if tot else 0:.1f}%")
+
     print("\n注：客户端那一格是**板子上显示的失败率**，"
           "它是机制的直接读数，比从到账反推强；本脚本不做任何拟合。")
 

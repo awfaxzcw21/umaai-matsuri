@@ -18,6 +18,7 @@ C＝`UMA_KEIKO_FAIL_NOPENALTY=1`（照掷，但失败时什么都不发生）
 """
 from __future__ import annotations
 
+import argparse
 import glob
 import json
 import math
@@ -42,7 +43,7 @@ def tcrit(df):
     return 2.576
 
 
-def load(arm, base):
+def load(arm, base="out/legcell_ab"):
     out = {}
     for p in sorted(glob.glob(os.path.join(base, f"dump_{arm}_s*.jsonl"))):
         shard = int(os.path.basename(p).split("_s")[1].split(".")[0])
@@ -87,7 +88,7 @@ def paired(a, b, label_a, label_b):
         print(f"  P(real>={LG15:,}) {tag} = {hits}/{len(keys)}")
 
 
-def cells(arm, base):
+def cells(arm, base="out/legcell_ab"):
     tot = {"hands": 0.0, "failed": 0.0, "home": 0.0, "festa": 0.0, "runs": 0}
     for p in sorted(glob.glob(os.path.join(base, f"res_{arm}_s*.json"))):
         r = json.load(open(p, encoding="utf-8"))
@@ -115,30 +116,61 @@ def cells(arm, base):
 
 
 def main():
-    base = sys.argv[1] if len(sys.argv) > 1 else "out/legcell_ab"
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--arm", action="append", metavar="TAG=目录:前缀",
+                    help="可重复；第一个当参照臂。例：--arm 'A 现行=out/legcell_ab:AB_fail'")
+    ap.add_argument("--csv", action="store_true", help="顺手把逐局配对差落 CSV")
+    ap.set_defaults(arm=[
+        "A 现行=out/legcell_ab:AB_fail",
+        "B 不掷失败=out/legcell_ab:AB_nofail",
+        "C 掷而不罚=out/legcell_ab:C",
+        "E 18号豁免=out/legcell_e:E",
+        "A2 同 exe 对照=out/legcell_ab:A2",
+        "A4 同 exe 对照(E 批)=out/legcell_e:A4",
+    ])
+    args = ap.parse_args()
+
     arms = {}
-    for tag, arm in (("A 现行", "AB_fail"), ("B 不掷失败", "AB_nofail"),
-                     ("C 掷而不罚", "C"), ("A2 同 exe 对照", "A2")):
-        m = load(arm, base)
+    for spec in args.arm:
+        tag, rest = spec.split("=", 1)
+        base, prefix = rest.rsplit(":", 1)
+        m = load(prefix, base)
         if m:
-            arms[tag] = m
+            arms[tag] = (m, base, prefix)
         else:
-            print(f"（{tag}：{base}/dump_{arm}_s*.jsonl 还没有，跳过）")
-    print(f"== 稽古腿自身（{base}/res_*.json）==")
-    for tag, arm in (("A 现行", "AB_fail"), ("B 不掷失败", "AB_nofail"),
-                     ("C 掷而不罚", "C"), ("A2 同 exe 对照", "A2")):
-        c = cells(arm, base)
+            print(f"（{tag}：{base}/dump_{prefix}_s*.jsonl 还没有，跳过）")
+    if not arms:
+        return 1
+
+    print("== 稽古腿自身 ==")
+    for tag, (m, base, prefix) in arms.items():
+        c = cells(prefix, base)
         if c:
-            print(f"  {tag:<10} {c['runs']} 局  稽古全手 {c['hands']:.2f}/局 "
+            print(f"  {tag:<18} {c['runs']} 局  稽古全手 {c['hands']:.2f}/局 "
                   f"失败 {c['failed']:.2f}/局（{c['rate']*100:.1f}%） "
                   f"成功腿均值 home {c['home']:.1f} + festa {c['festa']:.1f} "
                   f"⇒ 腿 PT {c['legpt']:,.0f}/局")
-    keys = [k for k in ("A 现行", "B 不掷失败", "C 掷而不罚", "A2 同 exe 对照") if k in arms]
-    for i in range(len(keys)):
-        for j in range(i + 1, len(keys)):
-            paired(arms[keys[i]], arms[keys[j]], keys[i], keys[j])
-    print("\n注：跑在测量壳上 ⇒ 这是「值多少」的证据，不是门禁通过；"
+
+    ref = next(iter(arms))
+    for tag, (m, _b, _p) in arms.items():
+        if tag == ref:
+            continue
+        paired(arms[ref][0], m, ref, tag)
+
+    # 对照臂自检：不设 env 的新 exe 必须与 A 逐字节相同，否则所有臂间比较作废
+    for tag, (m, _b, _p) in arms.items():
+        if "对照" not in tag:
+            continue
+        k = sorted(set(arms[ref][0]) & set(m))
+        same = sum(1 for x in k
+                   if tuple(arms[ref][0][x][c] for c in ("pt", "real", "sum", "stat"))
+                   == tuple(m[x][c] for c in ("pt", "real", "sum", "stat")))
+        print(f"  对照自检 {tag} vs {ref}：可比 {len(k)} 局，五量逐字节相同 {same} 局"
+              f" ⇒ {'开关本身不改行为，臂间可比' if same == len(k) and k else '不一致或无交集：别用这张表'}")
+    print()
+    print("注：跑在测量壳上 ⇒ 这是「值多少」的证据，不是门禁通过；"
           "落地要在主树跑 tools/crn_gate.py 的三分量配对区间。")
+    return 0
 
 
 if __name__ == "__main__":
