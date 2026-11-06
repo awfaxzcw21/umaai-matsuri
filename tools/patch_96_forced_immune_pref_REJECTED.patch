@@ -1,0 +1,67 @@
+# #96 已测并**否掉**的改法：发表会兜底在选格时优先挑「失败已被教诲豁免」的那一档。
+# 结论：150 局配对（I 臂，同 exe 靠 `UMA_FORCED_IMMUNE_PREF` 开，对照 A9 与 A2 逐字节相同 150/150）
+#       稽古失败率 12.6% → **12.8%**（没降），real **−69 [−143, +4]**、五维分 −66 → **等于没改**。
+# 原因（结构性的）：豁免档（801/901 靠 t23/t47 融合发到「还挂基础教诲」的槽上）会落在
+#       **等级已经领先**的演目上；而兜底专挑「最接近达标＝等级落后」的那格 ⇒ 候选集里几乎不含豁免档。
+#       真机侧的对照事实（§19.2）：801 档的稽古手失败率只有 3.2%，但引擎里那一档**不在兜底的候选里**。
+# ⇒ 因此不落地。可继续的方向见 docs/PT缺口逐源_20261106.md §21（让兜底认体力，或让演目等级别拖到窗口内才补）。
+# 下面两份 diff 是当时在测量壳 E:/HJM/_wt_legcell 上编译并跑过的原文（含 env 开关）。
+
+diff --git a/crates/matsuri-cli/src/searcharm.rs b/crates/matsuri-cli/src/searcharm.rs
+index b546d47..83d5324 100644
+--- a/crates/matsuri-cli/src/searcharm.rs
++++ b/crates/matsuri-cli/src/searcharm.rs
+@@ -109,9 +115,19 @@ pub fn forced_target(game: &MatsuriGame, actions: &[Action]) -> Option<usize> {
+     if cp.turn - game.turn > 15 {
+         return None;
+     }
++    // 【#96 改法·测量壳开关 UMA_FORCED_IMMUNE_PREF】兜底原来只按「最接近达标」选格，
++    // 不看那一格当前会不会失败 ⇒ 20% 的训练决策被逼到低体力高失败率的格子上（§20.3）。
++    // 开启后：先挑「这一手失败已被教诲豁免」的档，再按原口径 (距达标, 槽) 排。
++    let immune = std::env::var("UMA_FORCED_IMMUNE_PREF").is_ok();
+     let idx = (0..5usize)
+         .filter(|i| game.act_level[*i] < cp.need)
+-        .min_by_key(|i| (cp.need - game.act_level[*i], -game.act_gauge[*i]))?;
++        .min_by_key(|i| {
++            (
++                if immune { !game.act_fail_immune(*i) } else { false },
++                cp.need - game.act_level[*i],
++                -game.act_gauge[*i],
++            )
++        })?;
+     actions
+         .iter()
+         .position(|a| matches!(a, Action::Train(i) | Action::Keiko(i) if *i as usize == idx))
+diff --git a/crates/matsuri-core/src/game/mod.rs b/crates/matsuri-core/src/game/mod.rs
+index 9176dbb..5831ff3 100644
+--- a/crates/matsuri-core/src/game/mod.rs
++++ b/crates/matsuri-core/src/game/mod.rs
+@@ -1194,6 +1268,28 @@ impl MatsuriGame {
+     /// 阈值取表里的 `condition_value`（Lv1 45 … Lv9 5，Lv10 = 0 = 无条件）。
+     /// 训练侧按「该演目的担当参与了该训练位」判定（memo §4.3）；
+     /// 排练侧按该演目自己（`keiko_act`）。
++    /// #96：该演目当前的教诲在给定体力下是否把训练／稽古失败率清零。
++    ///
++    /// 一手依据（`docs/PT缺口逐源_20261106.md` §17.2/§19.2）：带 801（`effect_type=18`，
++    /// 全数据里只有 801 有这条）的稽古手，盘面 `failure_rate` 一律报 0；
++    /// 901 的 `205` 是「体力 ≥ 阈值 ⇒ 失败率 −100%」。
++    pub fn act_fail_immune_at(&self, act: usize, vital: i32) -> bool {
++        if act >= 5 {
++            return false;
++        }
++        self.slot_advice_rows(act).iter().any(|row| {
++            row.effect_type == 18
++                || (row.effect_type == 205
++                    && row.condition_type == 2
++                    && vital >= row.condition_value)
++        })
++    }
++
++    /// 同上，取当前体力
++    pub fn act_fail_immune(&self, act: usize) -> bool {
++        self.act_fail_immune_at(act, self.uma().vital)
++    }
++
+     fn advice_fail_drop(&self, slot: usize, vital: i32, keiko_act: Option<usize>) -> f64 {
+         let mut drop = 0.0f64;
+         for act in 0..5 {
