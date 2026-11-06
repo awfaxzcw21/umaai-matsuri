@@ -137,6 +137,9 @@ def rows(per, want_realized=True):
                     "sub_partners": h.get("sub") or [],
                     "n_shining": sum(1 for p in partners if (evmap.get(p) or 0) >= 80),
                     "eval_vals": [evmap.get(p) for p in partners],
+                    # 该轴「当前值／上限」：判分母（收益显示值）有没有被 1200 软上限砍掉用
+                    "axis_val": (P["five"][ai] if ai < len(P["five"]) else None),
+                    "axis_cap": (P["caps"][ai] if ai < len(P["caps"]) else None),
                     "tt30": k["tt"].get("30"), "tt_home_30": h.get("tt", {}).get("30"),
                     "tt_axis": k["tt"].get(str(ai + 1)),
                     "tt_all_festa": k["tt"],
