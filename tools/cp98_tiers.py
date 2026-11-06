@@ -83,7 +83,13 @@ def main():
         x, y = A[s], B[s]
         if x["cp_log"] != y["cp_log"] or (x["five_sum"], x["stat_score"], x["pt"]) != (y["five_sum"], y["stat_score"], y["pt"]):
             bad.append(s)
-    if not inert:
+    pols = {A[s].get("policy") for s in common}
+    if pols == {"base"}:
+        inert = []  # 基策档两臂的差异本来就在策略里，这条自检只适用面板档
+    if not inert and pols == {"base"}:
+        print(f"[CRN 自检] 基策档（MC_POLICY=base）不适用这条自检：两臂差的就是策略本身，"
+              "同批初始局由「同 MC_SEED 散列 + 同 exe」保证")
+    elif not inert:
         print(f"[CRN 自检] A 臂兜底没改写任何一手的局 0/{len(common)} 个 ⇒ **这项自检空转**，"
               "没有『两臂应逐字相同』的样本；两臂同批初始局只能靠"
               "tools/cp98_instrument.py 的同种子重跑确定性来证")
