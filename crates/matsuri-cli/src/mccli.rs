@@ -295,7 +295,20 @@ fn run() -> Result<()> {
                 .and_then(|x| x.as_f64())
                 .unwrap_or(0.0);
             val += pt * 2.46 + vital * 0.35 - fail * 0.8;
-            live.push((format!("训练 {name}"), val));
+            // #76：稽古候选过去也被写成「训练 X」，顶栏把稽古当训练报且与同轴训练重名；只改标签不动数值。
+            let keiko = c
+                .get("is_keiko")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(false)
+                || c
+                    .get("command_id")
+                    .and_then(|x| x.as_i64())
+                    .is_some_and(|id| (5101..=5105).contains(&id));
+            let idx = NAMES5.iter().position(|n| *n == name).unwrap_or(0) as u8;
+            live.push((
+                label_of(&if keiko { Action::Keiko(idx) } else { Action::Train(idx) }),
+                val,
+            ));
         }
         live.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     }
